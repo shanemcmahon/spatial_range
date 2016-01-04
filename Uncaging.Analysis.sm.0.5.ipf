@@ -213,7 +213,7 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 		findlevel /Q/EDGE=2 /R= (v_levelx,) $tracepower, (0.5*wavemax($tracepower))
 		InsertPoints numpnts (uncgpntData), 1, uncgpntData
 		uncgpntData[numpnts(uncgpntData)] = uncgpnt
-		K0 = mean($traceunc,(uncgpnt - offsetrange),uncgpnt);		K1 = mean($traceunc,(uncgpnt + peak_loc),(uncgpnt + peak_loc * peakrange)) - k0;K2 = td;
+		K0 = mean($traceunc,(uncgpnt - offsetrange),uncgpnt);		K1 = mean($traceunc,(uncgpnt + peak_loc),(uncgpnt + peak_loc + peakrange)) - k0;K2 = td;
 		CurveFit/N/Q/NTHR=0 exp_XOffset $traceunc(uncgpnt + peak_loc,(uncgpnt + peak_loc + fitrange)) /D
 		// if estimated decay from single exponential is very large, some numerical instability may result
 		// typical decay times are on the order of ms, if the estimated decay is >0.5, then replace by the arbitrary cutoff value .02 to improve stability
