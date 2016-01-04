@@ -7,18 +7,14 @@ Function PopupChoice ()
 
 	String tracename
 	Variable Choose = 4
-	Variable/G returnvar
 	Prompt traceName,"Trace",popup,TraceNameList("",";",1)
 	Prompt Choose, "Is this fit good?", popup, "No: Do a Refit; No response: Save zero; Too noisy, save NaN; Yes: Save fit"
 	DoPrompt "Goodness of Fit", Choose
-	//why all of the if then logic? It makes the code longer, more difficult to read and maintain. Instead, I would use:
-	// return Choose
-
 	return choose
 End
 
-function insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, Refwave, commentwav, uncgpnt, w_sigma)
-	wave w_coef, amplitudeData, t0data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, Refwave, commentwav, w_sigma
+function insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
+	wave w_coef, amplitudeData, t0data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, w_sigma
 	variable uncgpnt
 
 	InsertPoints numpnts(amplitudeData), 1, amplitudeData
@@ -61,7 +57,6 @@ function do_fit(traceunc, fitrange, w_coef, tracecopy, fitwave)
 	string traceunc, tracecopy, fitwave
 	variable fitrange
 	variable/G uncgpnt
-	// Variable/G V_FitError
 	variable v_abortcode = 0
 	Duplicate/O/R=((uncgpnt-(0.5*fitrange)),(uncgpnt+(2*fitrange))) $traceunc, $tracecopy
 	try
@@ -86,21 +81,15 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 	// Prompt uncageinterval, "Interval between uncaging points (s)"
 	Prompt fitrange, "Fitting range (s)"
 
-	String/G tracepower, new, newname		//Corresponding power trace saved by PrairieView as _2, while recording as _1
+	String/G tracepower, new		//Corresponding power trace saved by PrairieView as _2, while recording as _1
 	new = RemoveEnding(traceunc)
 	tracepower = new + "2"
-	Variable returnchoice
 	Variable i=0
 	Variable Td = 0.004							//Tau decay estimate
 	Variable Tr = 0.002						//Tau rise estimate
-	Variable peak_loc = .01
+	Variable peak_loc = .007
 	Variable offsetrange = 0.01					//10ms averaged for offset of trace
-	Variable peakrange = 0.001				//1ms averaged for offset of peak
-	Variable mini, maxi							//x point range for getting initial valuation of peak position
-	Variable offsetpt1, offsetpt2				//Specified later: is the x value range for trace offset
-	Variable minpeak, maxpeak					//Peak evaluation range for getting amplitude
-	Variable/G amplit						//Variable to store amplitudes into wave
-	Variable/G offsetfunction					//w[4] for offsetting trace in DiffTwoExp function
+	Variable peakrange = 0.002				//1ms averaged for offset of peak
 	Variable/G uncgpnt						//uncaging point and it's end
 	Variable maximum							//maximum of each uncaging power pulse from trace
 	Variable/G betterreturn
@@ -108,8 +97,6 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 	Variable/G Threshold
 	Variable/G V_FitError					//If there's a problem e.g. Singular Matrix Error, then saves specifies action (save NaN)
 	Variable/G cursorA, cursorB
-	Variable W_med
-	variable w_mad
 	Make/O/D W_coef = NaN					//For holding DiffTwoExp coefficients
 	Make/O/D W_sigma = NaN					//For holding DiffTwoExp coefficients
 	variable v_levelx = 0
@@ -213,7 +200,7 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 		findlevel /Q/EDGE=2 /R= (v_levelx,) $tracepower, (0.5*wavemax($tracepower))
 		InsertPoints numpnts (uncgpntData), 1, uncgpntData
 		uncgpntData[numpnts(uncgpntData)] = uncgpnt
-		K0 = mean($traceunc,(uncgpnt - offsetrange),uncgpnt);		K1 = mean($traceunc,(uncgpnt + peak_loc),(uncgpnt + peak_loc + peakrange)) - k0;K2 = td;
+		// K0 = mean($traceunc,(uncgpnt - offsetrange),uncgpnt);		K1 = mean($traceunc,(uncgpnt + peak_loc),(uncgpnt + peak_loc + peakrange)) - k0;K2 = td;
 		CurveFit/N/Q/NTHR=0 exp_XOffset $traceunc(uncgpnt + peak_loc,(uncgpnt + peak_loc + fitrange)) /D
 		// if estimated decay from single exponential is very large, some numerical instability may result
 		// typical decay times are on the order of ms, if the estimated decay is >0.5, then replace by the arbitrary cutoff value .02 to improve stability
@@ -226,10 +213,11 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 			W_coef[2] = 0.02
 		endif
 		if(v_fiterror)
+		// if the exponential fit causes an error, then use a generic estimate for initial parameters
 			v_fiterror = 0
-			W_coef = {-1E-12,-1E-12,.04}
+			W_coef = {mean($traceunc,(uncgpnt - offsetrange),uncgpnt),-1E-12,.04}
 		endif
-		W_coef = {(W_coef[1]), uncgpnt, W_coef[2], tr, W_coef[0]}; duplicate /o w_coef coef0
+		W_coef = {(W_coef[1]), uncgpnt, W_coef[2], tr, W_coef[0]}
 
 
 		//-------------------------------------Name graphs and Display
@@ -239,28 +227,23 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 		Display/N=Checking $traceunc;
 		SetAxis/W=Checking left (wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))-y_range), wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)));
 		SetAxis bottom (uncgpnt-0.01),(uncgpnt+(2*fitrange))
-		// do_fit(traceunc, fitrange, w_coef)
 		do_fit(traceunc, fitrange, w_coef, tracecopy, fitwave)
-
-		// if ( V_FitError)
-		// W_coef = NaN
-		// endif
 
 		//---------------------------------------------Start of if-loop popup menu: whether to save data=good fits or NaN=bad fits
 		//---------------------------------------------
 		fit_action = PopupChoice ()
 		if (fit_action == 4)	//yes good fit
-			insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, Refwave, commentwav, uncgpnt, w_sigma)
+			insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
 		endif
 		if (fit_action == 2)		//Nothing there: save as zero for no response
 			w_coef = 0
 			w_sigma = NaN
-			insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, Refwave, commentwav, uncgpnt, w_sigma)
+			insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
 		endif
 		if (fit_action == 3)		//Nothing there: noise! Save NaN
 			w_coef = NaN
 			w_sigma = NaN
-			insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, Refwave, commentwav, uncgpnt, w_sigma)
+			insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
 		endif
 		if(fit_action == 1)
 			//No, not good fit. Get fit points from cursors
@@ -293,14 +276,11 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 
 			DoWindow/K Checking
 
-			// V_FitError = 0
-			// Duplicate/O /R=(cursorA, cursorB) $traceunc, fit
+
 			FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  $traceunc(cursorA, cursorB) /D
 			Duplicate/O fit_wave1 fit
 
-			// if ( V_FitError)
-			// W_coef = NaN
-			// endif
+
 			//---------------------------------------------Display and check if good fit
 			String/G fitwave = nameofwave($traceunc) + "_u" + num2str(i+1)
 			String/G tracecopy = nameofwave($traceunc) + "_P" + num2str(i+1)
@@ -313,11 +293,11 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 			betterreturn = Refit()
 
 			if (betterreturn ==  1)
-				insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, Refwave, commentwav, uncgpnt, w_sigma)
+				insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
 			else if (betterreturn == 2)//-------------------------------------If fit not good, saves in waves as NaN
 				w_coef = NaN
 				w_sigma = NaN
-				insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, Refwave, commentwav, uncgpnt, w_sigma)
+				insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
 			endif
 		endif
 
