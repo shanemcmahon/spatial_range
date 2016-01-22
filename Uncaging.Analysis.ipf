@@ -17,6 +17,9 @@ function insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseDa
 	wave w_coef, amplitudeData, t0data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, w_sigma
 	variable uncgpnt
 
+	// InsertPoints numpnts($stringfromlist(i,wave_data_list)), 1, $stringfromlist(i,wave_data_list)
+	// $stringfromlist(i,wave_data_list)[numpnts($stringfromlist(i,wave_data_list))-1] = w_coef[i]
+	// string /g wave_data_list =  "AmplitudeData;T0Data;TauDecayData;TauRiseData;OffsetData;uncgpntData;TimeDiffUncgpnt_Response;Amplitude_SD"
 	InsertPoints numpnts(amplitudeData), 1, amplitudeData
 	amplitudeData[numpnts(amplitudeData)-1] = W_coef[0]
 
@@ -74,16 +77,32 @@ function do_fit(traceunc, fitrange, w_coef, tracecopy, fitwave)
 
 end
 
-Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
-	String traceunc
-	Variable uncageinterval=1, fitrange=0.04
-	Prompt traceunc, "Response Trace", popup, WaveList("*", ";", "")
-	// Prompt uncageinterval, "Interval between uncaging points (s)"
-	Prompt fitrange, "Fitting range (s)"
+function do_fit2(traceunc, xmin, xmax, w_coef)
+	wave w_coef
+	string traceunc
+	variable xmin, xmax
+	variable v_abortcode = 0
+	try
+		//		Display/N=Checking $traceunc;
+		//SetAxis bottom (uncgpnt-0.01),(uncgpnt+(2*fitrange))
+		FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  $traceunc(xmin,xmax) /D
+		//		AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
+		//		ModifyGraph rgb($("fit_"+traceunc))=(0,0,0)
+		//		abort("1")
+	catch
+		W_coef = NaN
+		Duplicate/O/R=(xmin,xmax) $traceunc, $("fit_"+traceunc)
+	endtry
 
-	String/G tracepower, new		//Corresponding power trace saved by PrairieView as _2, while recording as _1
-	new = RemoveEnding(traceunc)
-	tracepower = new + "2"
+end
+
+Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
+	String traceunc = "ach_1"
+	Variable uncageinterval=1, fitrange=0.04
+	// Prompt traceunc, "Response Trace", popup, WaveList("*", ";", "")
+	// Prompt uncageinterval, "Interval between uncaging points (s)"
+	// Prompt fitrange, "Fitting range (s)"
+	String/G tracepower = "ach_3"
 	Variable i=0
 	Variable Td = 0.004							//Tau decay estimate
 	Variable Tr = 0.002						//Tau rise estimate
@@ -104,103 +123,70 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 	variable last_uncage_time = 0
 	variable t_max_response
 	variable fit_action
+	string /g wave_data_list =  "AmplitudeData;T0Data;TauDecayData;TauRiseData;uncgpntData;TimeDiffUncgpnt_Response;OffsetData;Amplitude_SD"
+	variable n_data_waves = itemsinlist(wave_data_list)
 
-	//---------------------------------------------First check / create all waves
-
-	if (!WaveExists(root:Refwave))
-		Make/O/T/N=0 Refwave
-	endif
-
-
-	if (!WaveExists(root:amplitudedata))
-		Make/O/N=0 AmplitudeData
-	endif
-
-
-	if (!WaveExists(root:T0Data))
-		Make/O/N=0 T0Data
-	endif
+	i=0
+	do // do1
+		if (!waveexists($stringfromlist(i,wave_data_list)))
+			Make/O/N=0 $stringfromlist(i,wave_data_list)
+		endif
+		i = i + 1
+	while(i < n_data_waves) //do1
 
 
-	if (!WaveExists(root:TauDecayData))
-		Make/O/N=0 TauDecayData
-	endif
-
-
-	if (!WaveExists(root:TauRiseData))
-		Make/O/N=0 TauRiseData
-	endif
-
-
-	if (!WaveExists(root:uncgpntData))
-		Make/O/N=0 uncgpntData
-	endif
-
-
-	if (!WaveExists(root:TimeDiffUncgpnt_Response))
-		Make/O/N=0 TimeDiffUncgpnt_Response
-	endif
-
-
-	if ( !WaveExists(root:OffsetData))		//this is y0
-		Make/O/N=0 OffsetData
-	endif
-
-
-	if ( !WaveExists(root:Amplitude_SD))
-		Make/O/N=0 Amplitude_SD
-	endif
-
-
-	if ( !WaveExists(root:commentwav))
-		Make/O/T/N=0 commentwav
-	endif
 
 	//--------------------------------Start loop
 	// Initial loop through the data to find an appropriate y-range for displaying plots
 	i = 0
 	Duplicate/O $traceunc, smoothed
 	Smooth/B=3 1, smoothed
-	findlevel /Q /EDGE=1 /R= (v_levelx,) $tracepower, (0.8*wavemax($tracepower))
-	findlevel /Q/EDGE=2 /R= (v_levelx,) $tracepower, (0.5*wavemax($tracepower))
-	findlevel /Q/EDGE=1 /R= (v_levelx,) $tracepower, (0.8*wavemax($tracepower))
+	//use find level to find uncaging pulses in tracepower
+	// set threshold value to look for peaks so that findlevel does not find false peaks in the noise
+	threshold = 0.8*wavemax($tracepower)
+	findlevel /Q /EDGE=1 /R= (v_levelx,) $tracepower, threshold
+	findlevel /Q/EDGE=2 /R= (v_levelx,) $tracepower, threshold
+	findlevel /Q/EDGE=1 /R= (v_levelx,) $tracepower, threshold
 	last_uncage_time = v_levelx
+	// v_levelx is now set to the rising phase of the second uncaging event
+	// the interval (0,v_levelx) contains the first response
 	y_range = wavemax(smoothed,0,v_levelx)-wavemin(smoothed,0,v_levelx)
-	do
-		findlevel /Q/EDGE=2 /R= (v_levelx,) $tracepower, (0.5*wavemax($tracepower))
-		threshold = 0.8*maximum
-		maximum = WaveMax($tracepower, v_levelx, +inf)
-		if (i >= 1)
-			if	(maximum < threshold)
-				break
-			endif
-		endif
 
-		findlevel /Q/EDGE=1 /R= (v_levelx,) $tracepower, (0.8*wavemax($tracepower))
+	do //do2
+		// find the next falling phase followed bz the next rising phase
+		findlevel /Q/EDGE=2 /R= (v_levelx,) $tracepower, threshold
+		findlevel /Q/EDGE=1 /R= (v_levelx,) $tracepower, (threshold)
+		// the interval (last_uncage_time,v_levelx) now contains the i+1th uncaging response
+		// set y_range to the larger of the previous y_range or the difference between the max/min during the current uncaging event time window
 		y_range = max(y_range,wavemax(smoothed,last_uncage_time,v_levelx)-wavemin(smoothed,last_uncage_time,v_levelx))
+		// when the last uncaging pulse has passed, findlevel will fail to find a rising edge on the inverval (v_levelx,inf)
+		// at this point, findlevel returns NaN which signals that the last uncaging event has been processed
+		// NaN==NaN evaluates to logically false, therefore, NaN is detected by Igor's built in numtype function, which returns 0 for a numeric value, 1 for inf or 2 for NaN, therefore numtype(v_levelx) evaluates to logically true when v_levelx == NaN
+		if(numtype(v_levelx))
+			break
+		endif
 		last_uncage_time = v_levelx
 		i = i + 1
-	while(1)
-
+	while(1)//do2
 	i = 0; v_levelx = 0
-	do
+	do //do3
 		V_FitError = 0;
-		threshold = 0.8*maximum
-		maximum = WaveMax($tracepower, v_levelx, +inf)
-		if (i >= 1)
-			if	(maximum < threshold)
-				break
-			endif
+
+		// find uncaging event from pockels cell signal
+		findlevel /Q/EDGE=1 /R= (v_levelx,) $tracepower, threshold
+		// when the last uncaging pulse has passed, findlevel will fail to find a rising edge on the inverval (v_levelx,inf)
+		// at this point, findlevel returns NaN which signals that the last uncaging event has been processed
+		// NaN==NaN evaluates to logically false, therefore, NaN is detected by Igor's built in numtype function, which returns 0 for a numeric value, 1 for inf or 2 for NaN, therefore numtype(v_levelx) evaluates to logically true when v_levelx == NaN
+
+		if(numtype(v_levelx))
+			break
 		endif
-
-
-
-		findlevel /Q/EDGE=1 /R= (v_levelx,) $tracepower, (0.8*wavemax($tracepower))
 		uncgpnt = v_levelx
-		findlevel /Q/EDGE=2 /R= (v_levelx,) $tracepower, (0.5*wavemax($tracepower))
+		findlevel /Q/EDGE=2 /R= (v_levelx,) $tracepower, threshold
 		InsertPoints numpnts (uncgpntData), 1, uncgpntData
 		uncgpntData[numpnts(uncgpntData)] = uncgpnt
-		// K0 = mean($traceunc,(uncgpnt - offsetrange),uncgpnt);		K1 = mean($traceunc,(uncgpnt + peak_loc),(uncgpnt + peak_loc + peakrange)) - k0;K2 = td;
+
+		// obtain initial estimates for amplitude, y0, and decay period from a fit to a single exponential
 		CurveFit/N/Q/NTHR=0 exp_XOffset $traceunc(uncgpnt + peak_loc,(uncgpnt + peak_loc + fitrange)) /D
 		// if estimated decay from single exponential is very large, some numerical instability may result
 		// typical decay times are on the order of ms, if the estimated decay is >0.5, then replace by the arbitrary cutoff value .02 to improve stability
@@ -213,7 +199,7 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 			W_coef[2] = 0.02
 		endif
 		if(v_fiterror)
-		// if the exponential fit causes an error, then use a generic estimate for initial parameters
+			// if the exponential fit causes an error, then use a generic estimate for initial parameters
 			v_fiterror = 0
 			W_coef = {mean($traceunc,(uncgpnt - offsetrange),uncgpnt),-1E-12,.04}
 		endif
@@ -227,31 +213,37 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 		Display/N=Checking $traceunc;
 		SetAxis/W=Checking left (wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))-y_range), wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)));
 		SetAxis bottom (uncgpnt-0.01),(uncgpnt+(2*fitrange))
-		do_fit(traceunc, fitrange, w_coef, tracecopy, fitwave)
+		// fit difference in exponential function
+		// do_fit(traceunc, fitrange, w_coef, tracecopy, fitwave)
+		// do_fit2(traceunc, xmin, xmax, w_coef)
+		do_fit2(traceunc, (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
+		AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
 
 		//---------------------------------------------Start of if-loop popup menu: whether to save data=good fits or NaN=bad fits
 		//---------------------------------------------
 		fit_action = PopupChoice ()
-		if (fit_action == 4)	//yes good fit
-			insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
-		endif
+		// if fit_action == 4, then the fit is good and coefficients are saved, otherwise fit is bad, we save, 0, NaN or do a refit
 		if (fit_action == 2)		//Nothing there: save as zero for no response
 			w_coef = 0
 			w_sigma = NaN
-			insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
 		endif
 		if (fit_action == 3)		//Nothing there: noise! Save NaN
 			w_coef = NaN
 			w_sigma = NaN
+		endif
+		if(fit_action != 1)
 			insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
 		endif
 		if(fit_action == 1)
 			//No, not good fit. Get fit points from cursors
 			DoWindow/K Checking
 			Duplicate/O/R=((uncgpnt-(0.5*fitrange)),(uncgpnt+(2*fitrange))) $traceunc, $tracecopy
-			Duplicate/O/R=(uncgpnt,(uncgpnt+fitrange)) fit_wave1, $fitwave
+			// Duplicate/O/R=(uncgpnt,(uncgpnt+fitrange)) fit_wave1, $fitwave
 			loess /N=13 /ord=2 /dest=$tracecopy srcwave=$tracecopy
-			Display/N=Checking $tracecopy;	AppendToGraph /C = (0,0,0)$fitwave;	SetAxis/W=Checking left (wavemax($tracecopy)-y_range), (wavemax($tracecopy))
+			Display/N=Checking $tracecopy;
+			// AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
+			// AppendToGraph /C = (0,0,0)$fitwave;
+			SetAxis/W=Checking left (wavemax($tracecopy)-y_range), (wavemax($tracecopy))
 			NewPanel/K=2 as "Pause for cursor";	DoWindow/C tmp_PauseforCursor; AutoPositionWindow/M=1/R=Checking
 			DrawText 21,20,"Adjust cursor A to estimate y0 and then";	DrawText 21,40,"Click Continue."
 			Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserCursorAdjust_ContButtonProc
@@ -276,35 +268,31 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 
 			DoWindow/K Checking
 
-
-			FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  $traceunc(cursorA, cursorB) /D
-			Duplicate/O fit_wave1 fit
-
-
 			//---------------------------------------------Display and check if good fit
 			String/G fitwave = nameofwave($traceunc) + "_u" + num2str(i+1)
 			String/G tracecopy = nameofwave($traceunc) + "_P" + num2str(i+1)
-			Duplicate/O/R=(cursorA, cursorB) fit, $fitwave
-			Duplicate/O/R=((uncgpnt-(0.5*fitrange)),(uncgpnt+(2*fitrange))) $traceunc, $tracecopy
 
-			Display/N=Checking $tracecopy;	AppendToGraph /C = (0,0,0)$fitwave
-			SetAxis/W=Checking left (wavemax($tracecopy)-y_range), (wavemax($tracecopy)); SetAxis/W=Checking bottom (uncgpnt-(0.5*fitrange)),(uncgpnt+(2*fitrange))
+			Display/N=Checking $tracecopy;
 
+			SetAxis/W=Checking left (wavemax($traceunc,cursorA,cursorB)-y_range), wavemax($traceunc,cursorA,CursorB);
+			SetAxis bottom CursorA,CursorB
+			do_fit2(traceunc, CursorA, CursorB, w_coef)
+			AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
 			betterreturn = Refit()
 
-			if (betterreturn ==  1)
-				insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
-			else if (betterreturn == 2)//-------------------------------------If fit not good, saves in waves as NaN
+
+
+			if (betterreturn == 2)//-------------------------------------If fit not good, saves in waves as NaN
 				w_coef = NaN
 				w_sigma = NaN
-				insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
 			endif
-		endif
+			insert_fit_coefs(w_coef, amplitudeData, T0Data, TauDecayData, TauRiseData, OffsetData, TimeDiffUncgpnt_Response, Amplitude_SD, uncgpnt, w_sigma)
+		endif //end if fit_action == 1
 
 		DoWindow/K Checking
 		i += 1
-	while(1)
-	 Save/T AmplitudeData, T0Data, TauDecayData, TauRiseData, TimeDiffUncgpnt_Response, OffsetData, Amplitude_SD as replacestring(".itx", S_fileName, "_out.itx")
+	while(1) //do3
+	Save/T AmplitudeData, T0Data, TauDecayData, TauRiseData, TimeDiffUncgpnt_Response, OffsetData, Amplitude_SD as replacestring(".itx", S_fileName, "_out.itx")
 	// KillWaves W_coef, smoothed, fit
 	// KillVariables/A;	KillStrings/A;	KillWaves /A
 EndMacro
