@@ -123,6 +123,10 @@ do //do1
   last_power = read_power_from_prm(prm_file_name)
 	this_response = abs(w_coef[0])
 	print this_response
+
+
+	// calculate power for next uncaging and update protocol
+	// should be moved to dedicated function
 	if(this_response > 1.2*target_response)
 		max_power = last_power
 		read_write_prm(((max_power+min_power)/2),prm_file_name,protocol_dir+"sm.updated.protocol.prm")
@@ -135,6 +139,8 @@ do //do1
 			read_write_prm(last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.updated.protocol.prm")
       break
 	endif
+
+
 	//		KillVariables/A;	KillStrings/A;	KillWaves /A
   temp_var = continue_prompt()
   if(temp_var == 2)
