@@ -40,16 +40,17 @@ function do_fit(traceunc, xmin, xmax, w_coef)
 end
 
 macro UncagingAnalysis()
-	string response_data_file_name, response_number_string, new_response_number_string, new_response_data_file_name
+	string/g response_data_file_name, response_number_string, new_response_number_string, new_response_data_file_name
 	variable response_number, new_response_number
 	String traceunc = "ach_1"
-  string protocol_dir = s_path
+ 	string /G protocol_dir = s_path
+// string /G protocol_dir = "C:Documents and Settings:shane:My Documents:"
 	String tracepower
 	tracepower = "ach_3"
 	Variable i=0, Td = 0.004, Tr = 0.002, V_FitMaxIters = 100, v_levelx = 0,  fit_action, fitrange=0.04, this_response
-	variable max_power_0=10, min_power_0=0, target_response = 100
+	variable max_power_0=10, min_power_0=0, target_response = 0.05
 	Variable uncgpnt, V_FitError, last_power
-	variable max_power, min_power
+	variable /g max_power, min_power, next_power
 	Make/O/D W_coef = NaN					//For holding DiffTwoExp coefficients
   string prm_file_name
   variable temp_var
@@ -127,31 +128,107 @@ do //do1
 
 	// calculate power for next uncaging and update protocol
 	// should be moved to dedicated function
-	if(this_response > 1.2*target_response)
-		max_power = last_power
-		read_write_prm(((max_power+min_power)/2),prm_file_name,protocol_dir+"sm.updated.protocol.prm")
-	endif
-	if(this_response < 0.8*target_response)
-		min_power = last_power
-    read_write_prm(((max_power+min_power)/2),prm_file_name,protocol_dir+"sm.updated.protocol.prm")
-	endif
-	if(abs(this_response-target_response)<=0.2*target_response)
-			read_write_prm(last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.updated.protocol.prm")
-      break
-	endif
+	// if(this_response > 1.2*target_response)
+	// 	max_power = last_power
+	// 	next_power = ((max_power+min_power)/2)
+	// 	read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
+	// endif
+	// if(this_response < 0.8*target_response)
+	// 	min_power = last_power
+	// 	next_power = ((max_power+min_power)/2)
+  //   read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
+	// endif
+	// if(abs(this_response-target_response)<=0.2*target_response)
+	// next_power = last_power
+	// 		read_write_prm(last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.updated.protocol.prm")
+  //     break
+	// endif
 
+	if(next_power_fit(this_response, target_response, last_power))
+		read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.updated.protocol.prm")
+		break
+	endif
+	print next_power
+	read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
 
-	//		KillVariables/A;	KillStrings/A;	KillWaves /A
   temp_var = continue_prompt()
   if(temp_var == 2)
-  read_write_prm(last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.updated.protocol.prm")
+  read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.updated.protocol.prm")
     break
   endif
 	killwaves ach_1, ach_3
 while(1)//do1
-killwaves ach_1, ach_3, w_coef, temp, fit_ach_1, uncage_power_wave, w_sigma, w_fitconstants
+		KillVariables/A;	KillStrings/A;	KillWaves /z/A
 Endmacro
 
+
+macro fit_power()
+DeletePoints (numpnts(ACH_3)-1),1, ACH_3
+DeletePoints (numpnts(ACH_4)-1),1, ACH_4
+
+CurveFit/M=2/W=0 poly 3, ACH_4/X=ACH_3/D
+
+duplicate fit_ach_4 ach_4_x
+ach_4_x = x
+display fit_ach_4 vs ach_4_x
+		KillVariables/A;	KillStrings/A;	KillWaves /z/A
+endmacro
+
+
+
+function next_power_bs(this_response, target_response, last_power)
+variable this_response, target_response, last_power
+wave ach_4_x, fit_ach_4
+variable /g max_power, min_power, next_power
+if(this_response > 1.2*target_response)
+	max_power = last_power
+	next_power = ((max_power+min_power)/2)
+	return 0
+	// read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
+endif
+if(this_response < 0.5 * target_response)
+	next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
+	next_power = interp(next_power, fit_ach_4,  ach_4_x)
+	max_power = max(max_power, 1.1*next_power)
+
+	return 0
+	// read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
+endif
+
+if(this_response < 0.8*target_response)
+	min_power = last_power
+	next_power = ((max_power+min_power)/2)
+	return 0
+	// read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
+endif
+if(abs(this_response-target_response)<=0.2*target_response)
+next_power = last_power
+return 1
+		// read_write_prm(last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.updated.protocol.prm")
+		// break
+endif
+end
+
+function next_power_fit(this_response, target_response, last_power)
+variable this_response, target_response, last_power
+wave ach_4_x, fit_ach_4
+variable /g max_power, min_power, next_power
+
+if(this_response < 0.5 * target_response)
+	next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
+	next_power = interp(next_power, fit_ach_4,  ach_4_x)
+	max_power = max(max_power, 1.1*next_power)
+
+	return 0
+endif
+
+if(abs(this_response-target_response)<=0.2*target_response)
+next_power = last_power
+return 1
+endif
+next_power = (((interp(last_power, ach_4_x, fit_ach_4))^2*target_response)/this_response)^0.5
+	next_power = interp(next_power, fit_ach_4,  ach_4_x)
+end
 
 Function DiffTwoExp2(w,t) : FitFunc
 	Wave w
