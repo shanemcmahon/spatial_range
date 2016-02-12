@@ -61,7 +61,7 @@ macro Optimize_Power()
 	Make/O/D W_coef = NaN					//For holding DiffTwoExp coefficients
   string prm_file_name
   variable temp_var
-  string path_list =   (s_path+";C:Documents and Settings:shane:My Documents:")
+  string path_list =   ("C:Documents and Settings:shane:My Documents:;"+s_path)
 	temp_var = protocol_dir_popup(path_list)
 
 	protocol_dir = stringfromlist((temp_var-1), path_list)
