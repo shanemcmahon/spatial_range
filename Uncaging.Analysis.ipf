@@ -123,6 +123,8 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 	variable last_uncage_time = 0
 	variable t_max_response
 	variable fit_action
+	variable y_min
+	variable y_max
 	string /g wave_data_list =  "AmplitudeData;T0Data;TauDecayData;TauRiseData;uncgpntData;TimeDiffUncgpnt_Response;OffsetData;Amplitude_SD"
 	variable n_data_waves = itemsinlist(wave_data_list)
 
@@ -211,9 +213,12 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 		String/G fitwave = nameofwave($traceunc) + "_u" + num2str(i+1)
 		String/G tracecopy = nameofwave($traceunc) + "_P" + num2str(i+1)
 		Display/N=Checking $traceunc;
-		SetAxis/W=Checking left (wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))-y_range), wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)));
+		y_min = (wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))-y_range)
+		y_max = wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))
+		SetAxis/W=Checking left y_min, y_max;
 		SetAxis bottom (uncgpnt-0.01),(uncgpnt+(2*fitrange))
-		// fit difference in exponential function
+		SetDrawEnv xcoord= bottom,ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+		DrawLine uncgpnt,y_min,uncgpnt,y_max		// fit difference in exponential function
 		// do_fit(traceunc, fitrange, w_coef, tracecopy, fitwave)
 		// do_fit2(traceunc, xmin, xmax, w_coef)
 		do_fit2(traceunc, (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
