@@ -142,7 +142,7 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 	// Initial loop through the data to find an appropriate y-range for displaying plots
 	i = 0
 	Duplicate/O $traceunc, smoothed
-	Smooth/B=3 1, smoothed
+	Smooth/B=7 1, smoothed
 	//use find level to find uncaging pulses in tracepower
 	// set threshold value to look for peaks so that findlevel does not find false peaks in the noise
 	threshold = 0.8*wavemax($tracepower)
@@ -152,15 +152,16 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 	last_uncage_time = v_levelx
 	// v_levelx is now set to the rising phase of the second uncaging event
 	// the interval (0,v_levelx) contains the first response
-	y_range = wavemax(smoothed,0,v_levelx)-wavemin(smoothed,0,v_levelx)
-
+	// y_range = wavemax(smoothed,0,v_levelx)-wavemin(smoothed,0,v_levelx)
+	y_range = wavemax(smoothed,(last_uncage_time-0.5*fitrange),(last_uncage_time+fitrange))-wavemin(smoothed,(last_uncage_time-0.5*fitrange),(last_uncage_time+fitrange))
 	do //do2
 		// find the next falling phase followed bz the next rising phase
 		findlevel /Q/EDGE=2 /R= (v_levelx,) $tracepower, threshold
 		findlevel /Q/EDGE=1 /R= (v_levelx,) $tracepower, (threshold)
 		// the interval (last_uncage_time,v_levelx) now contains the i+1th uncaging response
 		// set y_range to the larger of the previous y_range or the difference between the max/min during the current uncaging event time window
-		y_range = max(y_range,wavemax(smoothed,last_uncage_time,v_levelx)-wavemin(smoothed,last_uncage_time,v_levelx))
+		// y_range = max(y_range,wavemax(smoothed,last_uncage_time,v_levelx)-wavemin(smoothed,last_uncage_time,v_levelx))
+		y_range = max(y_range,(wavemax(smoothed,(last_uncage_time-0.5*fitrange),(last_uncage_time+fitrange))-wavemin(smoothed,(last_uncage_time-0.5*fitrange),(last_uncage_time+fitrange))))
 		// when the last uncaging pulse has passed, findlevel will fail to find a rising edge on the inverval (v_levelx,inf)
 		// at this point, findlevel returns NaN which signals that the last uncaging event has been processed
 		// NaN==NaN evaluates to logically false, therefore, NaN is detected by Igor's built in numtype function, which returns 0 for a numeric value, 1 for inf or 2 for NaN, therefore numtype(v_levelx) evaluates to logically true when v_levelx == NaN
