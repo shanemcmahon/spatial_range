@@ -14,6 +14,14 @@ Function PopupChoice ()
 	return choose
 End
 
+function protocol_dir_popup(string_list)
+string string_list
+  variable  return_var
+  Prompt return_var, "Protocol directory", popup, string_list
+  doprompt "choose protocol path",return_var
+	return(return_var)
+end
+
 Function continue_prompt()
 	Variable out = 0
 	Prompt out, "Continue?", popup, "Continue; Quit"
@@ -39,12 +47,11 @@ function do_fit(traceunc, xmin, xmax, w_coef)
 
 end
 
-macro UncagingAnalysis()
+macro Optimize_Power()
 	string/g response_data_file_name, response_number_string, new_response_number_string, new_response_data_file_name
 	variable response_number, new_response_number
 	String traceunc = "ach_1"
- 	string /G protocol_dir = s_path
-// string /G protocol_dir = "C:Documents and Settings:shane:My Documents:"
+ 	string  protocol_dir = s_path
 	String tracepower
 	tracepower = "ach_3"
 	Variable i=0, Td = 0.004, Tr = 0.002, V_FitMaxIters = 100, v_levelx = 0,  fit_action, fitrange=0.04, this_response
@@ -54,6 +61,11 @@ macro UncagingAnalysis()
 	Make/O/D W_coef = NaN					//For holding DiffTwoExp coefficients
   string prm_file_name
   variable temp_var
+  string path_list =   (s_path+";C:Documents and Settings:shane:My Documents:")
+	temp_var = protocol_dir_popup(path_list)
+
+	protocol_dir = stringfromlist((temp_var-1), path_list)
+
 	//---------------------------------------------First check / create all waves
 
 	if ( !WaveExists(root:uncage_power_wave))
@@ -124,25 +136,6 @@ do //do1
   last_power = read_power_from_prm(prm_file_name)
 	this_response = abs(w_coef[0])
 	print this_response
-
-
-	// calculate power for next uncaging and update protocol
-	// should be moved to dedicated function
-	// if(this_response > 1.2*target_response)
-	// 	max_power = last_power
-	// 	next_power = ((max_power+min_power)/2)
-	// 	read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
-	// endif
-	// if(this_response < 0.8*target_response)
-	// 	min_power = last_power
-	// 	next_power = ((max_power+min_power)/2)
-  //   read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
-	// endif
-	// if(abs(this_response-target_response)<=0.2*target_response)
-	// next_power = last_power
-	// 		read_write_prm(last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.updated.protocol.prm")
-  //     break
-	// endif
 
 	if(next_power_fit(this_response, target_response, last_power))
 		read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.updated.protocol.prm")
