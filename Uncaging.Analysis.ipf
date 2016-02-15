@@ -55,29 +55,8 @@ Function UserCursorAdjust_ContButtonProc(ctrlName) : ButtonControl
 	DoWindow/K tmp_PauseforCursor
 End
 
-function do_fit(traceunc, fitrange, w_coef, tracecopy, fitwave)
-	wave w_coef
-	string traceunc, tracecopy, fitwave
-	variable fitrange
-	variable/G uncgpnt
-	variable v_abortcode = 0
-	Duplicate/O/R=((uncgpnt-(0.5*fitrange)),(uncgpnt+(2*fitrange))) $traceunc, $tracecopy
-	try
-		duplicate /O /R=((uncgpnt-fitrange/3),(uncgpnt+fitrange)) $traceunc, fit_wave1
-		fit_wave1 = mean($tracecopy)
-		FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  $traceunc((uncgpnt-fitrange/3),(uncgpnt+fitrange)) /D
-		AppendToGraph /C = (0,0,0) fit_wave1;
-		Duplicate/O/R=(uncgpnt,(uncgpnt+fitrange)) fit_wave1, $fitwave
-		Duplicate/O fit_wave1, $fitwave
-	catch
-		W_coef = NaN
-		Duplicate/O/R=((uncgpnt-fitrange/3),(uncgpnt+fitrange)) $traceunc, $fitwave
-		AppendToGraph /C = (0,0,0) $fitwave;
-	endtry
 
-end
-
-function do_fit2(traceunc, xmin, xmax, w_coef)
+function do_fit(traceunc, xmin, xmax, w_coef)
 	wave w_coef
 	string traceunc
 	variable xmin, xmax
@@ -218,11 +197,10 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 		y_max = wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))
 		SetAxis/W=Checking left y_min, y_max;
 		SetAxis bottom (uncgpnt-0.01),(uncgpnt+(2*fitrange))
-		SetDrawEnv xcoord= bottom,ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-		DrawLine uncgpnt,y_min,uncgpnt,y_max		// fit difference in exponential function
-		// do_fit(traceunc, fitrange, w_coef, tracecopy, fitwave)
-		// do_fit2(traceunc, xmin, xmax, w_coef)
-		do_fit2(traceunc, (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
+		SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
+		DrawLine uncgpnt,0,uncgpnt,1
+    // fit difference in exponential function
+		do_fit(traceunc, (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
 		AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
 
 		//---------------------------------------------Start of if-loop popup menu: whether to save data=good fits or NaN=bad fits
@@ -282,7 +260,7 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 
 			SetAxis/W=Checking left (wavemax($traceunc,cursorA,cursorB)-y_range), wavemax($traceunc,cursorA,CursorB);
 			SetAxis bottom CursorA,CursorB
-			do_fit2(traceunc, CursorA, CursorB, w_coef)
+			do_fit(traceunc, CursorA, CursorB, w_coef)
 			AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
 			betterreturn = Refit()
 
