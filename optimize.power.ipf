@@ -76,6 +76,7 @@ macro Optimize_Power()
   string prm_file_name
   variable temp_var
   string path_list =   ("C:Documents and Settings:shane:My Documents:;"+s_path)
+
   variable converge_indicator
 // min_power_0 = power_0[0]
 // max_power_0 = power_0[1]
@@ -168,7 +169,7 @@ do //do1
 // calculate next uncage power
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
-converge_indicator = next_power_nr(this_response, target_response, last_power)
+converge_indicator = next_power_fit(this_response, target_response, last_power)
 if(interp(next_power, ach_4_x, fit_ach_4) <= 10)
  next_power = interp(10, fit_ach_4, ach_4_x)
 endif
@@ -242,6 +243,7 @@ endif
 	next_power = interp(next_power, fit_ach_4,  ach_4_x)
 	min_power = last_power
   max_power = max(1.41421*next_power,max_power)
+	next_power = max(next_power,((max_power+min_power)/2))
 	return 0
 endif
 
@@ -277,7 +279,11 @@ if(this_response <= 4)
 endif
 next_power = (((interp(last_power, ach_4_x, fit_ach_4))^2*target_response)/this_response)^0.5
 	next_power = interp(next_power, fit_ach_4,  ach_4_x)
-		if(next_power < min_power_0)
+	if(this_response < 0.5 * target_response)
+		next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
+		next_power = interp(next_power, fit_ach_4,  ach_4_x)
+	endif
+	if(next_power < min_power_0)
     next_power = min_power_0
   endif
 	if(next_power > max_power)
@@ -304,7 +310,6 @@ if(this_response <= 4)
 	next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
 	next_power = interp(next_power, fit_ach_4,  ach_4_x)
   min_power = max(min_power,last_power)
-	// max_power = max(max_power,1.41421*next_power)
 make /o/n= 0 response_wave
 make /o/n= 0 power_wave
 	return 0
@@ -325,6 +330,7 @@ next_power = ((target_response - this_response) + (interp(power_wave[(npts-1)], 
 next_power = interp(next_power, fit_ach_4,  ach_4_x)
 if(numtype(next_power))
 next_power = last_power + sign_indicator*0.2
+next_power = last_power + 0.2
 endif
   if(next_power < min_power_0)
     next_power = min_power_0
