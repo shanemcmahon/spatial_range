@@ -19,9 +19,10 @@ string string_list
 variable /g target_response
 variable /g max_power_0, min_power_0
   variable  return_var, temp_var, tmp_max_power, tmp_min_power
+  wave power_0
   temp_var = target_response
-  tmp_max_power = max_power_0
-  tmp_min_power = min_power_0
+  tmp_max_power = power_0[1]
+  tmp_min_power = power_0[0]
   prompt tmp_max_power, "Max power"
   prompt tmp_min_power, "Min power"
   prompt temp_var, "Target response amplitude (pA)"
@@ -35,7 +36,7 @@ end
 
 Function continue_prompt()
 	Variable out = 0
-	Prompt out, "Continue?", popup, "Continue; Quit"
+	Prompt out, "Continue?", popup, "Continue; Write out last power; write out next power"
 	DoPrompt "Continue", out
   if (V_Flag)
     killvariables v_flag
@@ -65,7 +66,8 @@ macro Optimize_Power()
  	string  protocol_dir = s_path
 	String tracepower
 	tracepower = "ach_3"
-	Variable i=0, Td = 0.004, Tr = 0.002, V_FitMaxIters = 100, v_levelx = 0,  fit_action, fitrange=0.04, this_response
+	Variable i=0, V_FitMaxIters = 100, v_levelx = 0,  fit_action, fitrange=0.04, this_response
+	//  Td = 0.004,  Tr = 0.002,
 	variable /g max_power_0, min_power_0
   variable /g target_response = 12
 	Variable uncgpnt, V_FitError, last_power
@@ -74,8 +76,9 @@ macro Optimize_Power()
   string prm_file_name
   variable temp_var
   string path_list =   ("C:Documents and Settings:shane:My Documents:;"+s_path)
-min_power_0 = power_0[0]
-max_power_0 = power_0[1]
+  variable converge_indicator
+// min_power_0 = power_0[0]
+// max_power_0 = power_0[1]
 	temp_var = do_variable_prompt(path_list)
 	protocol_dir = stringfromlist((temp_var-1), path_list)
   make /n= 0 response_wave
@@ -160,17 +163,37 @@ do //do1
   insertpoints numpnts(power_wave),1,power_wave
   power_wave[(numpnts(power_wave)-1)] = last_power
 	print this_response
-
-	if(next_power_bs(this_response, target_response, last_power))
-		read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.updated.protocol.prm")
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+// calculate next uncage power
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+converge_indicator = next_power_nr(this_response, target_response, last_power)
+if(interp(next_power, ach_4_x, fit_ach_4) <= 10)
+ next_power = interp(10, fit_ach_4, ach_4_x)
+endif
+if(this_response < target_response)
+if(next_power < last_power)
+print "Next power estimate is less than last power, but last response is less than target. Falling back to binary search method"
+  next_power_bs(this_response, target_response, last_power)
+endif
+endif
+print "Last power",last_power,interp(last_power, ach_4_x, fit_ach_4)
+  print "Next power",next_power,interp(next_power, ach_4_x, fit_ach_4)
+	if(converge_indicator)
+		read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.one.line.prm")
 		break
 	endif
-	print next_power
+
 	read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
 
   temp_var = continue_prompt()
   if(temp_var == 2)
-  read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.updated.protocol.prm")
+  read_write_prm(last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.one.line.prm")
+    break
+  endif
+  if(temp_var == 3)
+  read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.one.line.prm")
     break
   endif
 	killwaves ach_1, ach_3
@@ -206,24 +229,26 @@ if(this_response > 1.2*target_response)
 	max_power = last_power
 	next_power = ((max_power+min_power)/2)
 	return 0
-	// read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
 endif
-if(this_response < 0.5 * target_response)
+if(this_response <= 0.25*target_response)
+
+if(last_power < wavemin(ach_4_x))
+next_power = 1.41421*last_power
+min_power = last_power
+  max_power = max(1.41421*next_power,max_power)
+  return 0
+endif
 	next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
 	next_power = interp(next_power, fit_ach_4,  ach_4_x)
-	max_power = max(max_power, 1.1*next_power)
-  if(max_power > max_power_0)
-    max_power_0 = max_power
-  endif
+	min_power = last_power
+  max_power = max(1.41421*next_power,max_power)
 	return 0
-	// read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
 endif
 
 if(this_response < 0.8*target_response)
 	min_power = last_power
 	next_power = ((max_power+min_power)/2)
 	return 0
-	// read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
 endif
 
 next_power = last_power
@@ -235,21 +260,28 @@ variable this_response, target_response, last_power
 wave ach_4_x, fit_ach_4
 variable /g max_power, min_power, next_power, min_power_0
 
-if(this_response < 0.5 * target_response)
-	next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
-	next_power = interp(next_power, fit_ach_4,  ach_4_x)
-	max_power = max(max_power, 1.1*next_power)
-	return 0
-endif
+if (last_power < wavemin(ach_4_x))
+print "Last power is less than minumim power calibration, reverting to binary search"
+next_power_bs(this_response, target_response, last_power)
+ENDIF
 
 if(abs(this_response-target_response)<=0.2*target_response)
 next_power = last_power
 return 1
 endif
+if(this_response <= 4)
+  next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
+  next_power = interp(next_power, fit_ach_4,  ach_4_x)
+  // max_power = max(max_power, 1.41421*next_power)
+  return 0
+endif
 next_power = (((interp(last_power, ach_4_x, fit_ach_4))^2*target_response)/this_response)^0.5
 	next_power = interp(next_power, fit_ach_4,  ach_4_x)
-  if(next_power < min_power_0)
+		if(next_power < min_power_0)
     next_power = min_power_0
+  endif
+	if(next_power > max_power)
+    next_power = max_power
   endif
   return 0
 end
@@ -258,11 +290,21 @@ function next_power_nr(this_response, target_response, last_power)
 variable this_response, target_response, last_power
 wave ach_4_x, fit_ach_4
 variable /g max_power, min_power, next_power, min_power_0
-variable g, npts
-if(this_response < 0.5 * target_response)
+variable g, npts, sign_indicator
+wave response_wave
+sign_indicator = sign((target_response-this_response))
+
+if (last_power < wavemin(ach_4_x))
+print "Last power is less than minumim power calibration, reverting to binary search"
+next_power_bs(this_response, target_response, last_power)
+ENDIF
+
+print response_wave
+if(this_response <= 4)
 	next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
 	next_power = interp(next_power, fit_ach_4,  ach_4_x)
-	max_power = max(max_power, 1.1*next_power)
+  min_power = max(min_power,last_power)
+	// max_power = max(max_power,1.41421*next_power)
 make /o/n= 0 response_wave
 make /o/n= 0 power_wave
 	return 0
@@ -273,16 +315,22 @@ next_power = last_power
 return 1
 endif
 
-if(numpnts(response_wave)==1)
-next_power = last_power - 0.2
+if(numpnts(response_wave)<=1)
+next_power = last_power + sign_indicator*0.2
 return 0
 endif
 npts = numpnts(response_wave)
-g = (response_wave[npts]-response_wave[(npts-1)])/(interp(power_wave[npts], ach_4_x, fit_ach_4)-interp(power_wave[(npts-1)], ach_4_x, fit_ach_4))
-next_power = ((target_response - this_response) + (interp(power_wave[npts], ach_4_x, fit_ach_4))*g)/g
+g = (response_wave[(npts-1)]-response_wave[(npts-2)])/(interp(power_wave[(npts-1)], ach_4_x, fit_ach_4)-interp(power_wave[(npts-2)], ach_4_x, fit_ach_4))
+next_power = ((target_response - this_response) + (interp(power_wave[(npts-1)], ach_4_x, fit_ach_4))*g)/g
 next_power = interp(next_power, fit_ach_4,  ach_4_x)
+if(numtype(next_power))
+next_power = last_power + sign_indicator*0.2
+endif
   if(next_power < min_power_0)
     next_power = min_power_0
+  endif
+	if(next_power > max_power)
+    next_power = max_power
   endif
   return 0
 end
