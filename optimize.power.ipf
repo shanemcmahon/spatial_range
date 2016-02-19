@@ -67,14 +67,14 @@ macro Optimize_Power()
 	String tracepower
 	tracepower = "ach_3"
 	Variable i=0, V_FitMaxIters = 100, v_levelx = 0,  fit_action, fitrange=0.04, this_response
-	//  Td = 0.004,  Tr = 0.002,
+	variable Td = 0.004,  Tr = 0.002,
 	variable /g max_power_0, min_power_0
   variable /g target_response = 12
 	Variable uncgpnt, V_FitError, last_power
 	variable /g max_power, min_power, next_power
 	Make/O/D W_coef = NaN					//For holding DiffTwoExp coefficients
   string prm_file_name
-  variable temp_var
+  variable temp_var, peak_time
   string path_list =   ("C:Documents and Settings:shane:My Documents:;"+s_path)
 
   variable converge_indicator
@@ -121,25 +121,16 @@ do //do1
   // duplicate /O $traceunc temp
   temp = (abs(temp - K0))
   wavestats /q temp
+  peak_time = v_maxloc
   K1 = $traceunc(v_maxloc)-k0
-  // K2 = td
-  CurveFit/N/Q/NTHR=0 exp_XOffset $traceunc(v_maxloc,(uncgpnt + fitrange)) /D
-	// if estimated decay from single exponential is very large, some numerical instability may result
-	// typical decay times are on the order of ms, if the estimated decay is >0.5, then replace by the arbitrary cutoff value .02 to improve stability
-	if(W_coef[2]>.5)
-		W_coef[2]=.01
-	endif
-	// The decay time should be positive, the rough estimation procedure may occasionaly produce a negative estimate, particularly when there is no response
-	// A negative value for the rise time causes numerical errors in DiffTwoExp2, so we will replace it with an arbitrary value when it occurs
-	if(W_coef[2]<0)
-		W_coef[2] = 0.01
-	endif
-	if(v_fiterror)
-		// if the exponential fit causes an error, then use a generic estimate for initial parameters
-		v_fiterror = 0
-		W_coef = {mean($traceunc,0,uncgpnt),-1E-12,.04}
-	endif
-	W_coef = {(W_coef[1]), uncgpnt, W_coef[2], ((v_maxloc-uncgpnt)*0.33), W_coef[0]}
+    K2 = td
+
+  wavestats /q /R = (0,uncgpnt) $traceunc
+
+w_coef = {k0,k1,k2}
+
+	W_coef = {(W_coef[1]), uncgpnt, W_coef[2], ((peak_time-uncgpnt)*0.33), W_coef[0]}
+
 	Display/N=Checking $traceunc;
 	SetAxis bottom (uncgpnt-0.01),(uncgpnt+(2*fitrange))
 	do_fit(traceunc, (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
@@ -169,13 +160,13 @@ do //do1
 // calculate next uncage power
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
-converge_indicator = next_power_fit(this_response, target_response, last_power)
+converge_indicator = next_power_geo(this_response, target_response, last_power)
 if(interp(next_power, fit_ach_4_x, fit_ach_4) <= 10)
  next_power = interp(10, fit_ach_4, fit_ach_4_x)
 endif
 if(this_response < target_response)
 if(next_power < last_power)
-print "Next power estimate is less than last power, but last response is less than target. Next power set to last power + 0.2"
+print "Next power estimate is less than last power, but last response is less than target. Default to next power <- last_power + 0.2"
   next_power = last_power + 0.2
 endif
 endif
@@ -190,11 +181,14 @@ print "Last power",last_power,interp(last_power, fit_ach_4_x, fit_ach_4)
 
   temp_var = continue_prompt()
   if(temp_var == 2)
-  read_write_prm(last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.one.line.prm")
+  read_write_prm(last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
+    read_write_prm(1.41421*last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.2.prm")
     break
   endif
   if(temp_var == 3)
-  read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.one.line.prm")
+  read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
+  read_write_prm(  1.41421*next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
+
     break
   endif
 	killwaves ach_1, ach_3
@@ -209,6 +203,8 @@ Endmacro
 macro fit_power()
 DeletePoints (numpnts(ACH_3)-1),1, ACH_3
 DeletePoints (numpnts(ACH_4)-1),1, ACH_4
+DeletePoints 0,1, ACH_3
+DeletePoints 0,1, ACH_4
 //Display ACH_4 vs ACH_3
 CurveFit/M=2/W=0 poly 3, ACH_4/X=ACH_3/D
 duplicate fit_ach_4 fit_ach_4_x
@@ -225,6 +221,16 @@ Edit/K=0 power_0;DelayUpdate
 endmacro
 
 
+function next_power_geo(this_response, target_response, last_power)
+variable this_response, target_response, last_power
+wave ach_4_x, fit_ach_4, fit_ach_4_x
+variable /g max_power, min_power, next_power, max_power_0
+next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
+next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
+min_power = last_power
+max_power = max(1.41421*next_power,max_power)
+return 0
+end
 
 function next_power_bs(this_response, target_response, last_power)
 variable this_response, target_response, last_power
@@ -235,19 +241,11 @@ if(this_response > 1.2*target_response)
 	next_power = ((max_power+min_power)/2)
 	return 0
 endif
-if(this_response <= 0.25*target_response)
-
-if(last_power < wavemin(ach_4_x))
-next_power = 1.41421*last_power
-min_power = last_power
-  max_power = max(1.41421*next_power,max_power)
-  return 0
-endif
+if(this_response <= 0.5*target_response)
 	next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
 	next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
 	min_power = last_power
-  max_power = max(1.41421*next_power,max_power)
-	next_power = max(next_power,((max_power+min_power)/2))
+  	max_power = max(interp(1.41421*interp(next_power, fit_ach_4_x, fit_ach_4), fit_ach_4,  fit_ach_4_x),max_power)
 	return 0
 endif
 
@@ -266,33 +264,21 @@ variable this_response, target_response, last_power
 wave ach_4_x, fit_ach_4, fit_ach_4_x
 variable /g max_power, min_power, next_power, min_power_0
 
-if (last_power < wavemin(ach_4_x))
-print "Last power is less than minumim power calibration, reverting to binary search"
-next_power_bs(this_response, target_response, last_power)
-ENDIF
 
 if(abs(this_response-target_response)<=0.2*target_response)
 next_power = last_power
 return 1
 endif
+
 if(this_response <= 0.5*target_response)
   next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
   next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
-  // max_power = max(max_power, 1.41421*next_power)
+  max_power = max(max_power, interp(1.41421*interp(next_power, fit_ach_4_x, fit_ach_4), fit_ach_4,  fit_ach_4_x))
   return 0
 endif
-next_power = (((interp(last_power, fit_ach_4_x, fit_ach_4))^2*target_response)/this_response)^0.5
+
+next_power = interp(last_power, fit_ach_4_x, fit_ach_4) * ((target_response/this_response)^0.5)
 	next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
-	if(this_response < 0.5 * target_response)
-		next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
-		next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
-	endif
-	if(next_power < min_power_0)
-    next_power = min_power_0
-  endif
-	if(next_power > max_power)
-    next_power = max_power
-  endif
   return 0
 end
 
@@ -304,16 +290,9 @@ variable g, npts, sign_indicator
 wave response_wave, fit_ach_4_x
 sign_indicator = sign((target_response-this_response))
 
-if (last_power < wavemin(ach_4_x))
-print "Last power is less than minumim power calibration, reverting to binary search"
-next_power_bs(this_response, target_response, last_power)
-ENDIF
-
-print response_wave
-if(this_response <= 4)
+if(this_response <= 0.5*target_response)
 	next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
 	next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
-  min_power = max(min_power,last_power)
 make /o/n= 0 response_wave
 make /o/n= 0 power_wave
 	return 0
@@ -330,18 +309,11 @@ return 0
 endif
 npts = numpnts(response_wave)
 g = (response_wave[(npts-1)]-response_wave[(npts-2)])/(interp(power_wave[(npts-1)], fit_ach_4_x, fit_ach_4)-interp(power_wave[(npts-2)], fit_ach_4_x, fit_ach_4))
-next_power = ((target_response - this_response) + (interp(power_wave[(npts-1)], fit_ach_4_x, fit_ach_4))*g)/g
+next_power = last_power + (target_response-this_response)/g
 next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
 if(numtype(next_power))
 next_power = last_power + sign_indicator*0.2
-next_power = last_power + 0.2
 endif
-  if(next_power < min_power_0)
-    next_power = min_power_0
-  endif
-	if(next_power > max_power)
-    next_power = max_power
-  endif
   return 0
 end
 
