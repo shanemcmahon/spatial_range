@@ -170,17 +170,17 @@ do //do1
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 converge_indicator = next_power_fit(this_response, target_response, last_power)
-if(interp(next_power, ach_4_x, fit_ach_4) <= 10)
- next_power = interp(10, fit_ach_4, ach_4_x)
+if(interp(next_power, fit_ach_4_x, fit_ach_4) <= 10)
+ next_power = interp(10, fit_ach_4, fit_ach_4_x)
 endif
 if(this_response < target_response)
 if(next_power < last_power)
-print "Next power estimate is less than last power, but last response is less than target. Falling back to binary search method"
-  next_power_bs(this_response, target_response, last_power)
+print "Next power estimate is less than last power, but last response is less than target. Next power set to last power + 0.2"
+  next_power = last_power + 0.2
 endif
 endif
-print "Last power",last_power,interp(last_power, ach_4_x, fit_ach_4)
-  print "Next power",next_power,interp(next_power, ach_4_x, fit_ach_4)
+print "Last power",last_power,interp(last_power, fit_ach_4_x, fit_ach_4)
+  print "Next power",next_power,interp(next_power, fit_ach_4_x, fit_ach_4)
 	if(converge_indicator)
 		read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.one.line.prm")
 		break
@@ -209,12 +209,16 @@ Endmacro
 macro fit_power()
 DeletePoints (numpnts(ACH_3)-1),1, ACH_3
 DeletePoints (numpnts(ACH_4)-1),1, ACH_4
-
+//Display ACH_4 vs ACH_3
 CurveFit/M=2/W=0 poly 3, ACH_4/X=ACH_3/D
-
-duplicate fit_ach_4 ach_4_x
-ach_4_x = x
-display fit_ach_4 vs ach_4_x
+duplicate fit_ach_4 fit_ach_4_x
+fit_ach_4_x = x
+duplicate ach_3 ach_4_x
+//ach_4_x = x
+display ach_4 vs ach_4_x
+AppendToGraph fit_ACH_4 vs fit_ach_4_x
+//display fit_ach_4 vs ach_4_x
+ModifyGraph rgb(fit_ACH_4)=(0,0,0)
 make /n=2 power_0
 Edit/K=0 power_0;DelayUpdate
 		KillVariables/A;	KillStrings/A;	KillWaves /z/A
@@ -224,7 +228,7 @@ endmacro
 
 function next_power_bs(this_response, target_response, last_power)
 variable this_response, target_response, last_power
-wave ach_4_x, fit_ach_4
+wave ach_4_x, fit_ach_4, fit_ach_4_x
 variable /g max_power, min_power, next_power, max_power_0
 if(this_response > 1.2*target_response)
 	max_power = last_power
@@ -239,8 +243,8 @@ min_power = last_power
   max_power = max(1.41421*next_power,max_power)
   return 0
 endif
-	next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
-	next_power = interp(next_power, fit_ach_4,  ach_4_x)
+	next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
+	next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
 	min_power = last_power
   max_power = max(1.41421*next_power,max_power)
 	next_power = max(next_power,((max_power+min_power)/2))
@@ -259,7 +263,7 @@ end
 
 function next_power_fit(this_response, target_response, last_power)
 variable this_response, target_response, last_power
-wave ach_4_x, fit_ach_4
+wave ach_4_x, fit_ach_4, fit_ach_4_x
 variable /g max_power, min_power, next_power, min_power_0
 
 if (last_power < wavemin(ach_4_x))
@@ -271,17 +275,17 @@ if(abs(this_response-target_response)<=0.2*target_response)
 next_power = last_power
 return 1
 endif
-if(this_response <= 4)
-  next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
-  next_power = interp(next_power, fit_ach_4,  ach_4_x)
+if(this_response <= 0.5*target_response)
+  next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
+  next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
   // max_power = max(max_power, 1.41421*next_power)
   return 0
 endif
-next_power = (((interp(last_power, ach_4_x, fit_ach_4))^2*target_response)/this_response)^0.5
-	next_power = interp(next_power, fit_ach_4,  ach_4_x)
+next_power = (((interp(last_power, fit_ach_4_x, fit_ach_4))^2*target_response)/this_response)^0.5
+	next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
 	if(this_response < 0.5 * target_response)
-		next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
-		next_power = interp(next_power, fit_ach_4,  ach_4_x)
+		next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
+		next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
 	endif
 	if(next_power < min_power_0)
     next_power = min_power_0
@@ -297,7 +301,7 @@ variable this_response, target_response, last_power
 wave ach_4_x, fit_ach_4
 variable /g max_power, min_power, next_power, min_power_0
 variable g, npts, sign_indicator
-wave response_wave
+wave response_wave, fit_ach_4_x
 sign_indicator = sign((target_response-this_response))
 
 if (last_power < wavemin(ach_4_x))
@@ -307,8 +311,8 @@ ENDIF
 
 print response_wave
 if(this_response <= 4)
-	next_power = 1.41421*interp(last_power, ach_4_x, fit_ach_4)
-	next_power = interp(next_power, fit_ach_4,  ach_4_x)
+	next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
+	next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
   min_power = max(min_power,last_power)
 make /o/n= 0 response_wave
 make /o/n= 0 power_wave
@@ -325,9 +329,9 @@ next_power = last_power + sign_indicator*0.2
 return 0
 endif
 npts = numpnts(response_wave)
-g = (response_wave[(npts-1)]-response_wave[(npts-2)])/(interp(power_wave[(npts-1)], ach_4_x, fit_ach_4)-interp(power_wave[(npts-2)], ach_4_x, fit_ach_4))
-next_power = ((target_response - this_response) + (interp(power_wave[(npts-1)], ach_4_x, fit_ach_4))*g)/g
-next_power = interp(next_power, fit_ach_4,  ach_4_x)
+g = (response_wave[(npts-1)]-response_wave[(npts-2)])/(interp(power_wave[(npts-1)], fit_ach_4_x, fit_ach_4)-interp(power_wave[(npts-2)], fit_ach_4_x, fit_ach_4))
+next_power = ((target_response - this_response) + (interp(power_wave[(npts-1)], fit_ach_4_x, fit_ach_4))*g)/g
+next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
 if(numtype(next_power))
 next_power = last_power + sign_indicator*0.2
 next_power = last_power + 0.2
