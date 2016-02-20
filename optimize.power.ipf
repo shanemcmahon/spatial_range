@@ -181,11 +181,13 @@ print "Last power",last_power,interp(last_power, fit_ach_4_x, fit_ach_4)
 
   temp_var = continue_prompt()
   if(temp_var == 2)
+	  read_write_prm(last_power/1.41421,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.0.prm")
   read_write_prm(last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
     read_write_prm(1.41421*last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.2.prm")
     break
   endif
   if(temp_var == 3)
+	read_write_prm(next_power/1.41421,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.0.prm")
   read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
   read_write_prm(  1.41421*next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
 
@@ -225,11 +227,21 @@ function next_power_geo(this_response, target_response, last_power)
 variable this_response, target_response, last_power
 wave ach_4_x, fit_ach_4, fit_ach_4_x
 variable /g max_power, min_power, next_power, max_power_0
+if(this_response < target_response)
 next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
 next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
 min_power = last_power
 max_power = max(1.41421*next_power,max_power)
 return 0
+endif
+if(this_response >= target_response)
+next_power = interp(last_power, fit_ach_4_x, fit_ach_4)/1.41421
+next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
+min_power = min(next_power/1.41421,min_power)
+max_power = last_power
+
+return 0
+endif
 end
 
 function next_power_bs(this_response, target_response, last_power)
