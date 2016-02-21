@@ -201,6 +201,8 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 		DrawLine uncgpnt,0,uncgpnt,1
     // fit difference in exponential function
 		do_fit(traceunc, (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
+		duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $traceunc $tracecopy
+		duplicate /o fit_ach_1 $fitwave
 		AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
 
 		//---------------------------------------------Start of if-loop popup menu: whether to save data=good fits or NaN=bad fits
@@ -261,6 +263,8 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 			SetAxis/W=Checking left (wavemax($traceunc,cursorA,cursorB)-y_range), wavemax($traceunc,cursorA,CursorB);
 			SetAxis bottom CursorA,CursorB
 			do_fit(traceunc, CursorA, CursorB, w_coef)
+			duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $traceunc $tracecopy
+			duplicate/o fit_ach_1 $fitwave
 			AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
 			betterreturn = Refit()
 

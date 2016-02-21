@@ -9,14 +9,14 @@ macro plot_waves()
 	ModifyGraph width=210,height={Aspect,1}
 	AppendToLayout/T Graph0
 	ModifyLayout left(Graph0)=0,top(Graph0)=0
-	display wave1
+	display ach_1
 	ModifyGraph lsize=0.1
 	ModifyGraph width=720,height=225
 	AppendToLayout/T Graph1
 	ModifyLayout left(Graph1)=20,top(Graph1)=300
-	display wave1_p10
+	display ach_1_p10
 	ModifyGraph lsize=0.1
-	AppendToGraph /C = (0,0,0) wave1_u10
+	AppendToGraph /C = (0,0,0) ach_1_u10
 	ModifyGraph width=210,height=210
 	AppendToLayout/T Graph2
 	ModifyLayout left(Graph2)=240,top(Graph2)=20
