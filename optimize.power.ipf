@@ -77,6 +77,7 @@ macro Optimize_Power()
   variable temp_var, peak_time
   string path_list =   ("C:Documents and Settings:shane:My Documents:;"+s_path)
 
+
   variable converge_indicator
 // min_power_0 = power_0[0]
 // max_power_0 = power_0[1]
@@ -160,18 +161,9 @@ w_coef = {k0,k1,k2}
 // calculate next uncage power
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
-converge_indicator = next_power_geo(this_response, target_response, last_power)
-if(interp(next_power, fit_ach_4_x, fit_ach_4) <= 10)
- next_power = interp(10, fit_ach_4, fit_ach_4_x)
-endif
-if(this_response < target_response)
-if(next_power < last_power)
-print "Next power estimate is less than last power, but last response is less than target. Default to next power <- last_power + 0.2"
-  next_power = last_power + 0.2
-endif
-endif
-print "Last power",last_power,interp(last_power, fit_ach_4_x, fit_ach_4)
-  print "Next power",next_power,interp(next_power, fit_ach_4_x, fit_ach_4)
+converge_indicator = next_power_fit(this_response, target_response, last_power)
+	print "Last power",last_power,uncage_power_lut(last_power)
+  print "Next power",next_power,uncage_power_lut(next_power)
 	if(converge_indicator)
 		read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.one.line.prm")
 		break
@@ -181,15 +173,15 @@ print "Last power",last_power,interp(last_power, fit_ach_4_x, fit_ach_4)
 
   temp_var = continue_prompt()
   if(temp_var == 2)
-	  read_write_prm(last_power/1.41421,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.0.prm")
+	  read_write_prm(	uncage_volt_lut[floor(interp((uncage_power_lut(last_power)/1.41421),uncage_power_lut, uncage_volt_lut)/0.05)],protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.0.prm")
   read_write_prm(last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
-    read_write_prm(1.41421*last_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.2.prm")
+    read_write_prm(	uncage_volt_lut[floor(interp((uncage_power_lut(last_power)*1.41421),uncage_power_lut, uncage_volt_lut)/0.05)],protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.0.prm")
     break
   endif
   if(temp_var == 3)
-	read_write_prm(next_power/1.41421,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.0.prm")
-  read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
-  read_write_prm(  1.41421*next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
+	read_write_prm(	uncage_volt_lut[floor(interp((uncage_power_lut(next_power)/1.41421),uncage_power_lut, uncage_volt_lut)/0.05)],protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.0.prm")
+read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
+	read_write_prm(	uncage_volt_lut[floor(interp((uncage_power_lut(next_power)*1.41421),uncage_power_lut, uncage_volt_lut)/0.05)],protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.0.prm")
 
     break
   endif
@@ -227,19 +219,20 @@ function next_power_geo(this_response, target_response, last_power)
 variable this_response, target_response, last_power
 wave ach_4_x, fit_ach_4, fit_ach_4_x
 variable /g max_power, min_power, next_power, max_power_0
+wave uncage_power_lut, uncage_volt_lut
+
 if(this_response < target_response)
-next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
-next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
+next_power = 1.41421*uncage_power_lut(last_power)
+next_power = uncage_volt_lut[floor(interp(next_power,uncage_power_lut, uncage_volt_lut)/0.05)]
 min_power = last_power
-max_power = max(1.41421*next_power,max_power)
+max_power = max(uncage_volt_lut[floor(interp(1.41421*uncage_power_lut(last_power),uncage_power_lut, uncage_volt_lut)/0.05)],max_power)
 return 0
 endif
 if(this_response >= target_response)
-next_power = interp(last_power, fit_ach_4_x, fit_ach_4)/1.41421
-next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
-min_power = min(next_power/1.41421,min_power)
+next_power = uncage_power_lut(last_power)/1.41421
+next_power = uncage_volt_lut[floor(interp(next_power,uncage_power_lut, uncage_volt_lut)/0.05)]
+min_power = min(min_power,uncage_volt_lut[floor(interp((1/1.41421)*uncage_power_lut(last_power),uncage_power_lut, uncage_volt_lut)/0.05)])
 max_power = last_power
-
 return 0
 endif
 end
@@ -248,22 +241,26 @@ function next_power_bs(this_response, target_response, last_power)
 variable this_response, target_response, last_power
 wave ach_4_x, fit_ach_4, fit_ach_4_x
 variable /g max_power, min_power, next_power, max_power_0
+wave uncage_power_lut, uncage_volt_lut
+
 if(this_response > 1.2*target_response)
 	max_power = last_power
-	next_power = ((max_power+min_power)/2)
-	return 0
+	next_power = (uncage_power_lut(max_power) + uncage_power_lut(min_power))/2
+	next_power = uncage_volt_lut[floor(interp(next_power,uncage_power_lut, uncage_volt_lut)/0.05)]
+		return 0
 endif
 if(this_response <= 0.5*target_response)
-	next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
-	next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
+next_power = 1.41421*uncage_power_lut(last_power)
+next_power = uncage_volt_lut[floor(interp(next_power,uncage_power_lut, uncage_volt_lut)/0.05)]
 	min_power = last_power
-  	max_power = max(interp(1.41421*interp(next_power, fit_ach_4_x, fit_ach_4), fit_ach_4,  fit_ach_4_x),max_power)
+max_power = max(uncage_volt_lut[floor(interp(1.41421*uncage_power_lut(last_power),uncage_power_lut, uncage_volt_lut)/0.05)],max_power)
 	return 0
 endif
 
 if(this_response < 0.8*target_response)
 	min_power = last_power
-	next_power = ((max_power+min_power)/2)
+	next_power = (uncage_power_lut(max_power) + uncage_power_lut(min_power))/2
+	next_power = uncage_volt_lut[floor(interp(next_power,uncage_power_lut, uncage_volt_lut)/0.05)]
 	return 0
 endif
 
@@ -275,6 +272,7 @@ function next_power_fit(this_response, target_response, last_power)
 variable this_response, target_response, last_power
 wave ach_4_x, fit_ach_4, fit_ach_4_x
 variable /g max_power, min_power, next_power, min_power_0
+wave uncage_power_lut, uncage_volt_lut
 
 
 if(abs(this_response-target_response)<=0.2*target_response)
@@ -283,14 +281,15 @@ return 1
 endif
 
 if(this_response <= 0.5*target_response)
-  next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
-  next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
-  max_power = max(max_power, interp(1.41421*interp(next_power, fit_ach_4_x, fit_ach_4), fit_ach_4,  fit_ach_4_x))
+next_power = 1.41421*uncage_power_lut(last_power)
+next_power = uncage_volt_lut[floor(interp(next_power,uncage_power_lut, uncage_volt_lut)/0.05)]
+	min_power = last_power
+max_power = max(uncage_volt_lut[floor(interp(1.41421*uncage_power_lut(last_power),uncage_power_lut, uncage_volt_lut)/0.05)],max_power)
   return 0
 endif
 
-next_power = interp(last_power, fit_ach_4_x, fit_ach_4) * ((target_response/this_response)^0.5)
-	next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
+next_power = uncage_power_lut(last_power) * ((target_response/this_response)^0.5)
+	next_power = uncage_volt_lut[floor(interp(next_power,uncage_power_lut, uncage_volt_lut)/0.05)]
   return 0
 end
 
@@ -300,11 +299,15 @@ wave ach_4_x, fit_ach_4
 variable /g max_power, min_power, next_power, min_power_0
 variable g, npts, sign_indicator
 wave response_wave, fit_ach_4_x
+wave uncage_power_lut, uncage_volt_lut
+
 sign_indicator = sign((target_response-this_response))
 
 if(this_response <= 0.5*target_response)
-	next_power = 1.41421*interp(last_power, fit_ach_4_x, fit_ach_4)
-	next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
+next_power = 1.41421*uncage_power_lut(last_power)
+next_power = uncage_volt_lut[floor(interp(next_power,uncage_power_lut, uncage_volt_lut)/0.05)]
+	min_power = last_power
+max_power = max(uncage_volt_lut[floor(interp(1.41421*uncage_power_lut(last_power),uncage_power_lut, uncage_volt_lut)/0.05)],max_power)
 make /o/n= 0 response_wave
 make /o/n= 0 power_wave
 	return 0
@@ -320,9 +323,9 @@ next_power = last_power + sign_indicator*0.2
 return 0
 endif
 npts = numpnts(response_wave)
-g = (response_wave[(npts-1)]-response_wave[(npts-2)])/(interp(power_wave[(npts-1)], fit_ach_4_x, fit_ach_4)-interp(power_wave[(npts-2)], fit_ach_4_x, fit_ach_4))
+g = (response_wave[(npts-1)]-response_wave[(npts-2)])/(uncage_power_lut(power_wave[(npts-1)])-uncage_power_lut(power_wave[(npts-2)]))
 next_power = last_power + (target_response-this_response)/g
-next_power = interp(next_power, fit_ach_4,  fit_ach_4_x)
+next_power = uncage_volt_lut[floor(interp(next_power,uncage_power_lut, uncage_volt_lut)/0.05)]
 if(numtype(next_power))
 next_power = last_power + sign_indicator*0.2
 endif
@@ -425,3 +428,44 @@ x2 = x1-dx
 y2 = y1-dy
 print x2,y2
 endmacro
+
+function make_power_lut()
+string wave_list = wavelist("ach_4*",";","")
+variable i, npts
+wave ach_4_cycle1,ach_4_cycle2,ach_4_cycle3,ach_4_cycle4,ach_4_cycle5,ach_4_cycle6,ach_4_cycle7
+npts = numpnts($stringfromlist(0,wave_list))
+
+ach_4_cycle1[0,1] = ach_4_cycle1[2]
+ach_4_cycle1[npts-1] = ach_4_cycle1[npts-2]
+ach_4_cycle2[0,1] = ach_4_cycle2[2]
+ach_4_cycle2[npts-1] = ach_4_cycle2[npts-2]
+ach_4_cycle3[0,1] = ach_4_cycle3[2]
+ach_4_cycle3[npts-1] = ach_4_cycle3[npts-2]
+ach_4_cycle4[0,1] = ach_4_cycle4[2]
+ach_4_cycle4[npts-1] = ach_4_cycle4[npts-2]
+ach_4_cycle5[0,1] = ach_4_cycle5[2]
+ach_4_cycle5[npts-1] = ach_4_cycle5[npts-2]
+ach_4_cycle6[0,1] = ach_4_cycle6[2]
+ach_4_cycle6[npts-1] = ach_4_cycle6[npts-2]
+ach_4_cycle7[0,1] = ach_4_cycle7[2]
+ach_4_cycle7[npts-1] = ach_4_cycle7[npts-2]
+concatenate /np /o wave_list, uncage_power
+make /n = 140 /o uncage_power_lut
+setscale /p x, 0, 0.05, uncage_power_lut
+for(i = 0;i < 140;i = i+1)	// Initialize variables;continue test
+	uncage_power_lut[i] = mean(uncage_power,pnt2x(uncage_power,i*200),pnt2x(uncage_power,(i+1)*200))
+endfor												// Execute body code until continue test is FALSE
+duplicate /o uncage_power_lut uncage_volt_lut
+uncage_volt_lut = x
+display uncage_power_lut vs uncage_volt_lut
+make /n=2 power_0
+Edit/K=0 power_0;DelayUpdate
+killwaves /a/z
+end
+
+menu "macros"
+"uncage_pos_cor"
+"fit_power"
+"optimize_power"
+"make_power_lut"
+end
