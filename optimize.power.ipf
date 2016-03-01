@@ -166,11 +166,32 @@ converge_indicator = next_power_fit(this_response, target_response, last_power)
 	print "Last power",last_power,uncage_power_lut(last_power)
   print "Next power",next_power,uncage_power_lut(next_power)
 	if(converge_indicator)
-		read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.one.line.prm")
+
+		duplicate /o uncage_power_lut temp
+	temp = temp -	uncage_power_lut(next_power)/1.41421
+	temp = abs(temp)
+	wavestats /q temp
+	//uncage_volt_lut[x2pnt(temp, v_minloc)]
+	read_write_prm(uncage_volt_lut[x2pnt(temp, v_minloc)]	,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.0.prm")
+	read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
+	duplicate /o uncage_power_lut temp
+	temp = temp -	uncage_power_lut(next_power)*1.41421
+	temp = abs(temp)
+	wavestats /q temp
+	read_write_prm(uncage_volt_lut[x2pnt(temp, v_minloc)]	,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.2.prm")
+
+
+
+
 		break
 	endif
 
+
+
 	read_write_prm(next_power,prm_file_name,protocol_dir+"sm.updated.protocol.prm")
+
+
+
 
   temp_var = continue_prompt()
   if(temp_var == 2)
