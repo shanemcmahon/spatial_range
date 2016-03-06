@@ -3,6 +3,18 @@
 
 //*******************************************************************************************************************************
 
+macro change_scale()
+string wave_list_string
+variable i = 0
+wave_list_string = wavelist("*",";","")
+	do
+		print 	StringFromList(i, wave_list_string)		// execute the loop body
+		SetScale /p x, 0, (dimdelta($StringFromList(i, wave_list_string),0)/1000), $StringFromList(i, wave_list_string)
+		i = i+1
+	while (i < itemsinlist(wave_list_string))				// as long as expression is TRUE
+endmacro
+
+
 Function PopupChoice ()
 
 	String tracename
@@ -76,12 +88,13 @@ function do_fit(traceunc, xmin, xmax, w_coef)
 end
 
 Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
-	String traceunc = "ach_1"
+	String traceunc
 	Variable uncageinterval=1, fitrange=0.04
+	string wave_name_list
 	// Prompt traceunc, "Response Trace", popup, WaveList("*", ";", "")
 	// Prompt uncageinterval, "Interval between uncaging points (s)"
 	// Prompt fitrange, "Fitting range (s)"
-	String/G tracepower = "ach_3"
+	String/G tracepower
 	Variable i=0
 	Variable Td = 0.004							//Tau decay estimate
 	Variable Tr = 0.002						//Tau rise estimate
@@ -106,12 +119,23 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 	variable y_max
 	string /g wave_data_list =  "AmplitudeData;T0Data;TauDecayData;TauRiseData;uncgpntData;TimeDiffUncgpnt_Response;OffsetData;Amplitude_SD"
 	variable n_data_waves = itemsinlist(wave_data_list)
-
+	wave_name_list = wavelist("*Curr",";","")
+	traceunc = stringfromlist(0,wave_name_list)
+	if(!waveexists($traceunc))
+		wave_name_list = wavelist("*1p1",";","")
+		traceunc = stringfromlist(0,wave_name_list)
+	endif
+	wave_name_list = wavelist("*Pockel",";","")
+	tracepower = stringfromlist(0,wave_name_list)
+	if(!waveexists($tracepower))
+		wave_name_list = wavelist("*2p1",";","")
+		tracepower = stringfromlist(0,wave_name_list)
+	endif
 	i=0
 	do // do1
-		if (!waveexists($stringfromlist(i,wave_data_list)))
+		//if (waveexists($stringfromlist(i,wave_data_list)))
 			Make/O/N=0 $stringfromlist(i,wave_data_list)
-		endif
+		//endif
 		i = i + 1
 	while(i < n_data_waves) //do1
 
@@ -202,7 +226,7 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
     // fit difference in exponential function
 		do_fit(traceunc, (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
 		duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $traceunc $tracecopy
-		duplicate /o fit_ach_1 $fitwave
+		duplicate /o $("fit_"+traceunc) $fitwave
 		AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
 
 		//---------------------------------------------Start of if-loop popup menu: whether to save data=good fits or NaN=bad fits
@@ -264,7 +288,7 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 			SetAxis bottom CursorA,CursorB
 			do_fit(traceunc, CursorA, CursorB, w_coef)
 			duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $traceunc $tracecopy
-			duplicate/o fit_ach_1 $fitwave
+			duplicate/o $("fit_"+traceunc) $fitwave
 			AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
 			betterreturn = Refit()
 
@@ -280,7 +304,7 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 		DoWindow/K Checking
 		i += 1
 	while(1) //do3
-	Save/T AmplitudeData, T0Data, TauDecayData, TauRiseData, TimeDiffUncgpnt_Response, OffsetData, Amplitude_SD as replacestring(".itx", S_fileName, "_out.itx")
+	//Save/T AmplitudeData, T0Data, TauDecayData, TauRiseData, TimeDiffUncgpnt_Response, OffsetData, Amplitude_SD as replacestring(".itx", S_fileName, "_out.itx")
 	// KillWaves W_coef, smoothed, fit
 	// KillVariables/A;	KillStrings/A;	KillWaves /A
 EndMacro
