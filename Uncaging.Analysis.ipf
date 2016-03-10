@@ -288,7 +288,9 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 		DoWindow/K Checking
 		i += 1
 	while(1) //do3
-	Save/T AmplitudeData, T0Data, TauDecayData, TauRiseData, TimeDiffUncgpnt_Response, OffsetData, Amplitude_SD as replacestring(".itx", S_fileName, "_out.itx")
+	// Save/T AmplitudeData, T0Data, TauDecayData, TauRiseData, TimeDiffUncgpnt_Response, OffsetData, Amplitude_SD as replacestring(".itx", S_fileName, "_out.itx")
+	newpath /o output_path s_path
+saveexperiment /p = output_path as  s_filename[0,(strsearch(s_filename,".",0)-1)]+".pxp"
 	// KillWaves W_coef, smoothed, fit
 	// KillVariables/A;	KillStrings/A;	KillWaves /A
 EndMacro
