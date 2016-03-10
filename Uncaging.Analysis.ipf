@@ -192,7 +192,10 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 
 		String/G fitwave = nameofwave($traceunc) + "_u" + num2str(i+1)
 		String/G tracecopy = nameofwave($traceunc) + "_P" + num2str(i+1)
+		string/g uncagecopy = nameofwave($traceunc) + "_pockel" + num2str(i+1)
+		duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $tracepower $uncagecopy
 		Display/N=Checking $traceunc;
+		print w_coef[0], w_sigma[0]
 		y_min = (wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))-y_range)
 		y_max = wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))
 		SetAxis/W=Checking left y_min, y_max;
@@ -227,6 +230,8 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 			// Duplicate/O/R=(uncgpnt,(uncgpnt+fitrange)) fit_wave1, $fitwave
 			loess /N=13 /ord=2 /dest=$tracecopy srcwave=$tracecopy
 			Display/N=Checking $tracecopy;
+			SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
+			DrawLine uncgpnt,0,uncgpnt,1
 			// AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
 			// AppendToGraph /C = (0,0,0)$fitwave;
 			SetAxis/W=Checking left (wavemax($tracecopy)-y_range), (wavemax($tracecopy))
@@ -265,7 +270,10 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 			do_fit(traceunc, CursorA, CursorB, w_coef)
 			duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $traceunc $tracecopy
 			duplicate/o fit_ach_1 $fitwave
+			string/g uncagecopy = nameofwave($traceunc) + "_pockel" + num2str(i+1)
+			duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $tracepower $uncagecopy
 			AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
+			print w_coef[0], w_sigma[0]
 			betterreturn = Refit()
 
 
