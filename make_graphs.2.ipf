@@ -1,12 +1,12 @@
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 macro plot_waves()
 	newpath /o output_path s_path
-	duplicate /o AmplitudeData tmp
-	duplicate /o Amplitude_SD tmp2
-	tmp = AmplitudeData[numpnts(amplitudedata)-1-p]
-	tmp2 = Amplitude_sd[numpnts(amplitudedata)-1-p]
-	amplitudedata = -tmp
-	Amplitude_sd = tmp2
+//	duplicate /o AmplitudeData tmp
+//	duplicate /o Amplitude_SD tmp2
+//	tmp = AmplitudeData[numpnts(amplitudedata)-1-p]
+//	tmp2 = Amplitude_sd[numpnts(amplitudedata)-1-p]
+//	amplitudedata = -tmp
+//	Amplitude_sd = tmp2
 	Layout/T /P=Landscape
 	NewImage/K=0  $StringFromList(0,WaveList("Trigger*",";",""))
 	ModifyGraph width=210,height=210
@@ -35,6 +35,8 @@ macro plot_waves()
 	ErrorBars AmplitudeData Y,wave=(amplitude_95ci,amplitude_95ci)
 	wavestats /q amplitudedata
 	SetAxis left min(0,wavemin(amplitudedata)),(1.1*v_max)
+	SetAxis/A/R left;DelayUpdate
+	SetAxis/A/R bottom
 	Label left "I (pA)"
 	Label bottom "pulse #"
 	ModifyGraph width=210,height=210
