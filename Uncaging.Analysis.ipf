@@ -104,6 +104,7 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 	variable fit_action
 	variable y_min
 	variable y_max
+  variable peak_time, k0_0, k1_0, k2_0
 	string /g wave_data_list =  "AmplitudeData;T0Data;TauDecayData;TauRiseData;uncgpntData;TimeDiffUncgpnt_Response;OffsetData;Amplitude_SD"
 	variable n_data_waves = itemsinlist(wave_data_list)
 
@@ -168,34 +169,54 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 		InsertPoints numpnts (uncgpntData), 1, uncgpntData
 		uncgpntData[numpnts(uncgpntData)] = uncgpnt
 
-		// obtain initial estimates for amplitude, y0, and decay period from a fit to a single exponential
-		CurveFit/N/Q/NTHR=0 exp_XOffset $traceunc(uncgpnt + peak_loc,(uncgpnt + peak_loc + fitrange)) /D
-		// if estimated decay from single exponential is very large, some numerical instability may result
-		// typical decay times are on the order of ms, if the estimated decay is >0.5, then replace by the arbitrary cutoff value .02 to improve stability
-		if(W_coef[2]>.5)
-			W_coef[2]=.02
-		endif
-		// The decay time should be positive, the rough estimation procedure may occasionaly produce a negative estimate, particularly when there is no response
-		// A negative value for the rise time causes numerical errors in DiffTwoExp2, so we will replace it with an arbitrary value when it occurs
-		if(W_coef[2]<0)
-			W_coef[2] = 0.02
-		endif
-		if(v_fiterror)
-			// if the exponential fit causes an error, then use a generic estimate for initial parameters
-			v_fiterror = 0
-			W_coef = {mean($traceunc,(uncgpnt - offsetrange),uncgpnt),-1E-12,.04}
-		endif
-		W_coef = {(W_coef[1]), uncgpnt, W_coef[2], tr, W_coef[0]}
+    String/G fitwave = nameofwave($traceunc) + "_u" + num2str(i+1)
+    String/G tracecopy = nameofwave($traceunc) + "_P" + num2str(i+1)
+    string/g uncagecopy = nameofwave($traceunc) + "_pockel" + num2str(i+1)
+    duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $tracepower $uncagecopy
+    duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $traceunc $tracecopy
+
+
+
+    K0 =  mean($traceunc,(uncgpnt - offsetrange),uncgpnt)
+		Loess/pass=1 /DEST=temp srcWave=$tracecopy
+		temp = (abs(temp - K0))
+    wavestats /q temp
+    peak_time = v_maxloc
+    K1 = temp(v_maxloc)-k0
+    K2 = td
+    k0_0 = k0
+    k1_0 = k1
+    k2_0 = k2
+    // obtain initial estimates for amplitude, y0, and decay period from a fit to a single exponential
+    CurveFit/N/Q/NTHR=0 exp_XOffset $traceunc(uncgpnt + peak_loc,(uncgpnt + peak_loc + fitrange)) /D
+    // if estimated decay from single exponential is very large, some numerical instability may result
+    // typical decay times are on the order of ms, if the estimated decay is >0.5, then replace by the arbitrary cutoff value .02 to improve stability
+    if(W_coef[2]>.5)
+      W_coef[2]=.02
+    endif
+    // The decay time should be positive, the rough estimation procedure may occasionaly produce a negative estimate, particularly when there is no response
+    // A negative value for the rise time causes numerical errors in DiffTwoExp2, so we will replace it with an arbitrary value when it occurs
+    if(W_coef[2]<0)
+      W_coef[2] = 0.02
+    endif
+    if(v_fiterror)
+      // if the exponential fit causes an error, then use a generic estimate for initial parameters
+      v_fiterror = 0
+      // W_coef = {mean($traceunc,(uncgpnt - offsetrange),uncgpnt),-1E-12,.04}
+          W_coef = {k1_0, uncgpnt, k2_0, ((peak_time-uncgpnt)*0.33), k0_0}
+    endif
+		W_coef = {(W_coef[1]), uncgpnt, W_coef[2], ((peak_time-uncgpnt)*0.33), W_coef[0]}
+
+    // W_coef = {k1, uncgpnt, k2, ((peak_time-uncgpnt)*0.33), k0}
+
 
 
 		//-------------------------------------Name graphs and Display
 
-		String/G fitwave = nameofwave($traceunc) + "_u" + num2str(i+1)
-		String/G tracecopy = nameofwave($traceunc) + "_P" + num2str(i+1)
-		string/g uncagecopy = nameofwave($traceunc) + "_pockel" + num2str(i+1)
-		duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $tracepower $uncagecopy
-		Display/N=Checking $traceunc;
-		print w_coef[0], w_sigma[0]
+
+
+    Display/N=Checking $traceunc;
+
 		y_min = (wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))-y_range)
 		y_max = wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))
 		SetAxis/W=Checking left y_min, y_max;
@@ -204,7 +225,8 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 		DrawLine uncgpnt,0,uncgpnt,1
     // fit difference in exponential function
 		do_fit(traceunc, (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
-		duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $traceunc $tracecopy
+		print w_coef[0], w_sigma[0]
+
 		duplicate /o fit_ach_1 $fitwave
 		AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
 
@@ -291,6 +313,7 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 	// Save/T AmplitudeData, T0Data, TauDecayData, TauRiseData, TimeDiffUncgpnt_Response, OffsetData, Amplitude_SD as replacestring(".itx", S_fileName, "_out.itx")
 	newpath /o output_path s_path
 saveexperiment /p = output_path as  s_filename[0,(strsearch(s_filename,".",0)-1)]+".pxp"
+plot_waves()
 	// KillWaves W_coef, smoothed, fit
 	// KillVariables/A;	KillStrings/A;	KillWaves /A
 EndMacro
