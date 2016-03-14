@@ -104,7 +104,7 @@ Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
 	variable fit_action
 	variable y_min
 	variable y_max
-  variable peak_time, k0_0, k1_0, k2_0
+  variable peak_time, k0_0, k1_0, k2_0,fit_start, fit_stop
 	string /g wave_data_list =  "AmplitudeData;T0Data;TauDecayData;TauRiseData;uncgpntData;TimeDiffUncgpnt_Response;OffsetData;Amplitude_SD"
 	variable n_data_waves = itemsinlist(wave_data_list)
 
@@ -199,9 +199,39 @@ i=1
     // duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $traceunc $tracecopy
 
 if(i==0)
-display average_trace
+// display average_trace
 K0 =  mean(average_trace,(uncgpnt - offsetrange),uncgpnt)
 Loess/pass=1 /DEST=temp srcWave=average_trace
+Display/N=checkavg average_trace;
+SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
+DrawLine uncgpnt,0,uncgpnt,1
+// AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
+// AppendToGraph /C = (0,0,0)$fitwave;
+//SetAxis/W=checkavg left (wavemax(average_trace)-y_range), (wavemax(average_trace))
+NewPanel/K=2 as "Pause for cursor";	DoWindow/C tmp_PauseforCursor; AutoPositionWindow/M=1/R=checkavg
+DrawText 21,20,"Adjust cursor A to estimate y0 and then";	DrawText 21,40,"Click Continue."
+Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserCursorAdjust_ContButtonProc
+ShowInfo/CP=0/W=checkavg; PauseForUser tmp_PauseforCursor, checkavg
+Wavestats/Q/R=(xcsr(a), xcsr(b)) average_trace;	w_coef[4]=V_avg
+NewPanel/K=2 as "Pause for cursor"; DoWindow/C tmp_PauseforCursor; AutoPositionWindow/M=1/R=checkavg
+
+DrawText 21,20,"Adjust cursor A to estimate response"; DrawText 21,40,"Click Continue."; Button button0,pos={80,58},size={92,20},title="Continue"
+Button button0,proc=UserCursorAdjust_ContButtonProc; PauseForUser tmp_PauseforCursor, checkavg
+
+Wavestats/Q/R=(xcsr(A), xcsr(B)) average_trace;	w_coef[0] = v_avg - w_coef[4];	w_coef[1] = uncgpnt; t_max_response = (xcsr(a)+xcsr(b))/2; w_coef[3] = (t_max_response - uncgpnt)/3
+
+NewPanel/K=2 as "Pause for cursor";	DoWindow/C tmp_PauseforCursor;	AutoPositionWindow/M=1/R=checkavg
+DrawText 21,20,"Adjust cursor A to estimate decay time";	DrawText 21,40,"Click Continue.";	Button button0,pos={80,58},size={92,20},title="Continue"
+Button button0,proc=UserCursorAdjust_ContButtonProc;	PauseForUser tmp_PauseforCursor, checkavg
+w_coef[2] = (xcsr(a) - t_max_response)/2
+
+NewPanel/K=2 as "Pause for cursor";	DoWindow/C tmp_PauseforCursor;	AutoPositionWindow/M=1/R=checkavg
+DrawText 21,20,"Adjust cursors to define fit window";	DrawText 21,40,"Click Continue."; Button button0,pos={80,58},size={92,20},title="Continue"
+Button button0,proc=UserCursorAdjust_ContButtonProc;	PauseForUser tmp_PauseforCursor, checkavg
+cursorA = xcsr(A);	cursorB = xcsr(B)
+fit_start = xcsr(A)-uncgpnt;	fit_stop = xcsr(B)-uncgpnt
+
+DoWindow/K checkavg
 temp = (abs(temp - K0))
 wavestats /q temp
 peak_time = v_maxloc
@@ -211,7 +241,9 @@ k0_0 = k0
 k1_0 = k1
 k2_0 = k2
 // obtain initial estimates for amplitude, y0, and decay period from a fit to a single exponential
-CurveFit/N/Q/NTHR=0 exp_XOffset average_trace(uncgpnt + peak_loc,(uncgpnt + peak_loc + fitrange)) /D
+//CurveFit/N/Q/NTHR=0 exp_XOffset average_trace(uncgpnt + peak_loc,(uncgpnt + peak_loc + fitrange)) /D
+CurveFit/N/Q/NTHR=0 exp_XOffset average_trace(t_max_response,fit_stop+uncgpnt) /D
+
 // if estimated decay from single exponential is very large, some numerical instability may result
 // typical decay times are on the order of ms, if the estimated decay is >0.5, then replace by the arbitrary cutoff value .02 to improve stability
 if(W_coef[2]>.5)
@@ -229,7 +261,8 @@ if(v_fiterror)
       W_coef = {k1_0, uncgpnt, k2_0, ((peak_time-uncgpnt)*0.33), k0_0}
 endif
 W_coef = {(W_coef[1]), uncgpnt, W_coef[2], ((peak_time-uncgpnt)*0.33), W_coef[0]}
-	do_fit("average_trace", (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
+	// do_fit("average_trace", (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
+  	do_fit("average_trace", fit_start+uncgpnt, fit_stop+uncgpnt, w_coef)
   duplicate /o w_coef w_coef_0
 endif
 
@@ -240,13 +273,14 @@ endif
     peak_time = v_maxloc
     K1 = temp(v_maxloc)-k0
     K2 = k2_0
-    W_coef = {k1, uncgpnt, W_coef_0[2], w_coef_0[3], k0}
-      //W_coef = {k1_0, uncgpnt, k2_0, ((peak_time-uncgpnt)*0.33), k0_0}
+    W_coef = {k1, uncgpnt, W_coef_0[2], ((peak_time-uncgpnt)*0.33), k0}
+      // W_coef = {k1_0, uncgpnt, k2_0, ((peak_time-uncgpnt)*0.33), k0_0}
     // k0_0 = k0
     // k1_0 = k1
     // k2_0 = k2
     // obtain initial estimates for amplitude, y0, and decay period from a fit to a single exponential
     //CurveFit/N/Q/NTHR=0 exp_XOffset $traceunc(uncgpnt + peak_loc,(uncgpnt + peak_loc + fitrange)) /D
+        CurveFit/N/Q/NTHR=0 exp_XOffset $traceunc(peak_time, fit_stop+uncgpnt) /D
     // if estimated decay from single exponential is very large, some numerical instability may result
     // typical decay times are on the order of ms, if the estimated decay is >0.5, then replace by the arbitrary cutoff value .02 to improve stability
     if(W_coef[2]>.5)
@@ -264,7 +298,7 @@ endif
           //W_coef = {k1_0, uncgpnt, k2_0, ((peak_time-uncgpnt)*0.33), k0_0}
           w_coef = w_coef_0
     endif
-		// W_coef = {(W_coef[1]), uncgpnt, W_coef[2], ((peak_time-uncgpnt)*0.33), W_coef[0]}
+		W_coef = {(W_coef[1]), uncgpnt, W_coef[2], ((peak_time-uncgpnt)*0.33), W_coef[0]}
     		// W_coef = {(W_coef[1]), uncgpnt, W_coef[2], w_coef_0[3], W_coef[0]}
     // W_coef = {k1, uncgpnt, k2, ((peak_time-uncgpnt)*0.33), k0}
 
@@ -279,16 +313,17 @@ endif
 		y_min = (wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))-y_range)
 		y_max = wavemax($traceunc,(uncgpnt-0.01),(uncgpnt+(2*fitrange)))
 		SetAxis/W=Checking left y_min, y_max;
-		//SetAxis bottom (uncgpnt-0.01),(uncgpnt+(2*fitrange))
+		SetAxis bottom fit_start+uncgpnt,fit_stop+uncgpnt
 		SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
 		DrawLine uncgpnt,0,uncgpnt,1
     // fit difference in exponential function
-		do_fit(traceunc, (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
+		// do_fit(traceunc, (uncgpnt-fitrange/3), (uncgpnt+fitrange), w_coef)
+    do_fit(traceunc, fit_start+uncgpnt, fit_stop+uncgpnt, w_coef)
 		print w_coef[0], w_sigma[0]
 
 		duplicate /o fit_ach_1 $fitwave
 		AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
-    appendtograph /r /t /c=(0,0,65535) fit_average_trace
+   appendtograph /r /t /c=(0,0,65535) fit_average_trace
 		//---------------------------------------------Start of if-loop popup menu: whether to save data=good fits or NaN=bad fits
 		//---------------------------------------------
 		fit_action = PopupChoice ()
@@ -371,12 +406,114 @@ endif
 	while(1) //do3
 	// Save/T AmplitudeData, T0Data, TauDecayData, TauRiseData, TimeDiffUncgpnt_Response, OffsetData, Amplitude_SD as replacestring(".itx", S_fileName, "_out.itx")
 	newpath /o output_path s_path
-saveexperiment /p = output_path as  s_filename[0,(strsearch(s_filename,".",0)-1)]+".pxp"
-save /b/t/o/p=output_path  wavelist("*_u*",";","")+wavelist("*_p*",";","")+wave_data_list+";average_trace;fit_average_trace" as replacestring(".itx", S_fileName, "_out.itx")
+//saveexperiment /p = output_path as  s_filename[0,(strsearch(s_filename,".",0)-1)]+".pxp"
+//save /b/t/o/p=output_path  wavelist("*_u*",";","")+wavelist("*_p*",";","")+wave_data_list+";average_trace;fit_average_trace" as replacestring(".itx", S_fileName, "_out.itx")
+	NewPath/o referencepath  s_path+"References"
 plot_waves()
+
 	// KillWaves W_coef, smoothed, fit
 	// KillVariables/A;	KillStrings/A;	KillWaves /A
 EndMacro
+
+macro plot_waves()
+//	newpath /o output_path s_path
+//	NewPath/o referencepath  s_path+"References"
+ImageLoad/P=referencepath/T=tiff Indexedfile(referencepath, 0,".tif")
+//	duplicate /o AmplitudeData tmp
+//	duplicate /o Amplitude_SD tmp2
+//	tmp = AmplitudeData[numpnts(amplitudedata)-1-p]
+//	tmp2 = Amplitude_sd[numpnts(amplitudedata)-1-p]
+//	amplitudedata = -tmp
+//	Amplitude_sd = tmp2
+if(!strlen(winlist("layout0",";","")))
+	newLayout /P=Landscape/w=(0,0,1000,650)
+	endif
+	modifylayout mag=1
+	NewImage/K=0  $StringFromList(0,WaveList("Trigger*",";",""))
+	ModifyGraph width=210,height=210
+	ModifyGraph width=210,height={Aspect,1}
+	AppendToLayout/T Graph0
+	ModifyLayout left(Graph0)=0,top(Graph0)=0
+	display ach_1
+	Label left "I (pA)"
+	ModifyGraph lsize=0.1
+	ModifyGraph width=500,height=167.5
+	AppendToLayout/T Graph1
+	ModifyLayout left(Graph1)=230,top(Graph1)=20
+	display ach_1_p10
+	ModifyGraph lsize=0.1
+	AppendToGraph /C = (0,0,0) ach_1_u10
+	appendtograph /r /c=(0,0,65535) ACH_1_pockel10
+	Label left "I (pA)"
+	Label right "V\\BPockels \\M(V)"
+	ModifyGraph width=100,height=125
+	AppendToLayout/T Graph2
+	ModifyLayout left(Graph2)=35,top(Graph2)=240
+
+	display ach_1_p5
+	ModifyGraph lsize=0.1
+	AppendToGraph /C = (0,0,0) ach_1_u5
+	appendtograph /r /c=(0,0,65535) ACH_1_pockel5
+	Label left "I (pA)"
+	Label right "V\\BPockels \\M(V)"
+	ModifyGraph width=100,height=125
+	AppendToLayout/T Graph3
+	ModifyLayout left(Graph3)=225,top(Graph3)=240
+	
+	display ach_1_p1
+	ModifyGraph lsize=0.1
+	AppendToGraph /C = (0,0,0) ach_1_u1
+	ModifyGraph width=210,height=210
+	appendtograph /r /c=(0,0,65535) ACH_1_pockel1
+	Label left "I (pA)"
+	Label right "V\\BPockels \\M(V)"
+	ModifyGraph width=100,height=125
+	AppendToLayout/T Graph4
+	ModifyLayout left(Graph4)=415,top(Graph4)=240
+	
+	Display/K=0 AmplitudeData
+	ModifyGraph mode=3
+	duplicate /o Amplitude_SD amplitude_95ci
+	amplitude_95ci = 2*Amplitude_SD
+	ErrorBars AmplitudeData Y,wave=(amplitude_95ci,amplitude_95ci)
+	wavestats /q amplitudedata
+	SetAxis left min(0,wavemin(amplitudedata)),(1.1*v_max)
+	SetAxis/A/R left;DelayUpdate
+	SetAxis/A/R bottom
+	Label left "I (pA)"
+	Label bottom "pulse #"
+	ModifyGraph width=100,height=125
+	AppendToLayout/T Graph5
+	ModifyLayout left(Graph5)=605,top(Graph5)=240
+
+	ModifyLayout frame=0
+
+	
+
+tilewindows/o=1/w=(0,0,1000,600)
+//	SavePICT/p=output_path /ef=2 /O /win=layout0 /E=-8 as s_filename[0,(strsearch(s_filename,".",0)-1)]+".pdf"
+//	SavePICT/O/E=-5/B=72/p=output_path/win=graph0 as (s_filename[0,(strsearch(s_filename,".",0)-1)]+"1-spine.png")
+//	SavePICT/O/E=-5/B=72/win=graph1/p=output_path as (s_filename[0,(strsearch(s_filename,".",0)-1)]+"2-trace.full.png")
+//	SavePICT/O/E=-5/B=72/win=graph2/p=output_path as (s_filename[0,(strsearch(s_filename,".",0)-1)]+"3-max.response.png")
+//	SavePICT/O/E=-5/B=72/win=graph3/p=output_path as (s_filename[0,(strsearch(s_filename,".",0)-1)]+"6-amplitude.png")
+//	SavePICT/O/E=-5/B=72/win=graph4/p=output_path as (s_filename[0,(strsearch(s_filename,".",0)-1)]+"4-mid.response.png")
+//	SavePICT/O/E=-5/B=72/win=graph5/p=output_path as (s_filename[0,(strsearch(s_filename,".",0)-1)]+"5-min.response.png")
+endmacro
+
+function save_results()
+string /g wave_data_list
+string /g s_filename
+string output_base_name = indexedfile(output_path,0,".itx")
+	save /b/t/o/p=output_path  wavelist("*_u*",";","")+wavelist("*_p*",";","")+wave_data_list+";average_trace;fit_average_trace" as replacestring(".itx", output_base_name, "_out.itx")
+	SavePICT/p=output_path /ef=2 /O /win=layout0 /E=-8 as output_base_name[0,(strsearch(output_base_name,".",0)-1)]+".pdf"
+	SavePICT/O/E=-5/B=72/p=output_path/win=layout0 as (output_base_name[0,(strsearch(output_base_name,".",0)-1)]+".png")
+	SavePICT/O/E=-5/B=72/p=output_path/win=graph0 as (output_base_name[0,(strsearch(output_base_name,".",0)-1)]+"1-spine.png")
+	SavePICT/O/E=-5/B=72/win=graph1/p=output_path as (output_base_name[0,(strsearch(output_base_name,".",0)-1)]+"2-trace.full.png")
+	SavePICT/O/E=-5/B=72/win=graph2/p=output_path as (output_base_name[0,(strsearch(output_base_name,".",0)-1)]+"3-max.response.png")
+	SavePICT/O/E=-5/B=72/win=graph3/p=output_path as (output_base_name[0,(strsearch(output_base_name,".",0)-1)]+"4-mid-response.png")
+	SavePICT/O/E=-5/B=72/win=graph4/p=output_path as (output_base_name[0,(strsearch(output_base_name,".",0)-1)]+"5-min.response.png")
+	SavePICT/O/E=-5/B=72/win=graph5/p=output_path as (output_base_name[0,(strsearch(output_base_name,".",0)-1)]+"6-amplitude.png")
+end
 
 Function DiffTwoExp2(w,t) : FitFunc
 	Wave w
@@ -405,3 +542,23 @@ Function DiffTwoExp2(w,t) : FitFunc
 		return (w[4]+w[0]*(-exp(-(t-w[1])/w[3])+exp(-(t-w[1])/w[2]))/(-exp(-(w[1]+(w[2]*w[3]/(w[2]-w[3]))*ln(w[2]/w[3])-w[1])/w[3])+exp(-(w[1]+(w[2]*w[3]/(w[2]-w[3]))*ln(w[2]/w[3])-w[1])/w[2])))
 	ENDIF
 End
+
+macro clean_up()
+killwindow graph5
+killwindow graph4
+killwindow graph3
+killwindow graph2
+killwindow graph1
+killwindow graph0
+killwindow layout0
+killwaves ach_1, ach_3
+//killdatafolder /z root:
+endmacro
+
+
+menu "macros"
+	"UncagingAnalysis/1"
+	"save_results/2"
+	"clean_up/3"
+end
+
