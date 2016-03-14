@@ -60,7 +60,7 @@ function average_waves()
 string expression = ""
 string wave_out
 string waves
-variable n_waves,i, npts 
+variable n_waves,i, npts
 prompt wave_out,"output wave name"
 prompt expression,"wave name filter"
 doprompt "",expression
@@ -88,10 +88,27 @@ end
 
 function normalize_waves()
 string expression = ""
+string mode
 string waves
-variable n_waves,i, npts 
+variable n_waves,i, npts
 prompt expression,"wave name filter"
-doprompt "",expression
+prompt mode,"normalization_mode",popup,"max;mean"
+doprompt "",expression,mode
+if(stringmatch(mode,"mean"))
+waves = wavelist((expression+"*"),";","")
+n_waves =  itemsinlist(waves)
+i = 0
+do
+duplicate/o $StringFromList(i,waves) temp
+temp = abs(temp)
+duplicate/o $StringFromList(i,waves) temp2
+temp2 = temp2/mean(temp)
+duplicate temp2 $("norm_"+StringFromList(i,waves))
+i = i+1
+while(i<n_waves)
+return 0
+endif
+if(stringmatch(mode,"max"))
 waves = wavelist((expression+"*"),";","")
 n_waves =  itemsinlist(waves)
 i = 0
@@ -103,6 +120,9 @@ temp2 = temp2/wavemax(temp)
 duplicate temp2 $("norm_"+StringFromList(i,waves))
 i = i+1
 while(i<n_waves)
+return 0
+endif
+abort("1")
 
 end
 
@@ -115,4 +135,4 @@ menu "macros"
 end
 
 K0 = 0;K1 = -1;K2 = 300;
-CurveFit/G/H="110"/NTHR=0/K={0} exp_XOffset  average_norm_a_r /D 
+CurveFit/G/H="110"/NTHR=0/K={0} exp_XOffset  average_norm_a_r /D
