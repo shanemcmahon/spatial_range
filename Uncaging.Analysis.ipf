@@ -425,30 +425,22 @@ ImageLoad/P=referencepath/T=tiff Indexedfile(referencepath, 0,".tif")
 //	tmp2 = Amplitude_sd[numpnts(amplitudedata)-1-p]
 //	amplitudedata = -tmp
 //	Amplitude_sd = tmp2
-if(!strlen(winlist("layout0",";","")))
-	newLayout /P=Landscape/w=(0,0,1000,650)
-	endif
-	modifylayout mag=1
 	NewImage/K=0  $StringFromList(0,WaveList("Trigger*",";",""))
 	ModifyGraph width=210,height=210
 	ModifyGraph width=210,height={Aspect,1}
-	AppendToLayout/T Graph0
-	ModifyLayout left(Graph0)=0,top(Graph0)=0
+
 	display ach_1
 	Label left "I (pA)"
 	ModifyGraph lsize=0.1
 	ModifyGraph width=500,height=167.5
-	AppendToLayout/T Graph1
-	ModifyLayout left(Graph1)=230,top(Graph1)=20
-	display ach_1_p10
+
+  display ach_1_p10
 	ModifyGraph lsize=0.1
 	AppendToGraph /C = (0,0,0) ach_1_u10
 	appendtograph /r /c=(0,0,65535) ACH_1_pockel10
 	Label left "I (pA)"
 	Label right "V\\BPockels \\M(V)"
 	ModifyGraph width=100,height=125
-	AppendToLayout/T Graph2
-	ModifyLayout left(Graph2)=35,top(Graph2)=240
 
 	display ach_1_p5
 	ModifyGraph lsize=0.1
@@ -457,9 +449,8 @@ if(!strlen(winlist("layout0",";","")))
 	Label left "I (pA)"
 	Label right "V\\BPockels \\M(V)"
 	ModifyGraph width=100,height=125
-	AppendToLayout/T Graph3
-	ModifyLayout left(Graph3)=225,top(Graph3)=240
-	
+
+
 	display ach_1_p1
 	ModifyGraph lsize=0.1
 	AppendToGraph /C = (0,0,0) ach_1_u1
@@ -468,9 +459,7 @@ if(!strlen(winlist("layout0",";","")))
 	Label left "I (pA)"
 	Label right "V\\BPockels \\M(V)"
 	ModifyGraph width=100,height=125
-	AppendToLayout/T Graph4
-	ModifyLayout left(Graph4)=415,top(Graph4)=240
-	
+
 	Display/K=0 AmplitudeData
 	ModifyGraph mode=3
 	duplicate /o Amplitude_SD amplitude_95ci
@@ -483,12 +472,27 @@ if(!strlen(winlist("layout0",";","")))
 	Label left "I (pA)"
 	Label bottom "pulse #"
 	ModifyGraph width=100,height=125
-	AppendToLayout/T Graph5
-	ModifyLayout left(Graph5)=605,top(Graph5)=240
 
-	ModifyLayout frame=0
+  if(!strlen(winlist("layout0",";","")))
+    newLayout /P=Landscape/w=(0,0,1000,650)
+    modifylayout mag=1
+    AppendToLayout/T Graph0
+    ModifyLayout left(Graph0)=0,top(Graph0)=0
+    AppendToLayout/T Graph1
+    ModifyLayout left(Graph1)=230,top(Graph1)=20
+    AppendToLayout/T Graph2
+    ModifyLayout left(Graph2)=35,top(Graph2)=240
+    AppendToLayout/T Graph3
+    ModifyLayout left(Graph3)=225,top(Graph3)=240
+    AppendToLayout/T Graph4
+    ModifyLayout left(Graph4)=415,top(Graph4)=240
+    AppendToLayout/T Graph5
+    ModifyLayout left(Graph5)=605,top(Graph5)=240
+    ModifyLayout frame=0
+  endif
 
-	
+
+
 
 tilewindows/o=1/w=(0,0,1000,600)
 //	SavePICT/p=output_path /ef=2 /O /win=layout0 /E=-8 as s_filename[0,(strsearch(s_filename,".",0)-1)]+".pdf"
@@ -550,15 +554,134 @@ killwindow graph3
 killwindow graph2
 killwindow graph1
 killwindow graph0
-killwindow layout0
+//killwindow layout0
 killwaves ach_1, ach_3
 //killdatafolder /z root:
+setdatafolder root:
 endmacro
 
+function make_folder()
+wave ach_1, ach_3
+string record_id_l =""
+string path_l
+prompt record_id_l,"record_id"
+prompt path_l,"path"
+svar s_path, s_filename
+path_l="root:"
 
-menu "macros"
-	"UncagingAnalysis/1"
-	"save_results/2"
-	"clean_up/3"
+variable l
+string s_temp
+l = strsearch(s_path,"spatial range",0)
+s_temp = s_path[l+33,inf]
+
+l = strsearch(s_temp,":",0)
+record_id_l = record_id_l + s_temp[0,l-1]
+s_temp = s_temp[l+1,inf]
+l = strsearch(s_temp,":",0)
+record_id_l = record_id_l + "_" + s_temp[0,l-1]
+s_temp = s_temp[l+1,inf]
+l = strsearch(s_temp,":",0)
+record_id_l = record_id_l + "_" + s_temp[0,l-1]
+s_temp = s_temp[l+1,inf]
+record_id_l = record_id_l + "_ts" + s_temp[strlen(s_temp)-3,strlen(s_temp)-2] + "_" + s_filename[strlen(s_filename)-6,strlen(s_filename)-5]
+print record_id_l, s_path, s_filename
+doprompt "enter variables",record_id_l,path_l
+setdatafolder $path_l
+record_id_l = "r"+record_id_l
+newdatafolder/o $record_id_l
+movewave ach_1, $("root:"+record_id_l+":")
+movewave ach_3, $("root:"+record_id_l+":")
+movestring s_path, $("root:"+record_id_l+":")
+movestring s_filename, $("root:"+record_id_l+":")
+setdatafolder $("root:"+record_id_l+":")
 end
 
+macro align_amplitude_waves()
+string waves
+variable n_waves,i
+waves = wavelist("*",";","")
+n_waves =  itemsinlist(waves)
+i = 0
+do
+reverse $StringFromList(i,waves)
+InsertPoints 0, (10-numpnts($StringFromList(i,waves))), $StringFromList(i,waves)
+i = i+1
+while(i<n_waves)
+end macro
+
+function average_waves()
+string expression = ""
+string wave_out
+string waves
+variable n_waves,i, npts
+prompt wave_out,"output wave name"
+prompt expression,"wave name filter"
+doprompt "",expression
+waves = wavelist((expression+"*"),";","")
+n_waves =  itemsinlist(waves)
+i = 0
+npts = (numpnts($StringFromList(0,waves)))
+make /o/n=(numpnts($StringFromList(0,waves))) temp_avg
+make /o/n=(numpnts($StringFromList(0,waves))) temp_se
+killwaves /z wave_2d
+concatenate waves, wave_2d
+make/o /n=(n_waves) temp
+do
+temp = wave_2d[i][p]
+wavestats /q temp
+temp_avg[i] = v_avg
+temp_se[i] = v_sem
+i = i+1
+while(i<npts)
+//make /o/n=(numpnts($StringFromList(0,waves))) $"average_"+expression
+duplicate /o temp_avg $"average_"+expression
+//make /o/n=(numpnts($StringFromList(0,waves))) $"se_"+expression
+duplicate /o temp_se $"se_"+expression
+end
+
+function normalize_waves()
+string expression = ""
+string mode
+string waves
+variable n_waves,i, npts
+prompt expression,"wave name filter"
+prompt mode,"normalization_mode",popup,"max;mean"
+doprompt "",expression,mode
+if(stringmatch(mode,"mean"))
+waves = wavelist((expression+"*"),";","")
+n_waves =  itemsinlist(waves)
+i = 0
+do
+duplicate/o $StringFromList(i,waves) temp
+temp = abs(temp)
+duplicate/o $StringFromList(i,waves) temp2
+temp2 = temp2/mean(temp)
+duplicate temp2 $("norm_"+StringFromList(i,waves))
+i = i+1
+while(i<n_waves)
+return 0
+endif
+if(stringmatch(mode,"max"))
+waves = wavelist((expression+"*"),";","")
+n_waves =  itemsinlist(waves)
+i = 0
+do
+duplicate/o $StringFromList(i,waves) temp
+temp = abs(temp)
+duplicate/o $StringFromList(i,waves) temp2
+temp2 = temp2/wavemax(temp)
+duplicate temp2 $("norm_"+StringFromList(i,waves))
+i = i+1
+while(i<n_waves)
+return 0
+endif
+abort("1")
+
+end
+
+menu "macros"
+"make_folder/1"
+	"UncagingAnalysis/2"
+	"save_results/3"
+	"clean_up/4"
+end

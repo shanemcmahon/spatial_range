@@ -1,18 +1,36 @@
 function make_folder()
-string record_id_l
-svar record_id
+string record_id_l =""
 string path_l
-svar path
 prompt record_id_l,"record_id"
 prompt path_l,"path"
-record_id_l=record_id
-path_l=path
+svar s_path, s_filename
+path_l="root:"
+
+variable l
+string s_temp
+l = strsearch(s_path,"spatial range",0)
+s_temp = s_path[l+33,inf]
+
+l = strsearch(s_temp,":",0)
+record_id_l = record_id_l + s_temp[0,l-1]
+s_temp = s_temp[l+1,inf]
+l = strsearch(s_temp,":",0)
+record_id_l = record_id_l + "_" + s_temp[0,l-1]
+s_temp = s_temp[l+1,inf]
+l = strsearch(s_temp,":",0)
+record_id_l = record_id_l + "_" + s_temp[0,l-1]
+s_temp = s_temp[l+1,inf]
+record_id_l = record_id_l + "_ts" + s_temp[strlen(s_temp)-3,strlen(s_temp)-2] + "_" + s_filename[strlen(s_filename)-6,strlen(s_filename)-5]
+print record_id_l, s_path, s_filename
 doprompt "enter variables",record_id_l,path_l
-record_id = record_id_l
-path = path_l
-print record_id, path
-setdatafolder $path
-newdatafolder/o/s $record_id
+setdatafolder $path_l
+record_id_l = "r"+record_id_l
+newdatafolder/o $record_id_l
+movewave ach_1, $("root:"+record_id_l+":")
+movewave ach_3, $("root:"+record_id_l+":")
+movestring s_path, $("root:"+record_id_l+":")
+movestring s_filename, $("root:"+record_id_l+":")
+setdatafolder $("root:"+record_id_l+":")
 end
 
 macro copy_data()
