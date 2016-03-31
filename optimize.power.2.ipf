@@ -1,12 +1,32 @@
-#pragma rtGlobals=3		// Use modern global access method and strict wave access.
+#pragma rtGlobals=3
+macro do_analyze_response()
+string /g s_path
+if(!exists("ach_1"))
+if(exists("s_path"))
+newpath /o wd, s_path
+LoadWave/T /p=wd
+else
+newpath /o wd
+LoadWave/T /p=wd
+endif
+endif
+analyze_response()
+endmacro
+
 function analyze_response()
 variable uncgpnt, peak_time
 variable td = 0.005
 wave ach_1, ach_3
-variable target_response = 12
-duplicate /o /r=(9.45,9.6) ach_1 last_response_wave
-duplicate /o /r=(9.45,9.6) ach_3 last_stim_wave
+variable target_response = 8
 uncgpnt = 9.5
+
+prompt target_response, "Target response amplitude (pA)"
+prompt uncgpnt, "Uncage pulse start time"
+doprompt "Set variables",target_response, uncgpnt
+
+duplicate /o /r=(uncgpnt-0.05,uncgpnt+0.1) ach_1 last_response_wave
+duplicate /o /r=(uncgpnt-0.05,uncgpnt+0.1) ach_3 last_stim_wave
+
 K0 =  mean(last_response_wave,0,uncgpnt)
 Loess/pass=1 /ord=1 /n=(2^5-1)/DEST=temp srcWave=last_response_wave
 duplicate/o temp temp2
@@ -43,10 +63,11 @@ end
 
 
 menu "macros"
-"analyze_response/1"
+"analyze_response"
 "update_prm/2"
 "make_power_lut"
 "uncage_pos_cor"
+"do_analyze_response/1"
 end
 
 
@@ -272,3 +293,4 @@ macro uncage_pos_cor(x1,dx,y1,dy)
 	y2 = y1-dy
 	print x2,y2
 endmacro
+
