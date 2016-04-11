@@ -4,28 +4,43 @@ string /g s_path
 if(!exists("ach_1"))
 if(exists("s_path"))
 newpath /o wd, s_path
-LoadWave/T /p=wd
+//LoadWave/T /p=wd
+LoadWave/g/a /p=wd
+//abort("1")
 else
 newpath /o wd
-LoadWave/T /p=wd
+//LoadWave/T /p=wd
+LoadWave/g/a /p=wd
 endif
 endif
 analyze_response()
 endmacro
 
 function analyze_response()
-variable uncgpnt, peak_time
+variable uncgpnt, peak_time, v_levelx, v_fiterror
 variable td = 0.005
 wave ach_1, ach_3
 variable target_response = 8
-uncgpnt = 9.5
+string power_wave_name, response_wave_name
+wave wave0,wave1
 
-prompt target_response, "Target response amplitude (pA)"
-prompt uncgpnt, "Uncage pulse start time"
-doprompt "Set variables",target_response, uncgpnt
+Prompt power_wave_name,"Power wave name",popup,wavelist("ach_3",";","") + wavelist("wave1",";","")
+Prompt response_wave_name,"Response wave name",popup,wavelist("ach_1",";","") + wavelist("wave0",";","")
+doprompt "wave names", power_wave_name, response_wave_name
+if(exists("wave0"))
+SetScale/P x 0,0.0001,"", wave0, wave1
+endif
+v_levelx = 0
+findlevel /Q/EDGE=1 /R= (v_levelx,) $power_wave_name, (0.8*wavemax($power_wave_name))
+uncgpnt = v_levelx
+print uncgpnt
+//uncgpnt = 9.5
 
-duplicate /o /r=(uncgpnt-0.05,uncgpnt+0.1) ach_1 last_response_wave
-duplicate /o /r=(uncgpnt-0.05,uncgpnt+0.1) ach_3 last_stim_wave
+//prompt uncgpnt, "Uncage pulse start time"
+//doprompt "Set variables", uncgpnt
+
+duplicate /o /r=(uncgpnt-0.05,uncgpnt+0.1) $response_wave_name last_response_wave
+duplicate /o /r=(uncgpnt-0.05,uncgpnt+0.1) $power_wave_name last_stim_wave
 
 K0 =  mean(last_response_wave,0,uncgpnt)
 Loess/pass=1 /ord=1 /n=(2^5-1)/DEST=temp srcWave=last_response_wave
@@ -41,24 +56,29 @@ duplicate/o /r=(peak_time,) last_response_wave decay_phase_wave
 CurveFit/q/G/NTHR=0/K={peak_time} exp_XOffset  decay_phase_wave /D
 make/o /n=5 w_coef
 w_coef = {k1,uncgpnt,k2,((peak_time-uncgpnt)/3),k0}
+v_fiterror=0
 FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  last_response_wave((uncgpnt-k2),(peak_time+3*k2)) /D
 Display/K=0 last_response_wave
 AppendToGraph  root:fit_last_response_wave
 ModifyGraph rgb(fit_last_response_wave)=(0,0,0)
+
+if(v_fiterror)
+w_coef = 0
+endif
 
 if(!exists("amplitude_data"))
 make /n=1 amplitude_data
 make /n=1 stim_data
 amplitude_data = abs(w_coef[0])
 stim_data = mean(last_stim_wave, (uncgpnt+.0001),(uncgpnt+.0005) )
-killwaves /z ach_1, ach_3
+killwaves /z ach_1, ach_3,wave0,wave1
 return 1
 endif
 
 InsertPoints 0, 1, amplitude_data, stim_data
 amplitude_data[0] = abs(w_coef[0])
 stim_data[0] = mean(last_stim_wave, (uncgpnt+.0001),(uncgpnt+.0005) )
-killwaves /z ach_1, ach_3
+killwaves /z ach_1, ach_3,wave0,wave1
 end
 
 
@@ -198,7 +218,7 @@ temp = abs(temp)
 wavestats /q temp
 last_power = uncage_volt_lut[x2pnt(temp,v_minloc)]
 
-read_write_prm(last_power,response_data_file_name+".prm",protocol_dir+"sm.updated.protocol.prm")
+//read_write_prm(last_power,response_data_file_name+".prm",protocol_dir+"sm.updated.protocol.prm")
 
 this_response = mean(amplitude_data)
 print this_response,target_response,last_power
@@ -212,12 +232,14 @@ temp = abs(temp)
 wavestats /q temp
 read_write_prm(uncage_volt_lut[x2pnt(temp, v_minloc)]	,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.0.prm")
 read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
+read_write_prm(last_power,protocol_dir+"sm.power.test.prm",protocol_dir+"sm.updated.protocol.prm")
 duplicate /o uncage_power_lut temp
 temp = temp -	uncage_power_lut(next_power)*1.41421
 temp = abs(temp)
 wavestats /q temp
 read_write_prm(uncage_volt_lut[x2pnt(temp, v_minloc)]	,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.2.prm")
 
+DeletePoints 0,numpnts(amplitude_data), amplitude_data
 end
 
 function do_variable_prompt(string_list)
@@ -293,4 +315,3 @@ macro uncage_pos_cor(x1,dx,y1,dy)
 	y2 = y1-dy
 	print x2,y2
 endmacro
-
