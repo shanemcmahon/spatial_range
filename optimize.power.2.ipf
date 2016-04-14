@@ -13,6 +13,11 @@ newpath /o wd
 LoadWave/g/a /p=wd
 endif
 endif
+if(exists("wave2"))
+wave0 = wave1
+wave1=wave2
+killwaves wave2
+endif
 analyze_response()
 endmacro
 
@@ -58,7 +63,8 @@ make/o /n=5 w_coef
 w_coef = {k1,uncgpnt,k2,((peak_time-uncgpnt)/3),k0}
 v_fiterror=0
 FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  last_response_wave((uncgpnt-k2),(peak_time+3*k2)) /D
-Display/K=0 last_response_wave
+dowindow /k response
+Display/n=response/K=0 last_response_wave
 AppendToGraph  root:fit_last_response_wave
 ModifyGraph rgb(fit_last_response_wave)=(0,0,0)
 
@@ -232,7 +238,7 @@ temp = abs(temp)
 wavestats /q temp
 read_write_prm(uncage_volt_lut[x2pnt(temp, v_minloc)]	,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.0.prm")
 read_write_prm(next_power,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.1.prm")
-read_write_prm(last_power,protocol_dir+"sm.power.test.prm",protocol_dir+"sm.updated.protocol.prm")
+read_write_prm(next_power,protocol_dir+"sm.power.test.prm",protocol_dir+"sm.updated.protocol.prm")
 duplicate /o uncage_power_lut temp
 temp = temp -	uncage_power_lut(next_power)*1.41421
 temp = abs(temp)
@@ -240,6 +246,7 @@ wavestats /q temp
 read_write_prm(uncage_volt_lut[x2pnt(temp, v_minloc)]	,protocol_dir+"sm.uncage.one.line.prm",protocol_dir+"sm.uncage.line.2.prm")
 
 DeletePoints 0,numpnts(amplitude_data), amplitude_data
+DeletePoints 0,numpnts(stim_data), stim_data
 end
 
 function do_variable_prompt(string_list)
