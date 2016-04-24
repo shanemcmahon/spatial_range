@@ -22,11 +22,11 @@ function Uncaging_Analysis(data_wave_list)
 	Variable i = 0	//dummy variable for iteration control
 	Variable decay_time_0 = 0.008	//initial estimate for uncaging response decay time
 	Prompt decay_time_0,"response decay time initial estimate"
-	Variable rise_time_0 = 0.004	//initial estimate for uncaging response rise time
+	Variable rise_time_0 = 0.001	//initial estimate for uncaging response rise time
 	Prompt rise_time_0,"response decay time initial estimate"
 	Variable t0_box_constraint = 0.005 //size of box constraint on t0 parameter
 	// Variable delay_time_to_max_response = 0.007	//not used
-	// Variable y0_time_window = 0.01	//not used
+	Variable y0_time_window = 0.01	//time window before uncaging pulse used to estimate y0
 	// Variable peak_range = 0.002	//not used
 	Variable uncage_time	//time of uncaging event for current fit
 	// Variable response_max_amplitude	//not used
@@ -45,7 +45,9 @@ function Uncaging_Analysis(data_wave_list)
 	// Variable y_min	//not used
 	// Variable y_max	//not used
 	// Variable peak_time	//not used
-	// Variable k0_0, k1_0, k2_0	//not used
+	Variable k0, k1, k2, k3, k4	//initial estimates for fit parameters
+  Variable k0_ub // upper bounds for fit parameters
+  Variable k0_lb // lower bounds for fit parameters
 	Variable fit_start, fit_stop	//variables defining start and stop of the fit window
 	Variable V_AbortCode = 0 //Igor environment variable indicating fitting abort condition
 
@@ -98,18 +100,51 @@ print "number of uncaging events found: ",n_uncaging_pulses
 		i = i + 1
 	while(i < n_data_waves) //do1
 
+//estimate largest response
+for(i=0;i < n_uncaging_pulses;i+=1)	// Initialize variables;continue test
 
-fit_start = 0.015
-uncage_time = fit_start + 0.01
+fit_start = w_uncage_time[i] - y0_time_window
+uncage_time = fit_start + y0_time_window
 fit_stop = fit_start + fit_range
-duplicate/o /r=(fit_start, fit_stop) uncaging_response_wave w_response_temp
-W_coef = {1, uncage_time, decay_time_0, rise_time_0, mean(w_response_temp)}
+duplicate /o /r = (fit_start,fit_stop) uncaging_response_wave, w_temp
+Loess/pass=1/n=(2^5) /DEST=w_temp2 srcWave=w_temp
+k4 = mean(uncaging_response_wave,fit_start,uncage_time)
+w_temp2 = w_temp2 - k4
+w_temp = abs(w_temp2)
+wavestats /q w_temp
+k0 = w_temp2(v_maxloc) - k4
+k1 = uncage_time
+k2 = decay_time_0
+k3 = rise_time_0
+W_Coef = {k0, k1, k2, k3, k4}
+V_AbortCode = 0
+FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef uncaging_response_wave(fit_start,fit_stop) /D
+k0_ub = max(k0_ub, w_coef[0])
+k0_lb = min(k0_lb, w_coef[0])
+print w_coef
+endfor												// Execute body code until continue test is FALSE
+print k0_ub, k0_lb
+abort("1")
+
+
+fit_start = w_uncage_time[0] - y0_time_window
+uncage_time = fit_start + y0_time_window
+fit_stop = fit_start + fit_range
+//duplicate/o /r=(fit_start, fit_stop) uncaging_response_wave w_response_temp
+k4 = mean(uncaging_response_wave,fit_start,uncage_time)
+k0 = mean(uncaging_response_wave,(uncage_time+3*rise_time_0),(uncage_time+4*rise_time_0))
+k1 = k1 - k4
+k1 = uncage_time
+k2 = decay_time_0
+k3 = rise_time_0
+W_Coef = {k0, k1, k2, k3, k4}
 V_AbortCode = 0
 Make/O/T/N=2 T_Constraints
 //T_Constraints[0] = {("K1 > "+num2str(uncage_time-t0_box_constraint)),("K1 < "+num2str(uncage_time+t0_box_constraint))}
-T_Constraints[0] = {"K0 > -5","K0 < 5","K1 > 0","K1 < 1","K2 > 0.0001","K2 < 0.1","K3 > 0.0001","K3 < 0.1","K4 > -100","K4 < 100"}
-FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  w_response_temp /D /C=T_Constraints
-//FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  w_response_temp /D
+
+T_Constraints[0] = {"K0 > -50","K0 < 50","K1 > 0","K1 < "+(num2str(numpnts(uncaging_response_wave)*dimdelta(uncaging_response_wave,0))),"K2 > 0.0001","K2 < 0.1","K3 > 0.0001","K3 < 0.1","K4 > -100","K4 < 100"}
+//FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start,fit_stop) /D /C=T_Constraints
+FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef uncaging_response_wave(fit_start,fit_stop) /D
 
 end
 

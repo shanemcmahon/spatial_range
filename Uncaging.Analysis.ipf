@@ -5,7 +5,7 @@ save /b/t/o/p=output_path  wavelist("*_u*",";","")+wavelist("*_p*",";","")+wave_
 
 Function PopupChoice ()
 
-	String tracename
+	String tracename, tracepower
 	Variable Choose = 4
 	Prompt traceName,"Trace",popup,TraceNameList("",";",1)
 	Prompt Choose, "Is this fit good?", popup, "No: Do a Refit; No response: Save zero; Too noisy, save NaN; Yes: Save fit"
@@ -75,13 +75,13 @@ function do_fit(traceunc, xmin, xmax, w_coef)
 
 end
 
-Macro UncagingAnalysis (traceunc, uncageinterval, fitrange)
-	String traceunc = "ach_1"
+Macro UncagingAnalysis (traceunc, tracepower, uncageinterval, fitrange)
+	String traceunc = "sum_ach_1", tracepower = "sum_ach_3"
 	Variable uncageinterval=1, fitrange=0.04
 	// Prompt traceunc, "Response Trace", popup, WaveList("*", ";", "")
 	// Prompt uncageinterval, "Interval between uncaging points (s)"
 	// Prompt fitrange, "Fitting range (s)"
-	String/G tracepower = "ach_3"
+//	String/G tracepower = "ach_3"
 	Variable i=0
 	Variable Td = 0.004							//Tau decay estimate
 	Variable Tr = 0.002						//Tau rise estimate
@@ -321,7 +321,7 @@ endif
     do_fit(traceunc, fit_start+uncgpnt, fit_stop+uncgpnt, w_coef)
 		print w_coef[0], w_sigma[0]
 
-		duplicate /o fit_ach_1 $fitwave
+		duplicate /o $("fit_"+traceunc) $fitwave
 		AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
    appendtograph /r /t /c=(0,0,65535) fit_average_trace
 		//---------------------------------------------Start of if-loop popup menu: whether to save data=good fits or NaN=bad fits
@@ -385,7 +385,7 @@ endif
 			SetAxis bottom CursorA,CursorB
 			do_fit(traceunc, CursorA, CursorB, w_coef)
 			duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $traceunc $tracecopy
-			duplicate/o fit_ach_1 $fitwave
+			duplicate/o $("fit_"+traceunc) $fitwave
 			string/g uncagecopy = nameofwave($traceunc) + "_pockel" + num2str(i+1)
 			duplicate/o /r=((uncgpnt-fitrange/3), (uncgpnt+fitrange)) $tracepower $uncagecopy
 			AppendToGraph /c=(0,0,0) $("fit_"+traceunc)
