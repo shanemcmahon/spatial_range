@@ -1,39 +1,43 @@
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-Function UserCursorAdjust_ContButtonProc(ctrlName) : ButtonControl
+Function User_Continue(ctrlName) : ButtonControl
 	String ctrlName
-	DoWindow/K tmp_PauseforCursor
+	DoWindow/K pause_for_user
 End
 macro Do_Uncaging_Analysis()
-String data_wave_list = s_wavenames
-Uncaging_Analysis(data_wave_list)
-//Kill_Wave_List(data_wave_list)
+	String data_wave_list = s_wavenames
+	Uncaging_Analysis(data_wave_list)
+	//Kill_Wave_List(data_wave_list)
 endmacro
 
 function Uncaging_Analysis(data_wave_list)
 	String data_wave_list
-	 String uncaging_response_wave_name	//name of the uncaging response wave
-	 Prompt uncaging_response_wave_name,"uncaging response wave name",popup,data_wave_list
-	 String uncaging_power_wave_name	//name of the uncaging power wave
-	 Prompt uncaging_power_wave_name,"uncaging power wave name",popup,data_wave_list
-	 Variable n_uncaging_pulses //variable that holds the number of uncaging pulses found in uncaging_power_wave
+	String uncaging_response_wave_name	//name of the uncaging response wave
+	Prompt uncaging_response_wave_name,"uncaging response wave name",popup,data_wave_list
+	String uncaging_power_wave_name	//name of the uncaging power wave
+	Prompt uncaging_power_wave_name,"uncaging power wave name",popup,data_wave_list
+	Variable n_uncaging_pulses //variable that holds the number of uncaging pulses found in uncaging_power_wave
 	Variable fit_range = 0.055	//length of the time window used for fitting double exponential
 	Prompt fit_range,"Size of time window for fitting"
-	Variable i = 0	//dummy variable for iteration control
+	Variable i = 0, j = 0	//dummy variable for iteration control
 	Variable decay_time_0 = 0.008	//initial estimate for uncaging response decay time
 	Prompt decay_time_0,"response decay time initial estimate"
 	Variable rise_time_0 = 0.001	//initial estimate for uncaging response rise time
 	Prompt rise_time_0,"response decay time initial estimate"
+	Variable v_delay_to_response_start = 0
+	Variable v_amplitude_0
+	Variable v_amplitude_0_window = 0.002
+	Prompt v_amplitude_0_window,"Time windown size for averaging to estimate peak amplitude initial estimate"
 	Variable t0_box_constraint = 0.005 //size of box constraint on t0 parameter
 	// Variable delay_time_to_max_response = 0.007	//not used
 	Variable y0_time_window = 0.01	//time window before uncaging pulse used to estimate y0
 	// Variable peak_range = 0.002	//not used
 	Variable uncage_time	//time of uncaging event for current fit
 	// Variable response_max_amplitude	//not used
-	// Variable response_max_time	//not used
+	Variable response_max_time	//time of peak amplitude
 	// Variable user_response	//not used
 	// Variable V_FitMaxIters = 100	//not used
-	 Variable threshold	//threshold value used while examining uncaging_power_wave to determine whether an algorithmically found peak is a true pulse
+	Variable threshold	//threshold value used while examining uncaging_power_wave to determine whether an algorithmically found peak is a true pulse
 	// Variable V_FitError	//not used
 	// Variable cursor_a, cursor_b	//not used
 	Make /O/D w_coef = NaN	//not used
@@ -46,105 +50,207 @@ function Uncaging_Analysis(data_wave_list)
 	// Variable y_max	//not used
 	// Variable peak_time	//not used
 	Variable k0, k1, k2, k3, k4	//initial estimates for fit parameters
-  Variable k0_ub // upper bounds for fit parameters
-  Variable k0_lb // lower bounds for fit parameters
+	Variable k0_ub // upper bounds for fit parameters
+	Variable k0_lb // lower bounds for fit parameters
 	Variable fit_start, fit_stop	//variables defining start and stop of the fit window
-	Variable V_AbortCode = 0 //Igor environment variable indicating fitting abort condition
+	Variable V_AbortCode = 0, V_FitError=0 //Igor environment variable indicating fitting abort condition
+	Variable v_n_fit_points = Inf// number of points included in fit
+	Variable n_false_replicates = 50 //number of "fake responses" to fit, per stimulus
+	Variable inter_fit_time //time between end of a fit and start of the next fit for consecutive fits to "real" stimuli
+	Variable inter_false_fit_time //time between fake responses
 
-	String wave_data_list =  "w_amplitude;w_t0;w_decay_time;w_rise_time;w_uncage_time;w_onset_delay;w_y0;w_amplitude_se"
+
+	String wave_data_list =  "w_amplitude;w_t0;w_decay_time;w_rise_time;w_uncage_time;w_onset_delay;w_y0;w_amplitude_se;"
 	Variable n_data_waves = itemsinlist(wave_data_list)
-doPrompt "",uncaging_response_wave_name,uncaging_power_wave_name
-wave uncaging_response_wave = $uncaging_response_wave_name
-wave uncaging_power_wave = $uncaging_power_wave_name
+	doPrompt "",uncaging_response_wave_name,uncaging_power_wave_name
+	wave uncaging_response_wave = $uncaging_response_wave_name
+	wave uncaging_power_wave = $uncaging_power_wave_name
 
 
 
-//before we can make waves to put the fit parameters, we need to know how long to make them
-//loop through uncaging events to count the number of uncaging pulses
-//we find the first two pulses manually before entering the do loop
-//as we treat the first pulse slightly different than the rest, treating the first pulses outside of the loop allows us to avoid using an if-then construct inside the loop
-threshold = 0.8*wavemax(uncaging_power_wave)
-// find rising edge in power trace greater than defined threshold
-findlevel /Q/EDGE=1 /R= (V_LevelX,) uncaging_power_wave, threshold
-//we find the first pulse manually before entering the do loop, so we start the counter at 1
-Make/O/N=1 w_uncage_time
-w_uncage_time = V_LevelX
-i = 1
-do//do1
-// findlevel may occasionaly find false peaks in the noise during the uncaging pulse, but we can reliably find the time where the voltage drops below the threshold
- findlevel /Q/EDGE=2 /R= (V_LevelX,) uncaging_power_wave, threshold
-//the next findlevel searches again for a rising pulse crossing the threshold
- findlevel /Q/EDGE=1 /R= (V_LevelX,) uncaging_power_wave, threshold
- //if no edge is found, V_LevelX will be set to NaN, this condition indicates that we have passed the last uncaging pulse
-if(numtype(V_LevelX))
-	break
-endif
-//at this point in the do loop we have succesfully found an uncaging event, so we increment the counter and save the time
-InsertPoints i, 1, w_uncage_time
-w_uncage_time[i] = V_LevelX
-i = i + 1
-//we never have i>100 in experiments so if i>100 something is wrong with the code and we abort
-if(i>100)//if1
-abort("n>100 uncaging pulses found")
-endif//if1
-while(1)//do1
-n_uncaging_pulses = i
-print "number of uncaging events found: ",n_uncaging_pulses
-
-//create waves to store fitted parameters
-	i=0
-	do // do1
-		//if (!waveexists($stringfromlist(i,wave_data_list)))//if1
-			Make/O/N=(n_uncaging_pulses) $stringfromlist(i,wave_data_list)
-		//endif//if1
+	//before we can make waves to put the fit parameters, we need to know how long to make them
+	//loop through uncaging events to count the number of uncaging pulses
+	//we find the first two pulses manually before entering the do loop
+	//as we treat the first pulse slightly different than the rest, treating the first pulses outside of the loop allows us to avoid using an if-then construct inside the loop
+	threshold = 0.8*wavemax(uncaging_power_wave)
+	// find rising edge in power trace greater than defined threshold
+	findlevel /Q/EDGE=1 /R= (V_LevelX,) uncaging_power_wave, threshold
+	//we find the first pulse manually before entering the do loop, so we start the counter at 1
+	Make/O/N=1 w_uncage_time
+	w_uncage_time = V_LevelX
+	i = 1
+	do//do1
+		// findlevel may occasionaly find false peaks in the noise during the uncaging pulse, but we can reliably find the time where the voltage drops below the threshold
+		findlevel /Q/EDGE=2 /R= (V_LevelX,) uncaging_power_wave, threshold
+		//the next findlevel searches again for a rising pulse crossing the threshold
+		findlevel /Q/EDGE=1 /R= (V_LevelX,) uncaging_power_wave, threshold
+		//if no edge is found, V_LevelX will be set to NaN, this condition indicates that we have passed the last uncaging pulse
+		if(numtype(V_LevelX))
+			break
+		endif
+		//at this point in the do loop we have succesfully found an uncaging event, so we increment the counter and save the time
+		InsertPoints i, 1, w_uncage_time
+		w_uncage_time[i] = V_LevelX
 		i = i + 1
-	while(i < n_data_waves) //do1
+		//we never have i>100 in experiments so if i>100 something is wrong with the code and we abort
+		if(i>100)//if1
+			abort("n>100 uncaging pulses found")
+		endif//if1
+	while(1)//do1
+	n_uncaging_pulses = i
+	print "number of uncaging events found: ",n_uncaging_pulses
 
-//estimate largest response
-for(i=0;i < n_uncaging_pulses;i+=1)	// Initialize variables;continue test
+	//create waves to store parameters
+	make /o/n=(n_uncaging_pulses) w_fit_start_pt
+	make /o/n=(n_uncaging_pulses) w_fit_start_time
+	make /o/n=(n_uncaging_pulses) w_fit_stop_time
+	make /o/n=(n_uncaging_pulses) w_amplitude
+	make /o/n=(n_uncaging_pulses) w_amplitude_se
+	make /o/n=(n_uncaging_pulses) w_t0
+	make /o/n=(n_uncaging_pulses) w_decay_time
+	make /o/n=(n_uncaging_pulses) w_rise_time
+	make /o/n=(n_uncaging_pulses) w_y0
+	make /o/n=(n_uncaging_pulses) w_onset_delay
+//find number of points in the uncaging response
+//if the number of points differs, we use the smallest for analysis
+//!note maybe we want to just throw an error if the number of points differs instead
+	for(i=0;i < n_uncaging_pulses;i+=1)	// for1
+		fit_start = w_uncage_time[i] - y0_time_window
+		w_fit_start_time[i] = fit_start
+		uncage_time = fit_start + y0_time_window
+		fit_stop = fit_start + fit_range
+		w_fit_stop_time[i] = fit_stop
+		v_n_fit_points = min(v_n_fit_points,	(x2pnt(uncaging_response_wave, fit_stop )-x2pnt(uncaging_response_wave, fit_start )))
+		w_fit_start_pt[i] = x2pnt(uncaging_response_wave, fit_start )
+//		print	x2pnt(uncaging_response_wave, fit_start ), x2pnt(uncaging_response_wave, fit_stop ), (x2pnt(uncaging_response_wave, fit_stop )-x2pnt(uncaging_response_wave, fit_start ))
+	endfor		//for1
 
-fit_start = w_uncage_time[i] - y0_time_window
-uncage_time = fit_start + y0_time_window
-fit_stop = fit_start + fit_range
-duplicate /o /r = (fit_start,fit_stop) uncaging_response_wave, w_temp
-Loess/pass=1/n=(2^5) /DEST=w_temp2 srcWave=w_temp
-k4 = mean(uncaging_response_wave,fit_start,uncage_time)
-w_temp2 = w_temp2 - k4
-w_temp = abs(w_temp2)
-wavestats /q w_temp
-k0 = w_temp2(v_maxloc) - k4
-k1 = uncage_time
+//copy uncaging responses into 2d wave
+make /o/n=(n_uncaging_pulses, v_n_fit_points) w2d_responses
+make /o/n=(n_uncaging_pulses, v_n_fit_points) w2d_fits
+make /o/n=(v_n_fit_points) w_fit
+for(i=0;i < n_uncaging_pulses;i+=1)	// for1
+w2d_responses[i][] = uncaging_response_wave[w_fit_start_pt[i]+q]
+endfor		//for1
+setscale /p y,0,dimdelta(uncaging_response_wave,0),w2d_responses
+setscale /p y,0,dimdelta(uncaging_response_wave,0),w2d_fits
+setscale /p x,0,dimdelta(uncaging_response_wave,0),w_fit
+//calculate average response
+make /o /n=(n_uncaging_pulses) w_temp
+w_temp = 1
+MatrixOp/O w_avg_response=w_temp^t x w2d_responses
+redimension /n=(v_n_fit_points) w_avg_response
+w_avg_response = w_avg_response/n_uncaging_pulses
+setscale /p x,0, dimdelta(uncaging_response_wave,0), w_avg_response
+
+//
+//graph average response and get user input for initial estimates
+//
+//graph
+dowindow /k review
+display /n=review w_avg_response
+SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
+//draw line indicates the location of the uncaging pulse in the aligned average
+//because we have aligned the resonse traces at the begining of the fit window, the uncaging pulse occurs at time = y0_time_window
+DrawLine y0_time_window,0,y0_time_window,1
+cursor a,w_avg_response,0
+
+//user interaction
+//estimate response onset delay
+NewPanel/K=2 /n=pause_for_user as "Pause for user"; AutoPositionWindow/M=1/R=review
+DrawText 21,20,"Adjust cursor A to estimate response start";	DrawText 21,40,"time."
+Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=User_Continue
+PauseForUser pause_for_user, review
+v_delay_to_response_start = xcsr(a)-y0_time_window
+
+//estimate peak location and amplitude
+NewPanel/K=2 /n=pause_for_user as "Pause for user"; AutoPositionWindow/M=1/R=review
+DrawText 21,20,"Adjust cursor A to peak response.";//	DrawText 21,40,"Click Continue."
+Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=User_Continue
+PauseForUser pause_for_user, review
+response_max_time = xcsr(a)
+v_amplitude_0 = mean(w_avg_response,response_max_time-v_amplitude_0_window,response_max_time+v_amplitude_0_window) - mean(w_avg_response,0,y0_time_window)
+rise_time_0 = (response_max_time-v_delay_to_response_start)*0.33
+
+//estimate decay time
+NewPanel/K=2 /n=pause_for_user as "Pause for user"; AutoPositionWindow/M=1/R=review
+DrawText 21,20,"Adjust cursor A to indicate time at which the";	DrawText 21,40," response has decayed by 90%."
+Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=User_Continue
+PauseForUser pause_for_user, review
+decay_time_0 = (xcsr(a)-response_max_time)*0.33
+
+duplicate /o w_avg_response w_t
+w_t = x
+duplicate /o w_t fit_w_average_response
+k4 = mean(w_avg_response,0,y0_time_window)
+k0 = v_amplitude_0
+k1 = y0_time_window + v_delay_to_response_start
 k2 = decay_time_0
 k3 = rise_time_0
 W_Coef = {k0, k1, k2, k3, k4}
+fit_w_average_response = DiffTwoExp2(w_coef, w_t)
+AppendToGraph /c=(0,0,0) fit_w_average_response
 V_AbortCode = 0
-FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef uncaging_response_wave(fit_start,fit_stop) /D
-k0_ub = max(k0_ub, w_coef[0])
-k0_lb = min(k0_lb, w_coef[0])
-print w_coef
-endfor												// Execute body code until continue test is FALSE
-print k0_ub, k0_lb
-abort("1")
-
-
-fit_start = w_uncage_time[0] - y0_time_window
-uncage_time = fit_start + y0_time_window
-fit_stop = fit_start + fit_range
-//duplicate/o /r=(fit_start, fit_stop) uncaging_response_wave w_response_temp
-k4 = mean(uncaging_response_wave,fit_start,uncage_time)
-k0 = mean(uncaging_response_wave,(uncage_time+3*rise_time_0),(uncage_time+4*rise_time_0))
-k1 = k1 - k4
-k1 = uncage_time
-k2 = decay_time_0
-k3 = rise_time_0
-W_Coef = {k0, k1, k2, k3, k4}
-V_AbortCode = 0
+V_FitError = 0
 Make/O/T/N=2 T_Constraints
-//T_Constraints[0] = {("K1 > "+num2str(uncage_time-t0_box_constraint)),("K1 < "+num2str(uncage_time+t0_box_constraint))}
+T_Constraints[0] = {"K0 > -30","K0 < 30","K1 > "+num2str(y0_time_window-t0_box_constraint),("K1 < "+num2str(y0_time_window+t0_box_constraint)),"K2 > 0.0005","K2 < 0.05","K3 > 0.0005","K3 < 0.05","K4 > -100","K4 < 100"}
+FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D /C=T_Constraints
 
-T_Constraints[0] = {"K0 > -50","K0 < 50","K1 > 0","K1 < "+(num2str(numpnts(uncaging_response_wave)*dimdelta(uncaging_response_wave,0))),"K2 > 0.0001","K2 < 0.1","K3 > 0.0001","K3 < 0.1","K4 > -100","K4 < 100"}
-//FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start,fit_stop) /D /C=T_Constraints
-FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef uncaging_response_wave(fit_start,fit_stop) /D
+
+	// do fits
+	for(i=0;i < n_uncaging_pulses;i+=1)	// for1
+
+		fit_start = w_uncage_time[i] - y0_time_window
+		uncage_time = fit_start + y0_time_window
+		fit_stop = fit_start + fit_range
+		k4 = mean(uncaging_response_wave,fit_start,uncage_time)
+		k0 = v_amplitude_0
+		k1 = uncage_time + v_delay_to_response_start
+		k2 = decay_time_0
+		k3 = rise_time_0
+		W_Coef = {k0, k1, k2, k3, k4}
+		V_AbortCode = 0
+		V_FitError = 0
+		T_Constraints[0] = {"K0 > -30","K0 < 30","K1 > "+num2str(uncage_time-t0_box_constraint),("K1 < "+num2str(uncage_time+t0_box_constraint)),"K2 > 0.0005","K2 < 0.05","K3 > 0.0005","K3 < 0.05","K4 > -100","K4 < 100"}
+		FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D /C=T_Constraints
+		w_amplitude[i] = w_coef[0]
+		w_amplitude_se[i] = w_sigma[0]
+		w_t0[i] = w_coef[1]
+		w_decay_time[i] = w_coef[2]
+		w_rise_time[i] = w_coef[3]
+		w_y0[i] = w_coef[4]
+		w_onset_delay[i] = w_coef[1]-uncage_time
+
+		duplicate /o /r=(fit_start, fit_stop) uncaging_response_wave w_t
+		w_t = x
+		duplicate /o w_t w_fit
+		w_fit = DiffTwoExp2(w_coef, w_t)
+		w2d_fits[i][] = w_fit[+q]
+
+	endfor												// for1
+
+make /o/n=( (n_uncaging_pulses-1)*n_false_replicates,5) w2d_fake_pars
+for(i=0;i < (n_uncaging_pulses-1);i+=1)	// for1
+inter_fit_time = w_fit_start_time[i+1] - w_fit_stop_time[i]
+inter_false_fit_time = inter_fit_time/n_false_replicates
+for(j=0;j < n_false_replicates;j+=1)	// for2
+fit_start = w_fit_stop_time[i] + j*inter_false_fit_time
+uncage_time = fit_start + y0_time_window
+fit_stop = fit_start + fit_range
+k4 = mean(uncaging_response_wave,fit_start,uncage_time)
+//k0 = v_amplitude_0*sign(gnoise(1))
+k0 = 10
+k1 = uncage_time + v_delay_to_response_start
+k2 = decay_time_0
+k3 = rise_time_0
+W_Coef = {k0, k1, k2, k3, k4}
+V_AbortCode = 0
+V_FitError = 0
+T_Constraints[0] = {"K0 > -30","K0 < 30","K1 > "+num2str(uncage_time-t0_box_constraint),("K1 < "+num2str(uncage_time+t0_box_constraint)),"K2 > 0.0005","K2 < 0.05","K3 > 0.0005","K3 < 0.05","K4 > -100","K4 < 100"}
+FuncFit/N/Q/H="00000" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D /C=T_Constraints
+w2d_fake_pars[i*n_false_replicates+j][] = w_coef[q]
+endfor//for2
+endfor//for1
 
 end
 
@@ -182,34 +288,34 @@ macro Save_Results()
 endmacro
 
 macro Clean_Up()
-dowindow/k graph5
-dowindow/k graph4
-dowindow/k graph3
-dowindow/k graph2
-dowindow/k graph1
-dowindow/k graph0
-//killwindow layout0
-killwaves /a/z
-killstrings /a/z
-//killdatafolder /z root:
-// setdatafolder root:
+	dowindow/k graph5
+	dowindow/k graph4
+	dowindow/k graph3
+	dowindow/k graph2
+	dowindow/k graph1
+	dowindow/k graph0
+	//killwindow layout0
+	killwaves /a/z
+	killstrings /a/z
+	//killdatafolder /z root:
+	// setdatafolder root:
 endmacro
 
 macro Kill_Input_Waves()
-//
-//Kill_Input_Waves kills the waves listed in the data_wave_list String
-//if data_wave_list does not exist, then the function will attempt to kill the waves listed in s_wavenames
-//s_wavenames is auto generated by igor whenever a data wave is loaded
-//this function would normally be invoked by the user after Do_Uncaging_Analysis which would kill only the input waves but leave the output from the analysis in place
-//
+	//
+	//Kill_Input_Waves kills the waves listed in the data_wave_list String
+	//if data_wave_list does not exist, then the function will attempt to kill the waves listed in s_wavenames
+	//s_wavenames is auto generated by igor whenever a data wave is loaded
+	//this function would normally be invoked by the user after Do_Uncaging_Analysis which would kill only the input waves but leave the output from the analysis in place
+	//
 
-if(!exists("data_wave_list"))//if1
-if(!exists("s_wavenames"))//if2
-return
-endif//endif2
-String data_wave_list = s_wavenames
-endif//endif1
-Kill_Wave_List(data_wave_list)
+	if(!exists("data_wave_list"))//if1
+		if(!exists("s_wavenames"))//if2
+			return
+		endif//endif2
+		String data_wave_list = s_wavenames
+	endif//endif1
+	Kill_Wave_List(data_wave_list)
 endmacro
 
 menu "macros"
