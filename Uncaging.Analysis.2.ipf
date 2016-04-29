@@ -5,7 +5,7 @@ Function User_Continue(ctrlName) : ButtonControl
 	DoWindow/K pause_for_user
 End
 macro Do_Uncaging_Analysis()
-	String data_wave_list = s_wavenames
+	String /g data_wave_list = s_wavenames
 	Uncaging_Analysis(data_wave_list)
 	//Kill_Wave_List(data_wave_list)
 endmacro
@@ -128,7 +128,8 @@ function Uncaging_Analysis(data_wave_list)
 	wave uncaging_response_wave = $uncaging_response_wave_name
 	wave uncaging_power_wave = $uncaging_power_wave_name
 
-
+  duplicate /o uncaging_response_wave w_uncage_response
+duplicate /o uncaging_power_wave w_uncage_power
 
 	//before we can make waves to put the fit parameters, we need to know how long to make them
 	//loop through uncaging events to count the number of uncaging pulses
@@ -468,7 +469,14 @@ macro Clean_Up()
 	dowindow/k graph1
 	dowindow/k graph0
 	//killwindow layout0
-	killwaves /a/z
+//	killwaves /a/z
+kill_wave_list("w_uncage_response;w_uncage_power;")
+kill_wave_list("fit_w2d_responses;w_t;w2d_fake_pars;fit_w_response_out;w_bs_amp0;w_bs_amp0alt;w_bs_amp0_Hist;w_bs_amp0alt_Hist;")
+kill_wave_list("w2d_responses;w2d_fits;w_fit;w_temp;w_avg_response;T_Constraints;fit_w_avg_response;")
+kill_wave_list("w_rise_time;w_y0;w_onset_delay;w_amplitude_0;w_amplitude_0_alt;w_amplitude_0_se;")
+kill_wave_list("w_fit_start_time;w_fit_stop_time;w_amplitude;w_amplitude_se;w_t0;w_decay_time;")
+kill_wave_list("w_response_out;w_power_out;w_coef;W_sigma;w_uncage_time;w_fit_start_pt;")
+kill_wave_list("ACH_1;ACH_3;w_uncage_time;w_refs;w_stim1;w_stim2;w_stim3;w_stim4;w_stim5;w_response_out;w_power_out;w2d_responses;w2d_stim;w_temp;w_avg_response;w_avg_power;")
 	killstrings /a/z
 	//killdatafolder /z root:
 	// setdatafolder root:
@@ -589,7 +597,7 @@ for(i=0;i<n_reps;i+=1)//for1
 make /o/n=(n_reps,v_n_fit_points) w2d_responses
 make /o/n=(n_reps,v_n_fit_points) w2d_stim
 
-v_fit_start = w_uncage_time[w[i]]-y0_time_window
+v_fit_start = w_uncage_time[w[i]-1]-y0_time_window
 v_fit_start_point = x2pnt(uncaging_response_wave,v_fit_start)
 w2d_responses[i][] =  uncaging_response_wave[v_fit_start_point + q]
 w2d_stim[i][] =  uncaging_power_wave[v_fit_start_point + q]
@@ -604,8 +612,8 @@ redimension /n=(v_n_fit_points) w_avg_response
 redimension /n=(v_n_fit_points) w_avg_power
 v_fit_start = w_uncage_time[j]-y0_time_window
 v_fit_start_point = x2pnt(uncaging_response_wave,v_fit_start)
-w_response_out[v_fit_start_point,v_fit_start_point+v_n_fit_points] = w_avg_response[p - v_fit_start_point]
-w_power_out[v_fit_start_point,v_fit_start_point+v_n_fit_points] = w_avg_power[p - v_fit_start_point]
+w_response_out[v_fit_start_point,v_fit_start_point+v_n_fit_points-1] = w_avg_response[p - v_fit_start_point]
+w_power_out[v_fit_start_point,v_fit_start_point+v_n_fit_points-1] = w_avg_power[p - v_fit_start_point]
 endfor//for2
 
 
