@@ -6,7 +6,9 @@ Function User_Continue(ctrlName) : ButtonControl
 End
 macro Do_Uncaging_Analysis()
 	String /g data_wave_list = s_wavenames
+  String /g uid =  StringFromList(ItemsInList(s_path, ":")-4, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-3, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-2, s_path , ":")
 	Uncaging_Analysis(data_wave_list)
+
 	//Kill_Wave_List(data_wave_list)
 endmacro
 
@@ -468,6 +470,7 @@ macro Clean_Up()
 	dowindow/k graph2
 	dowindow/k graph1
 	dowindow/k graph0
+  dowindow /k review
 	//killwindow layout0
 //	killwaves /a/z
 kill_wave_list("w_uncage_response;w_uncage_power;")
