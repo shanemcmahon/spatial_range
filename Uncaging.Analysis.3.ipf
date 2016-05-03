@@ -65,7 +65,7 @@ k4 = mean(w_in,0,uncage_time)
 // k2 = decay_time_0
 // k3 = rise_time_0
 //W_Coef = {k0, k1, k2, k3, k4}
-W_Coef = {k0, v_delay_to_response_start^0.5, k2^0.5, k3^0.5, k4, uncage_time}
+W_Coef = {k0, v_delay_to_response_start^0.5, k2^0.5, k3^0.5, k4, uncage_time,.01,0}
 
 //cursor a,$"w_in",(FitStop)
 cursor a,$StringFromList(0, tracenamelist("",";",1) ),(FitStop)
@@ -120,7 +120,8 @@ function Uncaging_Analysis(data_wave_list)
 	// Variable y_max	//not used
 	// Variable peak_time	//not used
 	Variable k0, k1, k2, k3, k4	//initial estimates for fit parameters
-	Variable k0_ub // upper bounds for fit parameters
+	Variable delay_ub = 0.005// upper bounds for fit parameters
+  prompt delay_ub,"Onset delay upper bound"
 	Variable k0_lb // lower bounds for fit parameters
 	Variable fit_start, fit_stop	//variables defining start and stop of the fit window
 	Variable V_AbortCode = 0, V_FitError=0 //Igor environment variable indicating fitting abort condition
@@ -130,6 +131,7 @@ function Uncaging_Analysis(data_wave_list)
 	Variable inter_false_fit_time //time between fake responses
 	Variable response_max_time_0, v_delay_to_response_start_0 //intial parameter estimates
 	Variable v_amplitude
+  variable BoundViolationPenalty
 	variable UserSetPar0FromGraph
 	prompt UserSetPar0FromGraph,"Interactively set initial parameter",popup,"Yes;No"
 	variable v_chisq
@@ -143,7 +145,7 @@ function Uncaging_Analysis(data_wave_list)
 	doPrompt "",uncaging_response_wave_name,uncaging_power_wave_name
 	endif
 
-	DoPrompt "",fit_range,decay_time_0,rise_time_0,v_amplitude_0_window,y0_time_window,UserSetPar0FromGraph
+	DoPrompt "",fit_range,decay_time_0,rise_time_0,v_amplitude_0_window,y0_time_window,delay_ub,UserSetPar0FromGraph
 
 
 	wave uncaging_response_wave = $uncaging_response_wave_name
@@ -244,16 +246,21 @@ fit_stop = fit_range
 	V_FitError = 0
 
 
-	FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
+	FuncFit/N/Q/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
 	v_delay_to_response_start_0 = w_coef[1]^2
 	v_amplitude_0 = w_coef[0]
 	decay_time_0 = w_coef[2]^2
 	rise_time_0 = w_coef[3]^2
+  // BoundViolationPenalty = (v_chisq/v_n_fit_points)^0.5*v_n_fit_points
+  BoundViolationPenalty = v_chisq
 	else
 		response_max_time = y0_time_window + 3 * rise_time_0
 		v_delay_to_response_start = 0
 		v_amplitude_0 = -10
-		w_coef = {-10,0,rise_time_0^0.5,decay_time_0^0.5,mean(w_avg_response,0,y0_time_window),y0_time_window}
+    duplicate /o /r=(0,y0_time_window) w_avg_response WTemp
+    wavestats /q WTemp
+    BoundViolationPenalty = v_sdev*v_n_fit_points
+		w_coef = {-10,0,rise_time_0^0.5,decay_time_0^0.5,mean(w_avg_response,0,y0_time_window),y0_time_window,delay_ub,v_sdev}
 		response_max_time_0 = response_max_time
 		v_delay_to_response_start_0 = v_delay_to_response_start
 	endif
@@ -284,12 +291,12 @@ fit_stop = fit_range
 		k2 = decay_time_0
 		k3 = rise_time_0
 		// W_Coef = {k0, k1, k2, k3, k4}
-    W_Coef = {k0, v_delay_to_response_start_0^0.5, k2^0.5, k3^0.5, k4, uncage_time}
+    W_Coef = {k0, v_delay_to_response_start_0^0.5, k2^0.5, k3^0.5, k4, uncage_time,delay_ub,BoundViolationPenalty}
 		V_AbortCode = 0
 		V_FitError = 0
 
 
-		FuncFit/N/Q/H="011101" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+		FuncFit/N/Q/H="01110111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
 		w_amplitude_0[i] = w_coef[0]
 		w_amplitude_0_se[i] = w_sigma[0]
 		make /o /n=(v_n_fit_points) w_temp
@@ -304,8 +311,9 @@ display /n=review uncaging_response_wave[x2pnt(uncaging_response_wave, fit_start
 SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
 DrawLine uncage_time,0,uncage_time,1
 
-
- FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+w_coef[6] = delay_ub
+w_coef[7] = BoundViolationPenalty
+ FuncFit/N/Q/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
 
 DoUpdate
 
@@ -362,11 +370,11 @@ v_amplitude = k0
 k1 = uncage_time + v_delay_to_response_start
 k2 = decay_time_0
 k3 = rise_time_0
-W_Coef = {k0, v_delay_to_response_start_0^0.5, k2^0.5, k3^0.5, k4,uncage_time}
+W_Coef = {k0, v_delay_to_response_start_0^0.5, k2^0.5, k3^0.5, k4,uncage_time,delay_ub,BoundViolationPenalty}
 V_AbortCode = 0
 V_FitError = 0
 
-FuncFit/N/Q/W=2/H="011101" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+FuncFit/N/Q/W=2/H="01110111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
 
 w2d_fake_pars[i*n_false_replicates+j][0,4] = w_coef[q]
 w2d_fake_pars[i*n_false_replicates+j][5] =  v_amplitude
@@ -383,7 +391,14 @@ Function DiffTwoExp2(w,t) : FitFunc
 	Variable t
 
 
+
 	IF    ((t-(w[1]^2+w[5])) < 0 )
+    if(w[1]^2 > w[6])
+      if((t-(w[1]^2+w[5])) > -0.01 )
+              // return w[4]+w[7]*exp((w[1]^2/w[6]-1)^2)
+              return w[4]+w[7]*exp((w[1]^2-w[6])/w[6])
+      endif
+    endif
 		return w[4]
 	ELSE
 		//Difference in exponential model from Schutter, Erik De. Computational modeling methods for neuroscientists. The MIT Press, 2009. Chapter 6
