@@ -340,9 +340,9 @@ while(user_response == 2)
 
 		w_amplitude[i] = w_coef[0]
 		w_amplitude_se[i] = w_sigma[0]
-		w_t0[i] = w_coef[1]
-		w_decay_time[i] = w_coef[2]
-		w_rise_time[i] = w_coef[3]
+		w_t0[i] = w_coef[1]^2
+		w_decay_time[i] = w_coef[2]^2
+		w_rise_time[i] = w_coef[3]^2
 		w_y0[i] = w_coef[4]
 		w_onset_delay[i] = w_coef[1]^2
 		fit_stop = fit_start + fit_range
@@ -356,7 +356,10 @@ while(user_response == 2)
 
 dowindow/k review
 
-make /o/n=( (n_uncaging_pulses-1)*n_false_replicates,6) w2d_fake_pars
+//make /o/n=( (n_uncaging_pulses-1)*n_false_replicates,6) w2d_fake_pars
+make /o /n=((n_uncaging_pulses-1)*n_false_replicates) WNrAmplitude0
+make /o /n=((n_uncaging_pulses-1)*n_false_replicates) WNrAmplitude1
+make /o /n=((n_uncaging_pulses-1)*n_false_replicates) WNrAmplitude2
 for(i=0;i < (n_uncaging_pulses-1);i+=1)	// for1
 inter_fit_time = w_fit_start_time[i+1] - w_fit_stop_time[i]
 inter_false_fit_time = inter_fit_time/n_false_replicates
@@ -376,8 +379,13 @@ V_FitError = 0
 
 FuncFit/N/Q/W=2/H="01110111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
 
-w2d_fake_pars[i*n_false_replicates+j][0,4] = w_coef[q]
-w2d_fake_pars[i*n_false_replicates+j][5] =  v_amplitude
+// w2d_fake_pars[i*n_false_replicates+j][0] = w_coef[0]
+WNrAmplitude0[i*n_false_replicates+j] = w_coef[0]
+FuncFit/N/Q/W=2/H="00110111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+WNrAmplitude1[i*n_false_replicates+j] = w_coef[0]
+WNrAmplitude2[i*n_false_replicates+j] = v_amplitude
+// w2d_fake_pars[i*n_false_replicates+j][1] = w_coef[0]
+// w2d_fake_pars[i*n_false_replicates+j][2] =  v_amplitude
 
 endfor//for2
 endfor//for1
@@ -422,8 +430,9 @@ display w_amplitude
 ModifyGraph mode=3,marker=19;DelayUpdate
 ErrorBars w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
 SetAxis left wavemin(w_amplitude),wavemax(w_amplitude)
-duplicate /o /r=[*,*][0,0] w2d_fake_pars Wtemp
-wavestats /q wtemp
+
+//duplicate /o /r=[*,*][0,0] w2d_fake_pars Wtemp
+wavestats /q WNrAmplitude1
 SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
 DrawLine 0,(v_avg - 2*v_sdev),1,(v_avg - 2*v_sdev)
 
@@ -435,8 +444,7 @@ AutoPositionWindow/M=1/R=graph0
 dowindow/k graph2
 display w_amplitude_0
 ModifyGraph mode=3,marker=19;DelayUpdate
-duplicate /o /r=[*,*][0,0] w2d_fake_pars Wtemp
-wavestats /q wtemp
+wavestats /q WNrAmplitude0
 SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
 DrawLine 0,(v_avg - 2*v_sdev),1,(v_avg - 2*v_sdev)
 AutoPositionWindow/M=1/R=graph1
@@ -444,12 +452,21 @@ AutoPositionWindow/M=1/R=graph1
 dowindow/k graph3
 display w_amplitude_0_alt
 ModifyGraph mode=3,marker=19;DelayUpdate
-duplicate /o /r=[*,*][5,5] w2d_fake_pars Wtemp
-wavestats /q wtemp
+wavestats /q WNrAmplitude2
 SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
 DrawLine 0,(v_avg - 2*v_sdev),1,(v_avg - 2*v_sdev)
 AutoPositionWindow/M=1/R=graph2
 
+duplicate /o /r=(0,8) w_amplitude WTemp
+duplicate /o /r=(0,8) w_amplitude_0_alt WTemp2
+print StatsCorrelation(Wtemp,Wtemp2)
+
+//Edit/K=0  root:w_amplitude,root:w_amplitude_0,root:w_amplitude_0_alt,root:w_amplitude_0_se,root:w_amplitude_se,root:w_decay_time,root:w_onset_delay,root:w_rise_time,root:w_t0, root:w_y0
+dowindow /k graph4
+Make/N=25/O WNrAmplitude1_Hist;DelayUpdate
+Histogram/P/B=1 WNrAmplitude1,WNrAmplitude1_Hist;DelayUpdate
+Display WNrAmplitude1_Hist
+AutoPositionWindow/M=1/R=graph3
 MakeFigures()
 endmacro
 
@@ -469,7 +486,8 @@ function save_results()
 wave rw2d_response, w_uncage_response,w2d_fake_pars,w_uncage_time
 wave w_fit_start_time, w_fit_stop_time, w_amplitude, w_amplitude_se, w_t0
 wave w_decay_time, w_rise_time, w_y0, w_onset_delay, w_amplitude_0
-wave w_amplitude_0_alt, w2d_responses, w2d_fits, rw_uid
+wave w_amplitude_0_alt, w2d_responses, w2d_fits, rw_uid, WNrAmplitude0
+wave WNrAmplitude1, WNrAmplitude2
 variable n_results
 
 if(!waveexists(rw2d_response))
@@ -493,14 +511,22 @@ duplicate w2d_responses rw3d_uncaging_response
 redimension /n=(-1,-1,8) rw3d_uncaging_response
 duplicate w2d_fits rw3d_fits
 redimension /n=(-1,-1,8) rw3d_fits
+duplicate WNrAmplitude0 W2dNrAmplitude0
+redimension /n=(-1,8) W2dNrAmplitude0
+duplicate WNrAmplitude1 W2dNrAmplitude1
+redimension /n=(-1,8) W2dNrAmplitude1
+duplicate WNrAmplitude2 W2dNrAmplitude2
+redimension /n=(-1,8) W2dNrAmplitude2
 // make /o /n=8 rw_amp0_95
 // make /o /n=8 rw_amp0_90
 // make /o /n=8 rw_amp0_np_95
 // make /o /n=8 rw_amp0_np_90
-make /o /n=0 rwAmpNoStimMean
-make /o /n=0 rwAmpNoStimSD
-make /o /n=0 rwNpAmpNoStimMean
-make /o /n=0 rwNpAmpNoStimSD
+//make /o /n=0 rwAmpNoStimMean
+//make /o /n=0 rwAmpNoStimSD
+//make /o /n=0 rwNpAmpNoStimMean
+//make /o /n=0 rwNpAmpNoStimSD
+make /o /n=0 WAmplitudeCorrelation
+make /o /n=0 WAmplitudeNrCorrelation
 endif
 
 n_results = numpnts(rw_uid)-1
@@ -523,6 +549,9 @@ Redimension /N=(-1, 2*n_results) rw2d_amplitude_0
 Redimension /N=(-1, 2*n_results) rw2d_amplitude_0_np
 Redimension /N=(-1,-1, 2*n_results) rw3d_uncaging_response
 Redimension /N=(-1,-1, 2*n_results) rw3d_fits
+redimension /n=(-1,2*n_results) W2dNrAmplitude0
+redimension /n=(-1,2*n_results) W2dNrAmplitude1
+redimension /n=(-1,2*n_results) W2dNrAmplitude2
 // Redimension /N=(2*n_results) rw_amp0_95
 // Redimension /N=(2*n_results) rw_amp0_90
 // Redimension /N=(2*n_results) rw_amp0_np_95
@@ -549,31 +578,37 @@ rw2d_fit_y0[][n_results] = w_y0[p]
 rw2d_fit_onset_delay[][n_results] = w_onset_delay[p]
 rw2d_amplitude_0[][n_results] = w_amplitude_0[p]
 rw2d_amplitude_0_np[][n_results] = w_amplitude_0_alt[p]
+W2dNrAmplitude0[][n_results] = WNrAmplitude0[p]
+W2dNrAmplitude1[][n_results] = WNrAmplitude1[p]
+W2dNrAmplitude2[][n_results] = WNrAmplitude2[p]
 rw3d_uncaging_response[][][n_results]=w2d_responses[p][q]
 rw3d_fits[][][n_results]=w2d_fits[p][q]
 
-duplicate /o /r=[*,*][0,0] w2d_fake_pars Wtemp
-wavestats /q wtemp
-InsertPoints numpnts(rwAmpNoStimMean), 1, rwAmpNoStimMean
-InsertPoints numpnts(rwAmpNoStimSD), 1, rwAmpNoStimSD
-rwAmpNoStimMean[n_results] = v_avg
-rwAmpNoStimSD[n_results] = v_sdev
+//duplicate /o /r=[*,*][0,0] w2d_fake_pars Wtemp
+//wavestats /q wtemp
+//InsertPoints numpnts(rwAmpNoStimMean), 1, rwAmpNoStimMean
+//InsertPoints numpnts(rwAmpNoStimSD), 1, rwAmpNoStimSD
+//rwAmpNoStimMean[n_results] = v_avg
+//rwAmpNoStimSD[n_results] = v_sdev
 // sort Wtemp, WTemp
 // setscale /i x,0,1,WTemp
 // rw_amp0_95[n_results] = Wtemp(0.05)
 // rw_amp0_90[n_results] = Wtemp(0.1)
 
-duplicate /o /r=[*,*][5,5] w2d_fake_pars Wtemp
-wavestats /q wtemp
-InsertPoints numpnts(rwNpAmpNoStimMean), 1, rwNpAmpNoStimMean
-InsertPoints numpnts(rwNpAmpNoStimSD), 1, rwNpAmpNoStimSD
-rwNpAmpNoStimMean[n_results] = v_avg
-rwNpAmpNoStimSD[n_results] = v_sdev
+//duplicate /o /r=[*,*][5,5] w2d_fake_pars Wtemp
+//wavestats /q wtemp
+//InsertPoints numpnts(rwNpAmpNoStimMean), 1, rwNpAmpNoStimMean
+//InsertPoints numpnts(rwNpAmpNoStimSD), 1, rwNpAmpNoStimSD
+//rwNpAmpNoStimMean[n_results] = v_avg
+//rwNpAmpNoStimSD[n_results] = v_sdev
 // sort Wtemp, WTemp
 // setscale /i x,0,1,WTemp
 // rw_amp0_np_95[n_results] = Wtemp(0.05)
 // rw_amp0_np_90[n_results] = Wtemp(0.1)
-
+InsertPoints numpnts(WAmplitudeCorrelation), 1, WAmplitudeCorrelation
+InsertPoints numpnts(WAmplitudeNrCorrelation), 1, WAmplitudeNrCorrelation
+WAmplitudeCorrelation[n_results] = StatsCorrelation(w_amplitude,w_amplitude_0_alt)
+WAmplitudeNrCorrelation[n_results] = StatsCorrelation(WNrAmplitude1,WNrAmplitude2)
 end
 
 
