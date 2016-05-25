@@ -132,8 +132,8 @@ function Uncaging_Analysis(data_wave_list)
 	Variable response_max_time_0, v_delay_to_response_start_0 //intial parameter estimates
 	Variable v_amplitude
   variable BoundViolationPenalty
-	variable UserSetPar0FromGraph
-	prompt UserSetPar0FromGraph,"Interactively set initial parameter",popup,"Yes;No"
+	variable UserSetPar0
+	prompt UserSetPar0,"Initial parameter estimates",popup,"Interactive;Default;Auto Guess"
 	variable v_chisq
 
 	String wave_data_list =  "w_amplitude;w_t0;w_decay_time;w_rise_time;w_uncage_time;w_onset_delay;w_y0;w_amplitude_se;"
@@ -145,7 +145,9 @@ function Uncaging_Analysis(data_wave_list)
 	doPrompt "",uncaging_response_wave_name,uncaging_power_wave_name
 	endif
 
-	DoPrompt "",fit_range,decay_time_0,rise_time_0,v_amplitude_0_window,y0_time_window,delay_ub,UserSetPar0FromGraph
+	UserSetPar0 = 3
+
+	DoPrompt "",fit_range,decay_time_0,rise_time_0,v_amplitude_0_window,y0_time_window,delay_ub,UserSetPar0
 
 
 	wave uncaging_response_wave = $uncaging_response_wave_name
@@ -236,16 +238,14 @@ setscale /p x,0, dimdelta(uncaging_response_wave,0), w_avg_response
 // //because we have aligned the resonse traces at the begining of the fit window, the uncaging pulse occurs at time = y0_time_window
 fit_stop = fit_range
 
-
-
-	if (UserSetPar0FromGraph == 1)
+	if (UserSetPar0 == 1)
 	User_Define_Initial_Estimates(w_avg_response,w_coef,y0_time_window,y0_time_window,v_amplitude_0_window, response_max_time, v_delay_to_response_start,fit_stop)
 	response_max_time_0 = response_max_time
 	v_delay_to_response_start_0 = v_delay_to_response_start
 	V_AbortCode = 0
 	V_FitError = 0
-
-
+	w_coef[6] = delay_ub
+	print w_coef
 	FuncFit/N/Q/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
 	v_delay_to_response_start_0 = w_coef[1]^2
 	v_amplitude_0 = w_coef[0]
@@ -253,17 +253,40 @@ fit_stop = fit_range
 	rise_time_0 = w_coef[3]^2
   // BoundViolationPenalty = (v_chisq/v_n_fit_points)^0.5*v_n_fit_points
   BoundViolationPenalty = v_chisq
-	else
+	endif
+	if(UserSetPar0 == 2)
 		response_max_time = y0_time_window + 3 * rise_time_0
 		v_delay_to_response_start = 0
 		v_amplitude_0 = -10
     duplicate /o /r=(0,y0_time_window) w_avg_response WTemp
     wavestats /q WTemp
     BoundViolationPenalty = v_sdev*v_n_fit_points
-		w_coef = {-10,0,rise_time_0^0.5,decay_time_0^0.5,mean(w_avg_response,0,y0_time_window),y0_time_window,delay_ub,v_sdev}
+		w_coef = {-10,0.0005,rise_time_0^0.5,decay_time_0^0.5,mean(w_avg_response,0,y0_time_window),y0_time_window,delay_ub,v_sdev}
+		FuncFit/N/Q/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
 		response_max_time_0 = response_max_time
 		v_delay_to_response_start_0 = v_delay_to_response_start
 	endif
+	if(UserSetPar0==3)
+	response_max_time = y0_time_window + 3 * rise_time_0
+	v_delay_to_response_start = 0
+	v_amplitude_0 = -10
+	// duplicate /o /r=(0,y0_time_window) w_avg_response WTemp
+	// wavestats /q WTemp
+	// BoundViolationPenalty = v_sdev*v_n_fit_points
+	w_coef = {-10,0.01,rise_time_0^0.5,decay_time_0^0.5,mean(w_avg_response,0,y0_time_window),y0_time_window,delay_ub,0}
+	print w_coef
+	FuncFit/N/Q/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
+	v_delay_to_response_start_0 = w_coef[1]^2
+	v_delay_to_response_start = v_delay_to_response_start_0
+	v_amplitude_0 = w_coef[0]
+	decay_time_0 = w_coef[2]^2
+	rise_time_0 = w_coef[3]^2
+	response_max_time = y0_time_window + v_delay_to_response_start_0 + (decay_time_0*rise_time_0)/(decay_time_0-rise_time_0)*ln(decay_time_0/rise_time_0)
+	// response_max_time = y0_time_window + 3 * rise_time_0
+	response_max_time_0 = response_max_time
+	BoundViolationPenalty = v_chisq
+	endif
+print response_max_time_0
 
 
 
@@ -285,8 +308,8 @@ fit_stop = fit_range
 		fit_start = uncage_time - y0_time_window
 		fit_stop = fit_start + fit_range
 		k4 = mean(uncaging_response_wave,fit_start,uncage_time)
-		// k0 = v_amplitude_0
-		k0 = mean(uncaging_response_wave,(fit_start + response_max_time_0-v_amplitude_0_window),(fit_start + response_max_time_0 + v_amplitude_0_window)) - k4
+		k0 = -1*v_amplitude_0
+		// k0 = mean(uncaging_response_wave,(fit_start + response_max_time_0-v_amplitude_0_window),(fit_start + response_max_time_0 + v_amplitude_0_window)) - k4
 		k1 = uncage_time + v_delay_to_response_start_0
 		k2 = decay_time_0
 		k3 = rise_time_0
@@ -313,10 +336,14 @@ DrawLine uncage_time,0,uncage_time,1
 
 w_coef[6] = delay_ub
 w_coef[7] = BoundViolationPenalty
- FuncFit/N/Q/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
-
+w_coef[0] = v_amplitude_0
+FuncFit/N/Q/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+duplicate /o w_coef w_coef2
+w_coef[0] = -v_amplitude_0
+FuncFit/N/Q/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
 DoUpdate
-
+w_coef = w_coef + w_coef2
+w_coef = w_coef/2
 user_response = 1
 DoPrompt "Goodness of Fit", user_response
 switch(user_response)	// numeric switch
@@ -381,7 +408,13 @@ FuncFit/N/Q/W=2/H="01110111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(
 
 // w2d_fake_pars[i*n_false_replicates+j][0] = w_coef[0]
 WNrAmplitude0[i*n_false_replicates+j] = w_coef[0]
-FuncFit/N/Q/W=2/H="00110111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+w_coef[0] = v_amplitude_0
+FuncFit/N/Q/W=2/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+duplicate /o w_coef w_coef2
+w_coef[0] = -1*v_amplitude_0
+FuncFit/N/Q/W=2/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+w_coef = w_coef + w_coef2
+w_coef = w_coef/2
 WNrAmplitude1[i*n_false_replicates+j] = w_coef[0]
 WNrAmplitude2[i*n_false_replicates+j] = v_amplitude
 // w2d_fake_pars[i*n_false_replicates+j][1] = w_coef[0]
@@ -425,48 +458,88 @@ Function DiffTwoExp2(w,t) : FitFunc
 End
 
 macro DoMakeFigures()
-dowindow/k graph0
-display w_amplitude
-ModifyGraph mode=3,marker=19;DelayUpdate
-ErrorBars w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
-SetAxis left wavemin(w_amplitude),wavemax(w_amplitude)
-
-//duplicate /o /r=[*,*][0,0] w2d_fake_pars Wtemp
-wavestats /q WNrAmplitude1
-SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-DrawLine 0,(v_avg - 2*v_sdev),1,(v_avg - 2*v_sdev)
-
-dowindow /k graph1
-display w_avg_response
-appendtograph fit_w_avg_response
-AutoPositionWindow/M=1/R=graph0
-
-dowindow/k graph2
-display w_amplitude_0
-ModifyGraph mode=3,marker=19;DelayUpdate
-wavestats /q WNrAmplitude0
-SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-DrawLine 0,(v_avg - 2*v_sdev),1,(v_avg - 2*v_sdev)
-AutoPositionWindow/M=1/R=graph1
-
-dowindow/k graph3
-display w_amplitude_0_alt
-ModifyGraph mode=3,marker=19;DelayUpdate
-wavestats /q WNrAmplitude2
-SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-DrawLine 0,(v_avg - 2*v_sdev),1,(v_avg - 2*v_sdev)
-AutoPositionWindow/M=1/R=graph2
 
 duplicate /o /r=(0,8) w_amplitude WTemp
 duplicate /o /r=(0,8) w_amplitude_0_alt WTemp2
 print StatsCorrelation(Wtemp,Wtemp2)
 
+dowindow/k graph0
+display w_amplitude
+setscale /p x,900,-100,"nm",w_amplitude
+Label bottom "distance \\u#2 (nm)"
+ModifyGraph mode=3,marker=19;DelayUpdate
+ErrorBars w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
+SetAxis left wavemin(w_amplitude),wavemax(w_amplitude)
+Label left "I\\u#2 (pA)"
+
+
+Sort WNrAmplitude1 WNrAmplitude1
+setscale /i x,0,1,WNrAmplitude1
+SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+DrawLine 0,(WNrAmplitude1(0.025)),1,(WNrAmplitude1(0.025))
+
+dowindow /k graph1
+display w_avg_response
+appendtograph fit_w_avg_response
+AutoPositionWindow/M=1/R=graph0
+Label left "I\\u#2 (pA)"
+Label bottom "t\\u#2 (ms)"
+
+dowindow/k graph2
+display w_amplitude_0
+setscale /p x,900,-100,"nm",w_amplitude_0
+Label bottom "distance \\u#2 (nm)"
+ModifyGraph mode=3,marker=19;DelayUpdate
+//wavestats /q WNrAmplitude0
+SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+//DrawLine 0,(v_avg - 2*v_sdev),1,(v_avg - 2*v_sdev)
+Sort WNrAmplitude0 WNrAmplitude0
+setscale /i x,0,1,WNrAmplitude0
+DrawLine 0,(WNrAmplitude0(0.025)),1,(WNrAmplitude0(0.025))
+AutoPositionWindow/M=1/R=graph1
+Label left "I\\u#2 (pA)"
+
+dowindow/k graph3
+display w_amplitude_0_alt
+setscale /p x,900,-100,"nm",w_amplitude_0_alt
+Label bottom "distance \\u#2 (nm)"
+ModifyGraph mode=3,marker=19;DelayUpdate
+//wavestats /q WNrAmplitude2
+SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+//DrawLine 0,(v_avg - 2*v_sdev),1,(v_avg - 2*v_sdev)
+Sort WNrAmplitude2 WNrAmplitude2
+setscale /i x,0,1,WNrAmplitude2
+SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+DrawLine 0,(WNrAmplitude2(0.025)),1,(WNrAmplitude2(0.025))
+AutoPositionWindow/M=0/R=graph0
+Label left "I\\u#2 (pA)"
+
+
+
 //Edit/K=0  root:w_amplitude,root:w_amplitude_0,root:w_amplitude_0_alt,root:w_amplitude_0_se,root:w_amplitude_se,root:w_decay_time,root:w_onset_delay,root:w_rise_time,root:w_t0, root:w_y0
 dowindow /k graph4
-Make/N=25/O WNrAmplitude1_Hist;DelayUpdate
-Histogram/P/B=1 WNrAmplitude1,WNrAmplitude1_Hist;DelayUpdate
+Make/N=(numpnts(WNrAmplitude1)^0.5)/O WNrAmplitude1_Hist;DelayUpdate
+Histogram/P/B={WNrAmplitude1(0.025),((WNrAmplitude1(0.975) -WNrAmplitude1(0.025))/(numpnts(WNrAmplitude1_Hist))),(numpnts(WNrAmplitude1_Hist))} WNrAmplitude1,WNrAmplitude1_Hist
 Display WNrAmplitude1_Hist
 AutoPositionWindow/M=1/R=graph3
+Label bottom "I\\u#2 (pA)"
+
+dowindow /k graph5
+Make/N=(numpnts(WNrAmplitude0)^0.5)/O WNrAmplitude0_Hist;DelayUpdate
+Histogram/P/B=1 WNrAmplitude0,WNrAmplitude0_Hist
+Display WNrAmplitude0_Hist
+AutoPositionWindow/M=1/R=graph4
+Label bottom "I\\u#2 (pA)"
+
+dowindow /k graph6
+Make/N=(numpnts(WNrAmplitude2)^0.5)/O WNrAmplitude2_Hist;DelayUpdate
+Histogram/P/B=1 WNrAmplitude2,WNrAmplitude2_Hist
+//Make/N=40/O WNrAmplitude2_Hist;DelayUpdate
+//Histogram/P/B={-10,0.5,40} WNrAmplitude2,WNrAmplitude2_Hist
+Display WNrAmplitude2_Hist
+AutoPositionWindow/M=0/R=graph3
+Label bottom "I\\u#2 (pA)"
+
 MakeFigures()
 endmacro
 
