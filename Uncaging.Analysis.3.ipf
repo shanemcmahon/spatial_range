@@ -308,8 +308,8 @@ print response_max_time_0
 		fit_start = uncage_time - y0_time_window
 		fit_stop = fit_start + fit_range
 		k4 = mean(uncaging_response_wave,fit_start,uncage_time)
-		k0 = -1*v_amplitude_0
-		// k0 = mean(uncaging_response_wave,(fit_start + response_max_time_0-v_amplitude_0_window),(fit_start + response_max_time_0 + v_amplitude_0_window)) - k4
+		// k0 = v_amplitude_0
+		k0 = mean(uncaging_response_wave,(fit_start + response_max_time_0-v_amplitude_0_window),(fit_start + response_max_time_0 + v_amplitude_0_window)) - k4
 		k1 = uncage_time + v_delay_to_response_start_0
 		k2 = decay_time_0
 		k3 = rise_time_0
@@ -336,14 +336,17 @@ DrawLine uncage_time,0,uncage_time,1
 
 w_coef[6] = delay_ub
 w_coef[7] = BoundViolationPenalty
-w_coef[0] = v_amplitude_0
+//w_coef[0] = v_amplitude_0
 FuncFit/N/Q/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
-duplicate /o w_coef w_coef2
-w_coef[0] = -v_amplitude_0
-FuncFit/N/Q/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+
+// duplicate /o w_coef w_coef2
+// w_coef[0] = -v_amplitude_0
+// FuncFit/N/Q/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+// w_coef = w_coef + w_coef2
+// w_coef = w_coef/2
+
 DoUpdate
-w_coef = w_coef + w_coef2
-w_coef = w_coef/2
+
 user_response = 1
 DoPrompt "Goodness of Fit", user_response
 switch(user_response)	// numeric switch
@@ -408,13 +411,14 @@ FuncFit/N/Q/W=2/H="01110111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(
 
 // w2d_fake_pars[i*n_false_replicates+j][0] = w_coef[0]
 WNrAmplitude0[i*n_false_replicates+j] = w_coef[0]
-w_coef[0] = v_amplitude_0
+// w_coef[0] = v_amplitude_0
 FuncFit/N/Q/W=2/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
-duplicate /o w_coef w_coef2
-w_coef[0] = -1*v_amplitude_0
-FuncFit/N/Q/W=2/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
-w_coef = w_coef + w_coef2
-w_coef = w_coef/2
+// duplicate /o w_coef w_coef2
+// w_coef[0] = -1*v_amplitude_0
+// FuncFit/N/Q/W=2/H="00000111" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+// w_coef = w_coef + w_coef2
+// w_coef = w_coef/2
+
 WNrAmplitude1[i*n_false_replicates+j] = w_coef[0]
 WNrAmplitude2[i*n_false_replicates+j] = v_amplitude
 // w2d_fake_pars[i*n_false_replicates+j][1] = w_coef[0]
@@ -521,7 +525,7 @@ dowindow /k graph4
 Make/N=(numpnts(WNrAmplitude1)^0.5)/O WNrAmplitude1_Hist;DelayUpdate
 Histogram/P/B={WNrAmplitude1(0.025),((WNrAmplitude1(0.975) -WNrAmplitude1(0.025))/(numpnts(WNrAmplitude1_Hist))),(numpnts(WNrAmplitude1_Hist))} WNrAmplitude1,WNrAmplitude1_Hist
 Display WNrAmplitude1_Hist
-AutoPositionWindow/M=1/R=graph3
+AutoPositionWindow/M=0/R=graph3
 Label bottom "I\\u#2 (pA)"
 
 dowindow /k graph5
@@ -537,7 +541,7 @@ Histogram/P/B=1 WNrAmplitude2,WNrAmplitude2_Hist
 //Make/N=40/O WNrAmplitude2_Hist;DelayUpdate
 //Histogram/P/B={-10,0.5,40} WNrAmplitude2,WNrAmplitude2_Hist
 Display WNrAmplitude2_Hist
-AutoPositionWindow/M=0/R=graph3
+AutoPositionWindow/M=0/R=graph5
 Label bottom "I\\u#2 (pA)"
 
 MakeFigures()
