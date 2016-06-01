@@ -93,3 +93,90 @@ variable i
 	endfor // for1
 endif
 end//ColumnMeans
+
+function which(mask,[result])
+wave mask
+wave result
+Extract /indx/o mask, w_which, mask
+if(!paramisdefault(result))
+duplicate /o w_which result
+endif
+end
+
+function subset1d(w_in,[mask,IndexList,w_out])
+wave w_in,mask,IndexList,w_out
+if(paramisdefault(IndexList))
+if(paramisdefault(mask))
+	abort("Must specifiy mask or IndexList")
+endif
+make /o/free IndexList
+which(mask,result=IndexList)
+endif
+make /o /n=(numpnts(IndexList)) w_subset
+w_subset = w_in[IndexList[p]]
+if(!paramisdefault(w_out))
+	duplicate /o w_subset w_out
+endif
+
+end
+
+function subset2d(w_in,dim,[mask,IndexList,w_out])
+wave w_in,mask,IndexList,w_out
+variable dim
+if(paramisdefault(IndexList))
+if(paramisdefault(mask))
+	abort("Must specifiy mask or IndexList")
+endif
+if(numpnts(mask)!=dimsize(w_in,dim))
+abort("Mask must have same length as dimsize(w_in,dim)")
+endif
+make /o/free IndexList
+which(mask,result=IndexList)
+endif
+if(dim==0)
+make /o /n=((numpnts(IndexList)),dimsize(w_in,1)) w_subset
+w_subset = w_in[IndexList[p]][q]
+if(!paramisdefault(w_out))
+	duplicate /o w_subset w_out
+endif
+endif
+if(dim==1)
+make /o /n=(dimsize(w_in,1),(numpnts(IndexList))) w_subset
+w_subset = w_in[p][IndexList[q]]
+if(!paramisdefault(w_out))
+	duplicate /o w_subset w_out
+endif
+endif
+end
+
+function subset(w_in,[dim,mask,IndexList,w_out])
+wave w_in, mask, IndexList, w_out
+variable dim
+if(paramisdefault(IndexList))
+if(paramisdefault(mask))
+	abort("Must specifiy mask or IndexList")
+endif
+make /o/free IndexList
+which(mask,result=IndexList)
+endif
+	switch(wavedims(w_in))	
+		case 1:		
+		if(paramisdefault(w_out))
+		subset1d(w_in,IndexList=IndexList)
+		return 0
+		endif
+		subset1d(w_in,IndexList=IndexList,w_out=w_out)
+			return 0					
+		case 2:		
+		if(paramisdefault(dim))
+		abort("must specifiy dim parameter for 2d wave")
+		endif
+		if(paramisdefault(w_out))
+		subset2d(w_in,dim,IndexList=IndexList)
+		return 0
+		endif
+		subset2d(w_in,dim,IndexList=IndexList,w_out=w_out)
+		return 0
+		
+	endswitch
+end

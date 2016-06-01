@@ -9,7 +9,7 @@ macro Do_Uncaging_Analysis()
 // helper macro for uncaging_analysis Function
 // the global variables s_wavenames and s_path are not available inside functions, therefore somethings are done first in the macro
 	String /g data_wave_list = s_wavenames
-  String /g uid =  StringFromList(ItemsInList(s_path, ":")-4, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-3, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-2, s_path , ":")
+  String /g uid =  StringFromList(ItemsInList(s_path, ":")-4, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-3, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-2, s_path , ":")+"_ts"+s_path[strlen(s_path)-4,strlen(s_path)-2]
 	Uncaging_Analysis(data_wave_list)
 
 endmacro
@@ -105,7 +105,8 @@ function Uncaging_Analysis(data_wave_list)
 	Variable inter_fit_time //time between end of a fit and start of the next fit for consecutive fits to "real" stimuli
 	Variable inter_false_fit_time //time between fake responses
 	Variable response_max_time_0, v_delay_to_response_start_0 //intial parameter estimates
-	Variable v_amplitude
+	Variable v_amplitude, TotalLengthUncaging
+	make /o /n=1 vPockelsVoltage
 	variable UserSetPar0
 	prompt UserSetPar0,"Initial parameter estimates",popup,"Interactive;Default;Auto Guess"
 
@@ -143,6 +144,14 @@ duplicate /o uncaging_power_wave w_uncage_power
 	//we find the first two pulses manually before entering the do loop
 	//as we treat the first pulse slightly different than the rest, treating the first pulses outside of the loop allows us to avoid using an if-then construct inside the loop
 	threshold = 0.8*wavemax(uncaging_power_wave)
+
+//calculate average pockels voltage
+duplicate /o uncaging_power_wave temp
+temp = threshold < uncaging_power_wave
+TotalLengthUncaging = sum(temp)
+temp = temp * uncaging_power_wave
+vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
+
 	// find rising edge in power trace greater than defined threshold
 	findlevel /Q/EDGE=1 /R= (V_LevelX,) uncaging_power_wave, threshold
 	//we find the first pulse manually before entering the do loop, so we start the counter at 1
@@ -272,7 +281,7 @@ fit_stop = fit_range
 	v_amplitude_0 = w_coef[0]
 	decay_time_0 = w_coef[2]
 	rise_time_0 = w_coef[3]
-	response_max_time = y0_time_window + v_delay_to_response_start_0 + (decay_time_0*rise_time_0)/(decay_time_0-rise_time_0)*ln(decay_time_0/rise_time_0)
+	response_max_time = y0_time_window + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
 	response_max_time_0 = response_max_time
 
 	endif
@@ -283,6 +292,9 @@ fit_stop = fit_range
 	// do fits
 	// ============================================================================
 	// ============================================================================
+
+Make/O/T/N=2 T_Constraints
+T_Constraints[0] = {"K1 > 0","K1 < .01"}
 
 	Prompt user_response, "Is this fit good?", popup, "Yes: Save fit;No: Do a Refit; No response: Save zero; Too noisy, save NaN"
 
@@ -307,6 +319,7 @@ fit_stop = fit_range
 		V_FitError = 0
 
 // perform initial fit with some parameters fixed
+		// FuncFit/N/Q/H="001101" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D /C=T_Constraints
 		FuncFit/N/Q/H="011101" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
 		// save the amplitude for restricted model
 		w_amplitude_1[i] = w_coef[0]
@@ -314,9 +327,11 @@ fit_stop = fit_range
 		make /o /n=(v_n_fit_points) w_temp
 		w_temp = w2d_responses[i][p]
 		setscale /p x,0, dimdelta(uncaging_response_wave,0), w_temp
-		// save nonparametric estimate of amplitude
+		//save nonparametric estimate of amplitude
 		w_amplitude_0[i] = mean(w_temp,(response_max_time_0-v_amplitude_0_window),(response_max_time_0+v_amplitude_0_window)) - mean(w_temp,0,y0_time_window)
-
+		// save nonparametric estimate of amplitude
+		// response_max_time = y0_time_window + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
+		// w_amplitude_0[i] = mean(uncaging_response_wave,(fit_start+response_max_time-v_amplitude_0_window),(fit_start+response_max_time+v_amplitude_0_window)) - mean(uncaging_response_wave,fit_start,(fit_start+y0_time_window))
 
 do
 // open display window for checking the fit; igor will automatically append the fit to the graph when funcfit is called
@@ -326,6 +341,7 @@ SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
 DrawLine uncage_time,0,uncage_time,1
 
 // perform fit to the full model
+// FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D /C=T_Constraints
 FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
 
 
@@ -408,15 +424,29 @@ V_FitError = 0
 
 // fit restricted model
 FuncFit/N/Q/W=2/H="011101" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
-
+// FuncFit/N/Q/W=2/H="001101" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D /C=T_Constraints
+// response_max_time = y0_time_window + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
+// save nonparametric estimate of amplitude
+// WNrAmplitude0[i*n_false_replicates+j] = mean(uncaging_response_wave,(fit_start+response_max_time-v_amplitude_0_window),(fit_start+response_max_time+v_amplitude_0_window)) - mean(uncaging_response_wave,fit_start,(fit_start+y0_time_window))
+WNrAmplitude0[i*n_false_replicates+j] = v_amplitude
 // save amplitude from restricted model
 WNrAmplitude1[i*n_false_replicates+j] = w_coef[0]
 // perform full model fit
+// FuncFit/N/Q/W=2/H="000001" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D /C=T_Constraints
 FuncFit/N/Q/W=2/H="000001" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
+// duplicate /o/r=[0,4] w_coef w_coef2
+// duplicate /o /r =(fit_start, fit_stop) uncaging_response_wave Wtemp
+// duplicate /o wTemp wTemp2
+// wTemp2 = x
+// concatenate /o {wTemp2,wTemp}, ModelFrame
+// optimize /q /x=w_coef /R=w_coef /m={0,1} DiffTwoExpSM,w_coef
+// w_coef[0,4]=w_coef2[p]
 // save amplitude from full model fit
 WNrAmplitude[i*n_false_replicates+j] = w_coef[0]
+// WNrAmplitude[i*n_false_replicates+j] = w_coef[0]
+
 // save nonparametric amplitude estimate
-WNrAmplitude0[i*n_false_replicates+j] = v_amplitude
+// WNrAmplitude0[i*n_false_replicates+j] = v_amplitude
 
 endfor//for2
 endfor//for1
@@ -449,10 +479,55 @@ Function DiffTwoExp2(w,t) : FitFunc
 	ENDIF
 End
 
+Function DiffTwoExpSM(par,xIn)
+	Wave par,xIn
+	wave ModelFrame, w_coef
+
+
+	variable Gsyn, Fnorm, TPeak,t0,td,tr,y0,UncageTime
+	Gsyn = par[0]
+	t0 = par[1]
+	td = par[2]
+	tr = par[3]
+	y0 = par[4]
+	UncageTime = par[5]
+
+	//if(dimsize(ModelFrame,0 < dimsize(ModelFrame,1)))
+	if(dimsize(ModelFrame,0) < dimsize(ModelFrame,1))
+	matrixop /o xTemp = ModelFrame^t
+	ModelFrame = xTemp
+	endif
+
+	make /o /n=(dimsize(ModelFrame,0)) Yhat
+	make /o /n=(dimsize(ModelFrame,0)) yObs
+	make /o /n=(dimsize(ModelFrame,0)) tIn
+	tIn = ModelFrame[p][0]
+	yObs = ModelFrame[p][1]
+
+	make /o /n=(numpnts(tIn)) TMaskBaseline
+	make /o /n=(numpnts(tIn)) TMaskNotBaseline
+	TMaskBaseline = tIn < (t0+UncageTime)
+	TMaskNotBaseline = !TMaskBaseline
+		TPeak = (UncageTime+t0) + (td*tr)/(td-tr)*ln(td/tr)
+		fnorm = 1/(-exp(-(Tpeak-(UncageTime+t0))/tr) + exp(-(Tpeak-(UncageTime+t0))/td))
+
+matrixop/o yhat = (y0)*TMaskBaseline + TMaskNotBaseline*(y0 + Gsyn*fnorm*(exp(-(tIn-(UncageTime+t0))/td)-exp(-(tIn-(UncageTime+t0))/tr)))
+// duplicate /o yobs errs
+matrixop /o errs = yobs - Yhat
+matrixop /o sse = errs.errs
+// errs = errs*errs
+variable sse_out = sse[0]
+//print sse_out,par
+return sse_out
+		//return (y0 + Gsyn*fnorm*(exp(-(t-(UncageTime+t0))/td)-exp(-(t-(UncageTime+t0))/tr)))
+    // return (w[4]+w[0]*(-exp(-(t-(w[1]+w[5]))/(w[3]))+exp(-(t-(w[1]+w[5]))/(w[2])))/(-exp(-((w[1])+((w[2])*(w[3])/((w[2])-(w[3])))*ln((w[2])/(w[3]))-(w[1]))/(w[3]))+exp(-((w[1])+((w[2])*(w[3])/((w[2])-(w[3])))*ln((w[2])/(w[3]))-(w[1]))/(w[2]))))
+
+End
+
 macro DoMakeFigures()
 
-duplicate /o /r=[0,8] w_amplitude WTemp
-duplicate /o /r=[0,8] w_amplitude_1 WTemp2
+duplicate /o /r=[0,numpnts(w_amplitude)-2] w_amplitude WTemp
+duplicate /o /r=[0,numpnts(w_amplitude)-2] w_amplitude_1 WTemp2
 print StatsCorrelation(Wtemp,Wtemp2)
 
 dowindow/k graph0
@@ -480,6 +555,7 @@ display w_amplitude_1
 setscale /p x,900,-100,"nm",w_amplitude_1
 Label bottom "distance \\u#2 (nm)"
 ModifyGraph mode=3,marker=19;DelayUpdate
+ErrorBars w_amplitude_1 Y,wave=(w_amplitude_1_se,w_amplitude_1_se)
 SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
 Sort WNrAmplitude1 WNrAmplitude1
 setscale /i x,0,1,WNrAmplitude1
@@ -495,9 +571,6 @@ AutoPositionWindow/M=1/R=graph2
 Label bottom "I\\u#2 (pA)"
 
 
-
-
-
 dowindow/k graph4
 display w_amplitude
 setscale /p x,900,-100,"nm",w_amplitude
@@ -509,8 +582,59 @@ Label left "I\\u#2 (pA)"
 Sort WNrAmplitude WNrAmplitude
 setscale /i x,0,1,WNrAmplitude
 SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-DrawLine 0,(WNrAmplitude(0.025)),1,(WNrAmplitude(0.025))
+DrawLine 0,(WNrAmplitude(0.01)),1,(WNrAmplitude(0.01))
 AutoPositionWindow/M=0/R=graph2
+
+if(w_amplitude[0] < w_amplitude[numpnts(w_amplitude)-1])
+if( (!(wavemin(w_amplitude) == w_amplitude[0])))
+do
+Rotate -1, w_amplitude, w_amplitude_se
+//DeletePoints 0,1, w_amplitude, w_amplitude_se	
+w_amplitude[numpnts(w_amplitude)-1]=NaN
+w_amplitude_se[numpnts(w_amplitude)]=NaN
+while (!(wavemin(w_amplitude) == w_amplitude[0]))				
+endif
+setscale /p x,-((numpnts(w_amplitude)-1)*100),100,"nm",w_amplitude
+K0 = 0;K1 = wavemin(w_amplitude);K2 = 500;
+//CurveFit/n/q/w=2/H="100"/NTHR=0/K={((numpnts(w_amplitude)-1)*100)} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1/D
+CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1/D
+InsertPoints 3, 1, w_coef
+w_coef[3] = v_chisq
+duplicate /o w_coef wFitAmplitude0
+duplicate /o w_sigma wFitAmplitudeSE0
+
+K0 = wavemax(w_amplitude);K1 = wavemin(w_amplitude)-wavemax(w_amplitude); K2 = 500;
+//CurveFit/w=2/q/n/G/NTHR=0/H="000"/K={((numpnts(w_amplitude)-1)*100)} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1 /D
+CurveFit/w=2/q/n/G/NTHR=0/H="000"/K={0} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1 /D
+InsertPoints 3, 1, w_coef
+w_coef[3] = v_chisq
+duplicate /o w_coef wFitAmplitude1
+duplicate /o w_sigma wFitAmplitudeSE1
+else
+if( (!(wavemin(w_amplitude) == w_amplitude[numpnts(w_amplitude)-1])))
+do
+Rotate 1, w_amplitude, w_amplitude_se
+//DeletePoints 0,1, w_amplitude, w_amplitude_se	
+w_amplitude[0]=NaN
+w_amplitude_se[0]=NaN
+while (!(wavemin(w_amplitude) == w_amplitude[numpnts(w_amplitude)-1]))				
+endif
+
+K0 = 0;K1 = wavemin(w_amplitude);K2 = 500;
+CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1/D
+InsertPoints 3, 1, w_coef
+w_coef[3] = v_chisq
+duplicate /o w_coef wFitAmplitude0
+duplicate /o w_sigma wFitAmplitudeSE0
+
+K0 = wavemax(w_amplitude);K1 = wavemin(w_amplitude)-wavemax(w_amplitude); K2 = 500;
+CurveFit/w=2/q/n/G/NTHR=0/H="000"/K={0} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1 /D
+InsertPoints 3, 1, w_coef
+w_coef[3] = v_chisq
+duplicate /o w_coef wFitAmplitude1
+duplicate /o w_sigma wFitAmplitudeSE1
+endif
+
 
 dowindow /k graph5
 Make/N=(numpnts(WNrAmplitude)^0.5)/O WNrAmplitude_Hist;DelayUpdate
@@ -519,7 +643,25 @@ Display WNrAmplitude_Hist
 AutoPositionWindow/M=1/R=graph4
 Label bottom "I\\u#2 (pA)"
 
-
+dowindow /k graph6
+setscale /p x,900,-100,"nm",w_decay_time
+setscale /p x,900,-100,"nm",w_rise_time
+setscale /p x,900,-100,"nm",w_onset_delay
+display  w_decay_time
+//AppendToGraph/L=l2 w_decay_time
+AppendToGraph/l=l2 w_rise_time
+ModifyGraph rgb(w_rise_time)=(16385,16388,65535)
+AppendToGraph/l=l3 w_onset_delay
+ModifyGraph rgb(w_onset_delay)=(0,0,0)
+Label bottom "distance \\u#2 (nm)"
+AutoPositionWindow/M=0/R=graph4
+Legend/C/N=text0/A=MC/x=-50/y=40
+ModifyGraph axThick(l2)=0,freePos(l2)=0,axRGB(l2)=(65535,65535,65535);DelayUpdate
+ModifyGraph tlblRGB(l2)=(65535,65535,65535),alblRGB(l2)=(65535,65535,65535)
+ModifyGraph axThick(l3)=0,freePos(l2)=0,axRGB(l3)=(65535,65535,65535);DelayUpdate
+ModifyGraph tlblRGB(l3)=(65535,65535,65535),alblRGB(l3)=(65535,65535,65535)
+ModifyGraph axThick(left)=0,freePos(left)=0,axRGB(left)=(65535,65535,65535);DelayUpdate
+ModifyGraph tlblRGB(left)=(65535,65535,65535),alblRGB(left)=(65535,65535,65535)
 
 MakeFigures()
 endmacro
@@ -541,7 +683,8 @@ wave rw2d_response, w_uncage_response,w2d_fake_pars,w_uncage_time
 wave w_fit_start_time, w_fit_stop_time, w_amplitude, w_amplitude_se, w_t0
 wave w_decay_time, w_rise_time, w_y0, w_onset_delay, w_amplitude_1
 wave w_amplitude_0, w2d_responses, w2d_fits, rw_uid, WNrAmplitude1
-wave WNrAmplitude, WNrAmplitude0
+wave WNrAmplitude, WNrAmplitude0, rwPockelsVoltage
+wave vPockelsVoltage, wFitAmplitude0,wFitAmplitude1,wFitAmplitudeSE0,wFitAmplitudeSE1
 variable n_results
 
 if(!waveexists(rw2d_response))
@@ -559,6 +702,12 @@ make /n=(numpnts(w_y0),8) rw2d_fit_y0
 make /n=(numpnts(w_onset_delay),8) rw2d_fit_onset_delay
 make /n=(numpnts(w_amplitude_1),8) rw2d_amplitude_0
 make /n=(numpnts(w_amplitude_0),8) rw2d_amplitude_0_np
+// make /n=(numpnts(),8)
+make /n=(numpnts(wFitAmplitude1),8) rw2dFitAmplitude1
+make /n=(numpnts(wFitAmplitudeSE0),8) rw2dFitAmplitudeSE0
+make /n=(numpnts(wFitAmplitudeSE1),8) rw2dFitAmplitudeSE1
+make /n=(numpnts(wFitAmplitude0),8) rw2dFitAmplitude0
+
 duplicate w2d_responses rw3d_uncaging_response
 redimension /n=(-1,-1,8) rw3d_uncaging_response
 duplicate w2d_fits rw3d_fits
@@ -571,6 +720,7 @@ duplicate WNrAmplitude0 W2dNrAmplitude2
 redimension /n=(-1,8) W2dNrAmplitude2
 make /o /n=0 WAmplitudeCorrelation
 make /o /n=0 WAmplitudeNrCorrelation
+make /o /n=0 rwPockelsVoltage
 endif
 
 n_results = numpnts(rw_uid)-1
@@ -589,6 +739,12 @@ Redimension /N=(-1, 2*n_results) rw2d_fit_y0
 Redimension /N=(-1, 2*n_results) rw2d_fit_onset_delay
 Redimension /N=(-1, 2*n_results) rw2d_amplitude_0
 Redimension /N=(-1, 2*n_results) rw2d_amplitude_0_np
+// Redimension /N=(-1, 2*n_results)
+Redimension /N=(-1, 2*n_results) rw2dFitAmplitudeSE0
+Redimension /N=(-1, 2*n_results) rw2dFitAmplitudeSE1
+Redimension /N=(-1, 2*n_results) rw2dFitAmplitude1
+Redimension /N=(-1, 2*n_results) rw2dFitAmplitude0
+
 Redimension /N=(-1,-1, 2*n_results) rw3d_uncaging_response
 Redimension /N=(-1,-1, 2*n_results) rw3d_fits
 redimension /n=(-1,2*n_results) W2dNrAmplitude0
@@ -615,11 +771,19 @@ rw2d_amplitude_0_np[][n_results] = w_amplitude_0[p]
 W2dNrAmplitude0[][n_results] = WNrAmplitude1[p]
 W2dNrAmplitude1[][n_results] = WNrAmplitude[p]
 W2dNrAmplitude2[][n_results] = WNrAmplitude0[p]
+// [][n_results] = [p]
+rw2dFitAmplitude0[][n_results] = wFitAmplitude0[p]
+rw2dFitAmplitudeSE1[][n_results] = wFitAmplitudeSE1[p]
+rw2dFitAmplitudeSE0[][n_results] = wFitAmplitudeSE0[p]
+rw2dFitAmplitude1[][n_results] = wFitAmplitude1[p]
+
 rw3d_uncaging_response[][][n_results]=w2d_responses[p][q]
 rw3d_fits[][][n_results]=w2d_fits[p][q]
 
 InsertPoints numpnts(WAmplitudeCorrelation), 1, WAmplitudeCorrelation
 InsertPoints numpnts(WAmplitudeNrCorrelation), 1, WAmplitudeNrCorrelation
+InsertPoints numpnts(rwPockelsVoltage), 1, rwPockelsVoltage
+rwPockelsVoltage[n_results] = vPockelsVoltage[0]
 WAmplitudeCorrelation[n_results] = StatsCorrelation(w_amplitude,w_amplitude_0)
 WAmplitudeNrCorrelation[n_results] = StatsCorrelation(WNrAmplitude,WNrAmplitude0)
 end
