@@ -193,6 +193,8 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 	make /o/n=(n_uncaging_pulses) w_amplitude_1
 	make /o/n=(n_uncaging_pulses) w_amplitude_0
 	make /o/n=(n_uncaging_pulses) w_amplitude_1_se
+	make /o/n=(n_uncaging_pulses,6) w2dFitUncagingResponseCoef
+	make /o/n=(n_uncaging_pulses,6) w2dFitUncagingResponseCoefSE
 
 // To get initial estimates of the parameters, the model is first fit to the average response
 // to calculate the average response, we need to align the uncaging response relative to the uncaging pulse
@@ -383,6 +385,9 @@ while(user_response == 2) //if user indicated to perform a refit, continue loop,
 		duplicate /o w_t w_fit
 		w_fit = DiffTwoExp2(w_coef, w_t)
 		w2d_fits[i][] = w_fit[q]
+		w2dfituncagingresponsecoef[i][] = w_coef[q]
+		w2dFitUncagingResponseCoef[i][] = w_coef[q]
+		w2dFitUncagingResponseCoefSE[i][] = w_sigma[q]
 
 	endfor												// for1; loop through uncaging events, performing fits for each
 
@@ -586,38 +591,19 @@ DrawLine 0,(WNrAmplitude(0.01)),1,(WNrAmplitude(0.01))
 AutoPositionWindow/M=0/R=graph2
 
 if(w_amplitude[0] < w_amplitude[numpnts(w_amplitude)-1])
-if( (!(wavemin(w_amplitude) == w_amplitude[0])))
-do
-Rotate -1, w_amplitude, w_amplitude_se
-//DeletePoints 0,1, w_amplitude, w_amplitude_se	
-w_amplitude[numpnts(w_amplitude)-1]=NaN
-w_amplitude_se[numpnts(w_amplitude)]=NaN
-while (!(wavemin(w_amplitude) == w_amplitude[0]))				
+reverse w_amplitude, w_amplitude_0,w_amplitude_1,w_amplitude_1_se,w_amplitude_se
+reverse w_decay_time, w_fit_start_pt,w_fit_start_time,w_fit_stop_time,w_onset_delay
+reverse w_rise_time, w_t0,w_uncage_time,w_y0
+setscale /p x,900,-100,"nm",w_amplitude
 endif
-setscale /p x,-((numpnts(w_amplitude)-1)*100),100,"nm",w_amplitude
-K0 = 0;K1 = wavemin(w_amplitude);K2 = 500;
-//CurveFit/n/q/w=2/H="100"/NTHR=0/K={((numpnts(w_amplitude)-1)*100)} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1/D
-CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1/D
-InsertPoints 3, 1, w_coef
-w_coef[3] = v_chisq
-duplicate /o w_coef wFitAmplitude0
-duplicate /o w_sigma wFitAmplitudeSE0
-
-K0 = wavemax(w_amplitude);K1 = wavemin(w_amplitude)-wavemax(w_amplitude); K2 = 500;
-//CurveFit/w=2/q/n/G/NTHR=0/H="000"/K={((numpnts(w_amplitude)-1)*100)} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1 /D
-CurveFit/w=2/q/n/G/NTHR=0/H="000"/K={0} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1 /D
-InsertPoints 3, 1, w_coef
-w_coef[3] = v_chisq
-duplicate /o w_coef wFitAmplitude1
-duplicate /o w_sigma wFitAmplitudeSE1
-else
 if( (!(wavemin(w_amplitude) == w_amplitude[numpnts(w_amplitude)-1])))
 do
 Rotate 1, w_amplitude, w_amplitude_se
-//DeletePoints 0,1, w_amplitude, w_amplitude_se	
+//DeletePoints 0,1, w_amplitude, w_amplitude_se
 w_amplitude[0]=NaN
 w_amplitude_se[0]=NaN
-while (!(wavemin(w_amplitude) == w_amplitude[numpnts(w_amplitude)-1]))				
+
+while (!(wavemin(w_amplitude) == w_amplitude[numpnts(w_amplitude)-1]))
 endif
 
 K0 = 0;K1 = wavemin(w_amplitude);K2 = 500;
@@ -633,7 +619,7 @@ InsertPoints 3, 1, w_coef
 w_coef[3] = v_chisq
 duplicate /o w_coef wFitAmplitude1
 duplicate /o w_sigma wFitAmplitudeSE1
-endif
+
 
 
 dowindow /k graph5
