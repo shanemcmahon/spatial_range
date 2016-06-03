@@ -278,6 +278,8 @@ fit_stop = fit_range
 	v_amplitude_0 = -10
 	w_coef = {-10,v_delay_to_response_start,rise_time_0,decay_time_0,mean(w_avg_response,0,y0_time_window),y0_time_window}
 	FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
+	duplicate /o w_coef wAvgUncageResponseFitCoef
+	duplicate /o w_sigma wAvgUncageResponseFitCoefSE
 	v_delay_to_response_start_0 = w_coef[1]
 	v_delay_to_response_start = v_delay_to_response_start_0
 	v_amplitude_0 = w_coef[0]
@@ -595,30 +597,47 @@ reverse w_amplitude, w_amplitude_0,w_amplitude_1,w_amplitude_1_se,w_amplitude_se
 reverse w_decay_time, w_fit_start_pt,w_fit_start_time,w_fit_stop_time,w_onset_delay
 reverse w_rise_time, w_t0,w_uncage_time,w_y0
 setscale /p x,900,-100,"nm",w_amplitude
+setscale /p x,900,-100,"nm",w_amplitude_1
+setscale /p x,900,-100,"nm",w_amplitude_0
 endif
 if( (!(wavemin(w_amplitude) == w_amplitude[numpnts(w_amplitude)-1])))
 do
-Rotate 1, w_amplitude, w_amplitude_se
+
+rotate 1,w_amplitude, w_amplitude_0,w_amplitude_1,w_amplitude_1_se,w_amplitude_se
+rotate 1,w_decay_time, w_fit_start_pt,w_fit_start_time,w_fit_stop_time,w_onset_delay
+rotate 1,w_rise_time, w_t0,w_uncage_time,w_y0
 //DeletePoints 0,1, w_amplitude, w_amplitude_se
 w_amplitude[0]=NaN
 w_amplitude_se[0]=NaN
+w_amplitude_0[0]=NaN
+w_amplitude_1[0]=NaN
+w_amplitude_1_se[0]=NaN
 
 while (!(wavemin(w_amplitude) == w_amplitude[numpnts(w_amplitude)-1]))
 endif
 
 K0 = 0;K1 = wavemin(w_amplitude);K2 = 500;
-CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1/D
+//CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1/D
+CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude /D
 InsertPoints 3, 1, w_coef
 w_coef[3] = v_chisq
-duplicate /o w_coef wFitAmplitude0
-duplicate /o w_sigma wFitAmplitudeSE0
+duplicate /o w_coef wFitAmplitude
+duplicate /o w_sigma wFitAmplitudeSE
 
-K0 = wavemax(w_amplitude);K1 = wavemin(w_amplitude)-wavemax(w_amplitude); K2 = 500;
-CurveFit/w=2/q/n/G/NTHR=0/H="000"/K={0} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1 /D
+K0 = 0;K1 = wavemin(w_amplitude_1);K2 = 500;
+CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude_1 /D
+//CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude_1 /W=w_amplitude_1_se /I=1/D
 InsertPoints 3, 1, w_coef
 w_coef[3] = v_chisq
 duplicate /o w_coef wFitAmplitude1
-duplicate /o w_sigma wFitAmplitudeSE1
+duplicate /o w_sigma wFitAmplitude1SE
+
+K0 = 0;K1 = wavemin(w_amplitude_0);K2 = 500;
+CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude_0 /D
+InsertPoints 3, 1, w_coef
+w_coef[3] = v_chisq
+duplicate /o w_coef wFitAmplitude0
+duplicate /o w_sigma wFitAmplitude0SE
 
 
 
