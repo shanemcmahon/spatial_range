@@ -106,6 +106,7 @@ function Uncaging_Analysis(data_wave_list)
 	Variable inter_false_fit_time //time between fake responses
 	Variable response_max_time_0, v_delay_to_response_start_0 //intial parameter estimates
 	Variable v_amplitude, TotalLengthUncaging
+	wave w_Resampled, wColumnMeans
 	make /o /n=1 vPockelsVoltage
 	variable UserSetPar0
 	prompt UserSetPar0,"Initial parameter estimates",popup,"Interactive;Default;Auto Guess"
@@ -195,6 +196,7 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 	make /o/n=(n_uncaging_pulses) w_amplitude_1_se
 	make /o/n=(n_uncaging_pulses,6) w2dFitUncagingResponseCoef
 	make /o/n=(n_uncaging_pulses,6) w2dFitUncagingResponseCoefSE
+	make /o/n=(n_uncaging_pulses,6) w2dFitUncgRespCoefBootSE
 
 // To get initial estimates of the parameters, the model is first fit to the average response
 // to calculate the average response, we need to align the uncaging response relative to the uncaging pulse
@@ -331,6 +333,7 @@ T_Constraints[0] = {"K1 > 0","K1 < .01"}
 		make /o /n=(v_n_fit_points) w_temp
 		w_temp = w2d_responses[i][p]
 		setscale /p x,0, dimdelta(uncaging_response_wave,0), w_temp
+		duplicate /o w_temp wThisResponse
 		//save nonparametric estimate of amplitude
 		w_amplitude_0[i] = mean(w_temp,(response_max_time_0-v_amplitude_0_window),(response_max_time_0+v_amplitude_0_window)) - mean(w_temp,0,y0_time_window)
 		// save nonparametric estimate of amplitude
@@ -390,6 +393,35 @@ while(user_response == 2) //if user indicated to perform a refit, continue loop,
 		w2dfituncagingresponsecoef[i][] = w_coef[q]
 		w2dFitUncagingResponseCoef[i][] = w_coef[q]
 		w2dFitUncagingResponseCoefSE[i][] = w_sigma[q]
+
+
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+// experimental code for bootstrap standard errors
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+// 		duplicate /o w_coef w_coef0
+// 		duplicate /o wThisResponse wThisResponseResiduals
+// 		wThisResponseResiduals = wThisResponse - w_fit
+// 		duplicate /o wThisResponse wThisResponse2
+// 		w_coef0[5] = y0_time_window
+// 		variable vNBootStrapResamples = 100
+// 		make /o /n=(vNBootStrapResamples,6) wCoefBoot
+// 	for(j=0;j<vNBootStrapResamples;j += 1)	//for2, bootstrap
+// 	statsresample /N =(v_n_fit_points) wThisResponseResiduals
+// 	wThisResponse2 = wThisResponse + w_Resampled
+// 	w_coef = w_coef0
+// 	FuncFit/N/Q/w=2/H="000001" /NTHR=0 DiffTwoExp2 W_coef  wThisResponse2 /D
+// 	wCoefBoot[j][] = w_coef[q]
+// 	endfor		//for2
+// ColumnMeans(wCoefBoot)
+// duplicate /o wCoefBoot wCoefBootDiffs
+// wCoefBootDiffs = wCoefBoot - wColumnMeans[q]
+// wCoefBootDiffs = wCoefBootDiffs^2
+// ColumnMeans(wCoefBootDiffs)
+// wColumnMeans = wColumnMeans^0.5
+// w2dFitUncgRespCoefBootSE[i][] = wColumnMeans[q]
+
 
 	endfor												// for1; loop through uncaging events, performing fits for each
 
@@ -591,8 +623,9 @@ setscale /i x,0,1,WNrAmplitude
 SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
 DrawLine 0,(WNrAmplitude(0.01)),1,(WNrAmplitude(0.01))
 AutoPositionWindow/M=0/R=graph2
-
-if(w_amplitude[0] < w_amplitude[numpnts(w_amplitude)-1])
+CurveFit/NTHR=0/q/w=2/n line  w_amplitude_1 /D 
+//if(w_amplitude[0] < w_amplitude[numpnts(w_amplitude)-1])
+if(w_coef[1] <0)
 reverse w_amplitude, w_amplitude_0,w_amplitude_1,w_amplitude_1_se,w_amplitude_se
 reverse w_decay_time, w_fit_start_pt,w_fit_start_time,w_fit_stop_time,w_onset_delay
 reverse w_rise_time, w_t0,w_uncage_time,w_y0
@@ -689,7 +722,8 @@ wave w_fit_start_time, w_fit_stop_time, w_amplitude, w_amplitude_se, w_t0
 wave w_decay_time, w_rise_time, w_y0, w_onset_delay, w_amplitude_1
 wave w_amplitude_0, w2d_responses, w2d_fits, rw_uid, WNrAmplitude1
 wave WNrAmplitude, WNrAmplitude0, rwPockelsVoltage
-wave vPockelsVoltage, wFitAmplitude0,wFitAmplitude1,wFitAmplitudeSE0,wFitAmplitudeSE1
+wave vPockelsVoltage, wFitAmplitude0,wFitAmplitude1,wFitAmplitude0SE,wFitAmplitude1SE
+wave wFitAmplitude, wFitAmplitudeSE
 variable n_results
 
 if(!waveexists(rw2d_response))
@@ -709,9 +743,12 @@ make /n=(numpnts(w_amplitude_1),8) rw2d_amplitude_0
 make /n=(numpnts(w_amplitude_0),8) rw2d_amplitude_0_np
 // make /n=(numpnts(),8)
 make /n=(numpnts(wFitAmplitude1),8) rw2dFitAmplitude1
-make /n=(numpnts(wFitAmplitudeSE0),8) rw2dFitAmplitudeSE0
-make /n=(numpnts(wFitAmplitudeSE1),8) rw2dFitAmplitudeSE1
+make /n=(numpnts(wFitAmplitude0SE),8) rw2dFitAmplitude0SE
+make /n=(numpnts(wFitAmplitude1SE),8) rw2dFitAmplitude1SE
 make /n=(numpnts(wFitAmplitude0),8) rw2dFitAmplitude0
+make /n=(numpnts(wFitAmplitudeSE),8) rw2dFitAmplitudeSE
+make /n=(numpnts(wFitAmplitude),8) rw2dFitAmplitude
+
 
 duplicate w2d_responses rw3d_uncaging_response
 redimension /n=(-1,-1,8) rw3d_uncaging_response
@@ -745,10 +782,12 @@ Redimension /N=(-1, 2*n_results) rw2d_fit_onset_delay
 Redimension /N=(-1, 2*n_results) rw2d_amplitude_0
 Redimension /N=(-1, 2*n_results) rw2d_amplitude_0_np
 // Redimension /N=(-1, 2*n_results)
-Redimension /N=(-1, 2*n_results) rw2dFitAmplitudeSE0
-Redimension /N=(-1, 2*n_results) rw2dFitAmplitudeSE1
+Redimension /N=(-1, 2*n_results) rw2dFitAmplitudeSE
+Redimension /N=(-1, 2*n_results) rw2dFitAmplitude0SE
+Redimension /N=(-1, 2*n_results) rw2dFitAmplitude1SE
 Redimension /N=(-1, 2*n_results) rw2dFitAmplitude1
 Redimension /N=(-1, 2*n_results) rw2dFitAmplitude0
+Redimension /N=(-1, 2*n_results) rw2dFitAmplitude
 
 Redimension /N=(-1,-1, 2*n_results) rw3d_uncaging_response
 Redimension /N=(-1,-1, 2*n_results) rw3d_fits
@@ -778,9 +817,11 @@ W2dNrAmplitude1[][n_results] = WNrAmplitude[p]
 W2dNrAmplitude2[][n_results] = WNrAmplitude0[p]
 // [][n_results] = [p]
 rw2dFitAmplitude0[][n_results] = wFitAmplitude0[p]
-rw2dFitAmplitudeSE1[][n_results] = wFitAmplitudeSE1[p]
-rw2dFitAmplitudeSE0[][n_results] = wFitAmplitudeSE0[p]
+rw2dFitAmplitude1SE[][n_results] = wFitAmplitude1SE[p]
+rw2dFitAmplitude0SE[][n_results] = wFitAmplitude0SE[p]
 rw2dFitAmplitude1[][n_results] = wFitAmplitude1[p]
+rw2dFitAmplitudeSE[][n_results] = wFitAmplitudeSE[p]
+rw2dFitAmplitude[][n_results] = wFitAmplitude[p]
 
 rw3d_uncaging_response[][][n_results]=w2d_responses[p][q]
 rw3d_fits[][][n_results]=w2d_fits[p][q]

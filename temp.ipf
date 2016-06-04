@@ -44,12 +44,13 @@ wAmpDiffZ = wAmpDiff/wAmpDiffSE
 //edit wtemp3,wtemp4,wAmpDiffZ,w_amplitude_0,w_amplitude_1,w_amplitude
 
 
-duplicate /o w_avg_response wAvgResponseResid
+
 wAvgResponseResid = w_avg_response - fit_w_avg_response
 
 duplicate /o w_avg_response wResponseTime
 wResponseTime = x
 duplicate /o wResponseTime fit_w_avg_response
 fit_w_avg_response = difftwoexp2(wAvgUncageResponseFitCoef,wResponseTime)
+duplicate /o w_avg_response wAvgResponseResid
 wAvgResponseResid = w_avg_response - fit_w_avg_response
 statsresample /N =(numpnts(w_avg_response)) wAvgResponseResid

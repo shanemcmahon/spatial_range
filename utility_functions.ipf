@@ -180,3 +180,20 @@ endif
 		
 	endswitch
 end
+
+Function ColumnMins(InputMatrix)
+	wave InputMatrix
+	if(!DimSize(InputMatrix, 1 ))
+		abort("ColumnMins Input must be 2d wave")
+	endif
+	variable NRows = DimSize(InputMatrix, 0 )	
+	variable NColumns = DimSize(InputMatrix, 1)	
+		make /o /n=(NColumns) wColumnMins
+	variable i
+		make /free /n=(NRows) wColmnI
+		for(i = 0;i < NColumns;i += 1)	// for1
+		wColmnI = InputMatrix[p][i]
+		wColumnMins[i] = wavemin(wColmnI)
+		endfor // for1
+	
+end//ColumnMins
