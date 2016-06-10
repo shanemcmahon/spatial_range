@@ -6,7 +6,7 @@ prompt sWaveList,"Wave list string"
 doprompt "",sWaveList
 sWaveList = ReplaceString(",", sWaveList, ";")
 print sWaveList
-save /J/B sWaveList
+save /T/B sWaveList
 end
 
 Function Kill_Wave_List(wave_list)
