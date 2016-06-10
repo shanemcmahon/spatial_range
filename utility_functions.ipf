@@ -1,5 +1,14 @@
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
+function SaveWaveList()
+string sWaveList
+prompt sWaveList,"Wave list string"
+doprompt "",sWaveList
+sWaveList = ReplaceString(",", sWaveList, ";")
+print sWaveList
+save /J/B sWaveList
+end
+
 Function Kill_Wave_List(wave_list)
 //
 // Kill_Wave_List kills the waves listed in wave_list
@@ -159,15 +168,15 @@ endif
 make /o/free IndexList
 which(mask,result=IndexList)
 endif
-	switch(wavedims(w_in))	
-		case 1:		
+	switch(wavedims(w_in))
+		case 1:
 		if(paramisdefault(w_out))
 		subset1d(w_in,IndexList=IndexList)
 		return 0
 		endif
 		subset1d(w_in,IndexList=IndexList,w_out=w_out)
-			return 0					
-		case 2:		
+			return 0
+		case 2:
 		if(paramisdefault(dim))
 		abort("must specifiy dim parameter for 2d wave")
 		endif
@@ -177,7 +186,7 @@ endif
 		endif
 		subset2d(w_in,dim,IndexList=IndexList,w_out=w_out)
 		return 0
-		
+
 	endswitch
 end
 
@@ -186,8 +195,8 @@ Function ColumnMins(InputMatrix)
 	if(!DimSize(InputMatrix, 1 ))
 		abort("ColumnMins Input must be 2d wave")
 	endif
-	variable NRows = DimSize(InputMatrix, 0 )	
-	variable NColumns = DimSize(InputMatrix, 1)	
+	variable NRows = DimSize(InputMatrix, 0 )
+	variable NColumns = DimSize(InputMatrix, 1)
 		make /o /n=(NColumns) wColumnMins
 	variable i
 		make /free /n=(NRows) wColmnI
@@ -195,5 +204,5 @@ Function ColumnMins(InputMatrix)
 		wColmnI = InputMatrix[p][i]
 		wColumnMins[i] = wavemin(wColmnI)
 		endfor // for1
-	
+
 end//ColumnMins
