@@ -564,55 +564,11 @@ return sse_out
 End
 
 macro DoMakeFigures()
-
-duplicate /o /r=[0,numpnts(w_amplitude)-2] w_amplitude WTemp
-duplicate /o /r=[0,numpnts(w_amplitude)-2] w_amplitude_1 WTemp2
-print StatsCorrelation(Wtemp,Wtemp2)
+MakeFigures()
 
 dowindow/k graph0
-display w_amplitude_0
-setscale /p x,900,-100,"nm",w_amplitude_0
-Label bottom "distance \\u#2 (nm)"
-ModifyGraph mode=3,marker=19;DelayUpdate
-SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-Sort WNrAmplitude0 WNrAmplitude0
-setscale /i x,0,1,WNrAmplitude0
-SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-DrawLine 0,(WNrAmplitude0(0.025)),1,(WNrAmplitude0(0.025))
-Label left "I\\u#2 (pA)"
-
-dowindow /k graph1
-Make/N=(numpnts(WNrAmplitude0)^0.5)/O WNrAmplitude0_Hist;DelayUpdate
-Histogram/P/B=1 WNrAmplitude0,WNrAmplitude0_Hist
-Display WNrAmplitude0_Hist
-AutoPositionWindow/M=1/R=graph0
-Label bottom "I\\u#2 (pA)"
-
-
-dowindow/k graph2
-display w_amplitude_1
-setscale /p x,900,-100,"nm",w_amplitude_1
-Label bottom "distance \\u#2 (nm)"
-ModifyGraph mode=3,marker=19;DelayUpdate
-ErrorBars w_amplitude_1 Y,wave=(w_amplitude_1_se,w_amplitude_1_se)
-SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-Sort WNrAmplitude1 WNrAmplitude1
-setscale /i x,0,1,WNrAmplitude1
-DrawLine 0,(WNrAmplitude1(0.025)),1,(WNrAmplitude1(0.025))
-AutoPositionWindow/M=0/R=graph0
-Label left "I\\u#2 (pA)"
-
-dowindow /k graph3
-Make/N=(numpnts(WNrAmplitude1)^0.5)/O WNrAmplitude1_Hist;DelayUpdate
-Histogram/P/B=1 WNrAmplitude1,WNrAmplitude1_Hist
-Display WNrAmplitude1_Hist
-AutoPositionWindow/M=1/R=graph2
-Label bottom "I\\u#2 (pA)"
-
-
-dowindow/k graph4
 display w_amplitude
-setscale /p x,900,-100,"nm",w_amplitude
+setscale /p x,((numpnts(w_amplitude)-1)*150),-150,"nm",w_amplitude
 Label bottom "distance \\u#2 (nm)"
 ModifyGraph mode=3,marker=19;DelayUpdate
 ErrorBars w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
@@ -622,89 +578,126 @@ Sort WNrAmplitude WNrAmplitude
 setscale /i x,0,1,WNrAmplitude
 SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
 DrawLine 0,(WNrAmplitude(0.01)),1,(WNrAmplitude(0.01))
-AutoPositionWindow/M=0/R=graph2
-CurveFit/NTHR=0/q/w=2/n line  w_amplitude_1 /D 
-//if(w_amplitude[0] < w_amplitude[numpnts(w_amplitude)-1])
-if(w_coef[1] <0)
-reverse w_amplitude, w_amplitude_0,w_amplitude_1,w_amplitude_1_se,w_amplitude_se
-reverse w_decay_time, w_fit_start_pt,w_fit_start_time,w_fit_stop_time,w_onset_delay
-reverse w_rise_time, w_t0,w_uncage_time,w_y0
-setscale /p x,900,-100,"nm",w_amplitude
-setscale /p x,900,-100,"nm",w_amplitude_1
-setscale /p x,900,-100,"nm",w_amplitude_0
-endif
-if( (!(wavemin(w_amplitude) == w_amplitude[numpnts(w_amplitude)-1])))
-do
-
-rotate 1,w_amplitude, w_amplitude_0,w_amplitude_1,w_amplitude_1_se,w_amplitude_se
-rotate 1,w_decay_time, w_fit_start_pt,w_fit_start_time,w_fit_stop_time,w_onset_delay
-rotate 1,w_rise_time, w_t0,w_uncage_time,w_y0
-//DeletePoints 0,1, w_amplitude, w_amplitude_se
-w_amplitude[0]=NaN
-w_amplitude_se[0]=NaN
-w_amplitude_0[0]=NaN
-w_amplitude_1[0]=NaN
-w_amplitude_1_se[0]=NaN
-
-while (!(wavemin(w_amplitude) == w_amplitude[numpnts(w_amplitude)-1]))
-endif
-
-K0 = 0;K1 = wavemin(w_amplitude);K2 = 500;
-//CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude /W=w_amplitude_se /I=1/D
-CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude /D
-InsertPoints 3, 1, w_coef
-w_coef[3] = v_chisq
-duplicate /o w_coef wFitAmplitude
-duplicate /o w_sigma wFitAmplitudeSE
-
-K0 = 0;K1 = wavemin(w_amplitude_1);K2 = 500;
-CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude_1 /D
-//CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude_1 /W=w_amplitude_1_se /I=1/D
-InsertPoints 3, 1, w_coef
-w_coef[3] = v_chisq
-duplicate /o w_coef wFitAmplitude1
-duplicate /o w_sigma wFitAmplitude1SE
-
-K0 = 0;K1 = wavemin(w_amplitude_0);K2 = 500;
-CurveFit/n/q/w=2/H="100"/NTHR=0/K={0} exp_XOffset  w_amplitude_0 /D
-InsertPoints 3, 1, w_coef
-w_coef[3] = v_chisq
-duplicate /o w_coef wFitAmplitude0
-duplicate /o w_sigma wFitAmplitude0SE
+SetAxis left *,0
 
 
 
-dowindow /k graph5
-Make/N=(numpnts(WNrAmplitude)^0.5)/O WNrAmplitude_Hist;DelayUpdate
-Histogram/P/B={WNrAmplitude(0.025),((WNrAmplitude(0.975) -WNrAmplitude(0.025))/(numpnts(WNrAmplitude_Hist))),(numpnts(WNrAmplitude_Hist))} WNrAmplitude,WNrAmplitude_Hist
-Display WNrAmplitude_Hist
-AutoPositionWindow/M=1/R=graph4
-Label bottom "I\\u#2 (pA)"
-
-dowindow /k graph6
-setscale /p x,900,-100,"nm",w_decay_time
-setscale /p x,900,-100,"nm",w_rise_time
-setscale /p x,900,-100,"nm",w_onset_delay
-display  w_decay_time
-//AppendToGraph/L=l2 w_decay_time
-AppendToGraph/l=l2 w_rise_time
-ModifyGraph rgb(w_rise_time)=(16385,16388,65535)
-AppendToGraph/l=l3 w_onset_delay
-ModifyGraph rgb(w_onset_delay)=(0,0,0)
-Label bottom "distance \\u#2 (nm)"
-AutoPositionWindow/M=0/R=graph4
-Legend/C/N=text0/A=MC/x=-50/y=40
-ModifyGraph axThick(l2)=0,freePos(l2)=0,axRGB(l2)=(65535,65535,65535);DelayUpdate
-ModifyGraph tlblRGB(l2)=(65535,65535,65535),alblRGB(l2)=(65535,65535,65535)
-ModifyGraph axThick(l3)=0,freePos(l2)=0,axRGB(l3)=(65535,65535,65535);DelayUpdate
-ModifyGraph tlblRGB(l3)=(65535,65535,65535),alblRGB(l3)=(65535,65535,65535)
-ModifyGraph axThick(left)=0,freePos(left)=0,axRGB(left)=(65535,65535,65535);DelayUpdate
-ModifyGraph tlblRGB(left)=(65535,65535,65535),alblRGB(left)=(65535,65535,65535)
-
-MakeFigures()
 endmacro
 
 Function MakeFigures()
+wave w2dFitUncagingResponseCoef, w_amplitude_0,w2dFitUncagingResponseCoefSE,w2d_fits
+wave w2d_responses,w_amplitude,w_amplitude_1,w_amplitude_1_se,w_amplitude_se
+wave w_decay_time,w_fit_start_pt,w_fit_start_time,w_fit_stop_time,w_onset_delay
+wave w_rise_time, w_t0,w_uncage_time,w_y0
+variable VXPos,UserResponse
+variable VNCols = DimSize(w2dFitUncagingResponseCoef, 0 )
+Prompt UserResponse, "Do you whish to set any points to NaN?", popup, "Select point for deletion; Continue analysis"
+dowindow/k graph0
+display w_amplitude
+ModifyGraph mode=3,marker=19;
+SetDrawEnv ycoord= left;SetDrawEnv dash= 3;
+showinfo
+cursor a,$StringFromList(0, tracenamelist("",";",1) ),0
+UserResponse = 1
+
+do
+DoUpdate
+doprompt "",UserResponse
+if(UserResponse!=1)
+break
+endif
+
+NewPanel/K=2 /n=pause_for_user as "Pause for user"; AutoPositionWindow/M=0/R=graph0
+DrawText 21,20,"Select points for deletion with cursor a";	DrawText 21,40,""
+Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=User_Continue
+PauseForUser pause_for_user, graph0
+
+VXPos = xcsr(a)
+if(VXPos==(VNCols-1))
+DeletePoints VXPos,1, w2dFitUncagingResponseCoef
+InsertPoints 0,1, w2dFitUncagingResponseCoef
+DeletePoints VXPos,1,w2dFitUncagingResponseCoefSE
+InsertPoints 0,1,w2dFitUncagingResponseCoefSE
+DeletePoints VXPos,1,w2d_fits
+InsertPoints 0,1,w2d_fits
+DeletePoints VXPos,1,w2d_responses
+InsertPoints 0,1,w2d_responses
+
+w2dFitUncagingResponseCoef[0][] = NaN
+w2dFitUncagingResponseCoefSE[0][] = NaN
+w2d_fits[0][] = NaN
+w2d_responses[0][] = NaN
+
+DeletePoints VXPos,1,w_amplitude
+InsertPoints 0,1,w_amplitude
+DeletePoints VXPos,1, w_amplitude_0
+InsertPoints 0,1, w_amplitude_0
+DeletePoints VXPos,1, w_amplitude_1
+InsertPoints 0,1, w_amplitude_1
+DeletePoints VXPos,1, w_amplitude_1_se
+InsertPoints 0,1, w_amplitude_1_se
+DeletePoints VXPos,1, w_amplitude_se
+InsertPoints 0,1, w_amplitude_se
+DeletePoints VXPos,1, w_decay_time
+InsertPoints 0,1, w_decay_time
+DeletePoints VXPos,1, w_fit_start_pt
+InsertPoints 0,1, w_fit_start_pt
+DeletePoints VXPos,1, w_fit_start_time
+InsertPoints 0,1, w_fit_start_time
+DeletePoints VXPos,1, w_fit_stop_time
+InsertPoints 0,1, w_fit_stop_time
+DeletePoints VXPos,1, w_onset_delay
+InsertPoints 0,1, w_onset_delay
+DeletePoints VXPos,1, w_rise_time
+InsertPoints 0,1, w_rise_time
+DeletePoints VXPos,1, w_t0
+InsertPoints 0,1, w_t0
+DeletePoints VXPos,1, w_uncage_time
+InsertPoints 0,1, w_uncage_time
+DeletePoints VXPos,1, w_y0
+InsertPoints 0,1, w_y0
+
+w_amplitude[0] = NaN
+w_amplitude_0[0] = NaN
+w_amplitude_1[0] = NaN
+w_amplitude_1_se[0] = NaN
+w_amplitude_se[0] = NaN
+w_decay_time[0] = NaN
+w_fit_start_pt[0] = NaN
+w_fit_start_time[0] = NaN
+w_fit_stop_time[0] = NaN
+w_onset_delay[0] = NaN
+w_rise_time[0] = NaN
+w_t0[0] = NaN
+w_uncage_time[0] = NaN
+w_y0[0] = NaN
+else
+
+w2dFitUncagingResponseCoef[(VXPos)][] = NaN
+w2dFitUncagingResponseCoefSE[(VXPos)][] = NaN
+w2d_fits[(VXPos)][] = NaN
+w2d_responses[(VXPos)][] = NaN
+
+w_amplitude[(VXPos)] = NaN
+w_amplitude_0[(VXPos)] = NaN
+w_amplitude_1[(VXPos)] = NaN
+w_amplitude_1_se[(VXPos)] = NaN
+w_amplitude_se[(VXPos)] = NaN
+w_decay_time[(VXPos)] = NaN
+w_fit_start_pt[(VXPos)] = NaN
+w_fit_start_time[(VXPos)] = NaN
+w_fit_stop_time[(VXPos)] = NaN
+w_onset_delay[(VXPos)] = NaN
+w_rise_time[(VXPos)] = NaN
+w_t0[(VXPos)] = NaN
+w_uncage_time[(VXPos)] = NaN
+w_y0[(VXPos)] = NaN
+
+endif
+
+
+while(UserResponse == 1)
+
 end
 
 macro do_save_results()
@@ -717,13 +710,12 @@ save_results()
 endmacro
 
 function save_results()
-wave rw2d_response, w_uncage_response,w2d_fake_pars,w_uncage_time
+wave rw2d_response, w_uncage_response,w_uncage_time
 wave w_fit_start_time, w_fit_stop_time, w_amplitude, w_amplitude_se, w_t0
 wave w_decay_time, w_rise_time, w_y0, w_onset_delay, w_amplitude_1
 wave w_amplitude_0, w2d_responses, w2d_fits, rw_uid, WNrAmplitude1
 wave WNrAmplitude, WNrAmplitude0, rwPockelsVoltage
-wave vPockelsVoltage, wFitAmplitude0,wFitAmplitude1,wFitAmplitude0SE,wFitAmplitude1SE
-wave wFitAmplitude, wFitAmplitudeSE
+wave vPockelsVoltage
 variable n_results
 
 if(!waveexists(rw2d_response))
@@ -742,12 +734,6 @@ make /n=(numpnts(w_onset_delay),8) rw2d_fit_onset_delay
 make /n=(numpnts(w_amplitude_1),8) rw2d_amplitude_0
 make /n=(numpnts(w_amplitude_0),8) rw2d_amplitude_0_np
 // make /n=(numpnts(),8)
-make /n=(numpnts(wFitAmplitude1),8) rw2dFitAmplitude1
-make /n=(numpnts(wFitAmplitude0SE),8) rw2dFitAmplitude0SE
-make /n=(numpnts(wFitAmplitude1SE),8) rw2dFitAmplitude1SE
-make /n=(numpnts(wFitAmplitude0),8) rw2dFitAmplitude0
-make /n=(numpnts(wFitAmplitudeSE),8) rw2dFitAmplitudeSE
-make /n=(numpnts(wFitAmplitude),8) rw2dFitAmplitude
 
 
 duplicate w2d_responses rw3d_uncaging_response
@@ -782,12 +768,6 @@ Redimension /N=(-1, 2*n_results) rw2d_fit_onset_delay
 Redimension /N=(-1, 2*n_results) rw2d_amplitude_0
 Redimension /N=(-1, 2*n_results) rw2d_amplitude_0_np
 // Redimension /N=(-1, 2*n_results)
-Redimension /N=(-1, 2*n_results) rw2dFitAmplitudeSE
-Redimension /N=(-1, 2*n_results) rw2dFitAmplitude0SE
-Redimension /N=(-1, 2*n_results) rw2dFitAmplitude1SE
-Redimension /N=(-1, 2*n_results) rw2dFitAmplitude1
-Redimension /N=(-1, 2*n_results) rw2dFitAmplitude0
-Redimension /N=(-1, 2*n_results) rw2dFitAmplitude
 
 Redimension /N=(-1,-1, 2*n_results) rw3d_uncaging_response
 Redimension /N=(-1,-1, 2*n_results) rw3d_fits
@@ -816,12 +796,6 @@ W2dNrAmplitude0[][n_results] = WNrAmplitude1[p]
 W2dNrAmplitude1[][n_results] = WNrAmplitude[p]
 W2dNrAmplitude2[][n_results] = WNrAmplitude0[p]
 // [][n_results] = [p]
-rw2dFitAmplitude0[][n_results] = wFitAmplitude0[p]
-rw2dFitAmplitude1SE[][n_results] = wFitAmplitude1SE[p]
-rw2dFitAmplitude0SE[][n_results] = wFitAmplitude0SE[p]
-rw2dFitAmplitude1[][n_results] = wFitAmplitude1[p]
-rw2dFitAmplitudeSE[][n_results] = wFitAmplitudeSE[p]
-rw2dFitAmplitude[][n_results] = wFitAmplitude[p]
 
 rw3d_uncaging_response[][][n_results]=w2d_responses[p][q]
 rw3d_fits[][][n_results]=w2d_fits[p][q]
@@ -844,6 +818,7 @@ macro Clean_Up()
 	dowindow/k graph0
   dowindow /k review
 	//killwindow layout0
+	Kill_Input_Waves()
 kill_wave_list("ACH_1;ACH_3;")
 kill_wave_list("w_uncage_response;w_uncage_power;")
 kill_wave_list("fit_w2d_responses;w_t;w2d_fake_pars;fit_w_response_out;w_bs_amp0;w_bs_amp0alt;w_bs_amp0_Hist;w_bs_amp0alt_Hist;")

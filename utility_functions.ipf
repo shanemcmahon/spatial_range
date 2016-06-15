@@ -206,3 +206,14 @@ Function ColumnMins(InputMatrix)
 		endfor // for1
 
 end//ColumnMins
+
+
+function PlotCols(wIn)
+wave wIn
+variable ncols, i
+display wIn[][0]
+ncols = dimsize(wIn,1)
+	for(i=0;i<ncols;i=i+1)	// Initialize variables;continue test
+		appendtograph wIn[][i]
+	endfor												// Execute body code until continue test is FALSE
+end
