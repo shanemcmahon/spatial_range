@@ -217,3 +217,7 @@ ncols = dimsize(wIn,1)
 		appendtograph wIn[][i]
 	endfor												// Execute body code until continue test is FALSE
 end
+
+menu "macros"
+"SaveWaveList/5"
+end
