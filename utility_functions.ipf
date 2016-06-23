@@ -9,6 +9,17 @@ print sWaveList
 save /T/B sWaveList
 end
 
+function sumWaveList(WaveNameList)
+string WaveNameList
+variable ListSize,i
+duplicate /o $StringFromList(0, WaveNameList) wSumWave
+ListSize = itemsinlist(WaveNameList)
+	for(i=1;i<ListSize;i=i+1)	// Initialize variables;continue test
+	duplicate /o $StringFromList(i, WaveNameList)	 wtemp
+		wSumWave = wSumWave + 	wtemp				// Condition;update loop variables
+	endfor												// Execute body code until continue test is FALSE
+end
+
 Function Kill_Wave_List(wave_list)
 //
 // Kill_Wave_List kills the waves listed in wave_list

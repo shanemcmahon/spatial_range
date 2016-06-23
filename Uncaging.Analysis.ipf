@@ -568,7 +568,7 @@ MakeFigures()
 
 dowindow/k graph0
 display w_amplitude
-setscale /p x,((numpnts(w_amplitude)-1)*150),-150,"nm",w_amplitude
+//setscale /p x,((numpnts(w_amplitude)-1)*150),-150,"nm",w_amplitude
 Label bottom "distance \\u#2 (nm)"
 ModifyGraph mode=3,marker=19;DelayUpdate
 ErrorBars w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
@@ -578,7 +578,11 @@ Sort WNrAmplitude WNrAmplitude
 setscale /i x,0,1,WNrAmplitude
 SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
 DrawLine 0,(WNrAmplitude(0.01)),1,(WNrAmplitude(0.01))
-SetAxis left *,0
+SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+DrawLine 0,(WNrAmplitude(0.05)),1,(WNrAmplitude(0.05))
+SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+DrawLine 0,(WNrAmplitude(0.5)),1,(WNrAmplitude(0.5))
+SetAxis left *,WNrAmplitude(0.5)
 
 
 

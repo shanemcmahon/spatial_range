@@ -593,7 +593,7 @@ DrawLine 0,(WNrAmplitude(0.5)),1,(WNrAmplitude(0.5))
 SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
 DrawLine 0,(WNrAmplitude(0.05)),1,(WNrAmplitude(0.05))
 
-//SetAxis left *,0
+SetAxis left *,0
 
 
 
