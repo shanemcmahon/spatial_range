@@ -566,13 +566,71 @@ End
 macro DoMakeFigures()
 MakeFigures()
 
+variable vNumStim
+
 dowindow/k graph0
+display w_uncage_response
+Label bottom "time (s)"
+Label left "I\\u#2 (pA)"
+wavestats w_uncage_response
+SetAxis left v_min,(v_max+v_sdev)
+duplicate /o w_uncage_time wUncageIndicator
+wUncageIndicator = (v_max+v_sdev)
+appendtograph wUncageIndicator vs w_uncage_time
+ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
+ModifyGraph rgb(wUncageIndicator)=(0,0,0)
+ModifyGraph width={Aspect,7}
+
+vNumStim = dimsize(w2d_responses,0)
+duplicate /o w_uncage_time wUncageIndicatorTime
+wUncageIndicatorTime = w_uncage_time[0]-w_fit_start_time[0]
+
+dowindow/k graph1
+Display w2d_responses[0][*]
+Label bottom "\\u#2time (ms)"
+Label left "I\\u#2 (pA)"
+appendtograph w2d_fits[0][*]
+ModifyGraph rgb(w2d_fits)=(0,0,0)
+//make /o /n=1 wUncageIndicator
+//wUncageIndicator = w_y0[0] + v_sdev
+appendtograph wUncageIndicator vs wUncageIndicatorTime
+ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
+ModifyGraph rgb(wUncageIndicator)=(0,0,0)
+SetAxis left v_min,(v_max+v_sdev)
+AutoPositionWindow/M=1/R=graph0
+
+dowindow/k graph2
+Display w2d_responses[(vNumStim-1)/2+1][*]
+Label bottom "\\u#2time (ms)"
+Label left "I\\u#2 (pA)"
+appendtograph w2d_fits[(vNumStim-1)/2+1][*]
+ModifyGraph rgb(w2d_fits)=(0,0,0)
+appendtograph wUncageIndicator vs wUncageIndicatorTime
+ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
+ModifyGraph rgb(wUncageIndicator)=(0,0,0)
+SetAxis left v_min,(v_max+v_sdev)
+AutoPositionWindow/M=0/R=graph1
+
+dowindow/k graph3
+Display w2d_responses[vNumStim-1][*]
+appendtograph w2d_fits[vNumStim-1][*]
+Label bottom "\\u#2time (ms)"
+Label left "I\\u#2 (pA)"
+ModifyGraph rgb(w2d_fits)=(0,0,0)
+appendtograph wUncageIndicator vs wUncageIndicatorTime
+ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
+ModifyGraph rgb(wUncageIndicator)=(0,0,0)
+SetAxis left v_min,(v_max+v_sdev)
+AutoPositionWindow/M=0/R=graph2
+
+
+
+dowindow/k graph4
 display w_amplitude
-//setscale /p x,((numpnts(w_amplitude)-1)*150),-150,"nm",w_amplitude
+setscale /p x,((numpnts(w_amplitude)-1)*400),-400,"nm",w_amplitude
 Label bottom "distance \\u#2 (nm)"
 ModifyGraph mode=3,marker=19;DelayUpdate
-ErrorBars w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
-SetAxis left wavemin(w_amplitude),wavemax(w_amplitude)
+ErrorBars/T=0/L=0.7 w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
 Label left "I\\u#2 (pA)"
 Sort WNrAmplitude WNrAmplitude
 setscale /i x,0,1,WNrAmplitude
@@ -582,7 +640,7 @@ SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
 DrawLine 0,(WNrAmplitude(0.05)),1,(WNrAmplitude(0.05))
 SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
 DrawLine 0,(WNrAmplitude(0.5)),1,(WNrAmplitude(0.5))
-SetAxis left *,WNrAmplitude(0.5)
+AutoPositionWindow/M=1/R=graph1
 
 
 
@@ -701,6 +759,8 @@ endif
 
 
 while(UserResponse == 1)
+
+
 
 end
 
