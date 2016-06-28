@@ -1,28 +1,29 @@
-variable i_
-i_ = 6
-DeletePoints/M=1 i_,1, rw2d_fit_amplitude
-DeletePoints/M=1 i_,1, rw2d_amplitude_0
-DeletePoints/M=1 i_,1, rw2d_amplitude_0_np
-DeletePoints/M=1 i_,1, rw2d_fit_amplitude_se
-DeletePoints/M=1 i_,1, rw2d_fit_decay_time
-DeletePoints/M=1 i_,1, rw2d_fit_onset_delay
-DeletePoints/M=1 i_,1, rw2d_fit_rise_time
-DeletePoints/M=1 i_,1, rw2d_fit_start_time
-DeletePoints/M=1 i_,1, rw2d_fit_stop_time
-DeletePoints/M=1 i_,1, rw2d_fit_t0
-DeletePoints/M=1 i_,1, rw2d_fit_y0
-DeletePoints/M=1 i_,1, rw2d_response
-DeletePoints/M=1 i_,1, rw2d_uncage_time
-DeletePoints/M=2 i_,1, rw3d_fits
-DeletePoints/M=2 i_,1, rw3d_uncaging_response
-DeletePoints i_,1, rwPockelsVoltage
-DeletePoints i_,1, rw_uid
+duplicate /o wave1 ach_1
+duplicate /o wave2 ach_3
+duplicate /o /r=(0,w_fit_start_time[5]) ach_1 wResponseAvgOut
+duplicate /o /r=(0,w_fit_start_time[5]) ach_3 wPowerOut
+
+make /o /n= (dimsize(w2d_responses,1)) wTemp
 
 
+wTemp = w2d_responses[1][p] + w2d_responses[2][p] + w2d_responses[4][p] + w2d_responses[7][p] + w2d_responses[11][p]
+wTemp = wTemp/5
+wResponseAvgOut[w_fit_start_pt[0], w_fit_start_pt[0]+numpnts(wTemp)-1] = wTemp[p-w_fit_start_pt[0]]
 
-duplicate /o rw2d_fit_amplitude rw2dAmpNorm
-edit rw2dampnorm
-rowmeans(rw2dAmpNorm,naremove=1)
-duplicate /o wRowMeans rwAmpNormRowMeans
+wTemp = w2d_responses[3][p] + w2d_responses[5][p] + w2d_responses[8][p] + w2d_responses[12][p]
+wTemp = wTemp/4
+wResponseAvgOut[w_fit_start_pt[1], w_fit_start_pt[1]+numpnts(wTemp)-1] = wTemp[p-w_fit_start_pt[1]]
 
-rowmeans(rw2d_response)
+wTemp = w2d_responses[6][p] + w2d_responses[9][p] + w2d_responses[13][p]
+wTemp = wTemp/3
+wResponseAvgOut[w_fit_start_pt[2], w_fit_start_pt[2]+numpnts(wTemp)-1] = wTemp[p-w_fit_start_pt[2]]
+
+wTemp = w2d_responses[10][p] + w2d_responses[14][p]
+wTemp = wTemp/2
+wResponseAvgOut[w_fit_start_pt[3], w_fit_start_pt[3]+numpnts(wTemp)-1] = wTemp[p-w_fit_start_pt[3]]
+
+wTemp = w2d_responses[0][p] + w2d_responses[15][p]
+wTemp = wTemp/2
+wResponseAvgOut[w_fit_start_pt[4], w_fit_start_pt[4]+numpnts(wTemp)-1] = wTemp[p-w_fit_start_pt[4]]
+
+Save/T wResponseAvgOut,wPowerOut as "wResponseAvgOut++.itx"
