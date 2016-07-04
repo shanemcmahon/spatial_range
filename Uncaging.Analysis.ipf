@@ -1,4 +1,4 @@
-#pragma rtGlobals=3		// Use modern global access method and strict wave access.
+#pragma rtGlobals=1
 
 Function User_Continue(ctrlName) : ButtonControl
 	String ctrlName
@@ -571,6 +571,7 @@ macro DoMakeFigures()
 MakeFigures()
 
 variable vNumStim
+variable vUncageSpacing = 100
 
 dowindow/k graph0
 display w_uncage_response
@@ -631,7 +632,7 @@ AutoPositionWindow/M=0/R=graph2
 
 dowindow/k graph4
 display w_amplitude
-setscale /p x,((numpnts(w_amplitude)-1)*400),-400,"nm",w_amplitude
+setscale /p x,((numpnts(w_amplitude)-1)*vUncageSpacing),-vUncageSpacing,"nm",w_amplitude
 Label bottom "distance \\u#2 (nm)"
 ModifyGraph mode=3,marker=19;DelayUpdate
 ErrorBars/T=0/L=0.7 w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
@@ -917,7 +918,7 @@ endmacro
 
 
 
-function RemoveSpineData(i_)
+function RemoveSpineData()
 variable i_
 wave rw2d_fit_amplitude,rw2d_amplitude_0,rw2d_amplitude_0_np,rw2d_fit_amplitude_se
 wave rw2d_fit_decay_time,rw2d_fit_onset_delay,rw2d_fit_rise_time,rw2d_fit_start_time,rw2d_fit_stop_time
@@ -942,8 +943,31 @@ DeletePoints i_,1, rwPockelsVoltage
 DeletePoints i_,1, rw_uid
 end
 
+function SetResponseNaN()
+wave w_amplitude,w_amplitude_se,w_t0,w_decay_time,w_rise_time,w_y0,w_onset_delay
+wave w_amplitude_1,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
+variable i_
+prompt i_,"Point number"
+doprompt "Enter value",i_
+//ShowInfo/CP=0
+//cursor a,$StringFromList(0, tracenamelist("",";",1) ),0
+w_amplitude[i_]=NaN;w_amplitude_se[i_]=NaN;w_t0[i_]=NaN;w_decay_time[i_]=NaN;w_rise_time[i_]=NaN;w_y0[i_]=NaN;
+w_onset_delay[i_]=NaN;w_amplitude_1[i_]=NaN;w_amplitude_0[i_]=NaN;w_amplitude_1_se[i_]=NaN;
+w2d_responses[i_][]=NaN
+w2d_fits[i_][]=NaN
+end
 
-
+function RemoveResponse()
+wave w_amplitude,w_amplitude_se,w_t0,w_decay_time,w_rise_time,w_y0,w_onset_delay
+wave w_amplitude_1,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
+variable i_
+prompt i_,"Point number"
+doprompt "Enter value",i_
+DeletePoints i_,1, w_amplitude,w_amplitude_se,w_t0,w_decay_time,w_rise_time,w_y0;DelayUpdate
+DeletePoints i_,1, w_onset_delay,w_amplitude_1,w_amplitude_0,w_amplitude_1_se
+DeletePoints i_,1, w2d_responses
+DeletePoints i_,1, w2d_fits
+end
 
 menu "macros"
 	"Do_Uncaging_Analysis/1"
@@ -951,4 +975,6 @@ menu "macros"
 	"Do_Save_Results/3"
 	"Clean_Up/4"
 	"Kill_Input_Waves"
+	"SetResponseNan/5"
+	"RemoveResponse/6"
 end

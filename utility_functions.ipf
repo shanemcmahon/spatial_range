@@ -1,4 +1,7 @@
-#pragma rtGlobals=3		// Use modern global access method and strict wave access.
+#pragma rtGlobals=1
+#pragma moduleName=KBColorizeTraces
+#include <Waves Average>
+#include <Wave Arithmetic Panel>
 
 function SaveWaveList()
 string sWaveList
@@ -230,5 +233,5 @@ ncols = dimsize(wIn,1)
 end
 
 menu "macros"
-"SaveWaveList/5"
+"SaveWaveList"
 end
