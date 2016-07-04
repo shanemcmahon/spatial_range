@@ -924,6 +924,10 @@ wave rw2d_fit_amplitude,rw2d_amplitude_0,rw2d_amplitude_0_np,rw2d_fit_amplitude_
 wave rw2d_fit_decay_time,rw2d_fit_onset_delay,rw2d_fit_rise_time,rw2d_fit_start_time,rw2d_fit_stop_time
 wave rw2d_fit_t0,rw2d_fit_y0,rw2d_response,rw2d_uncage_time,rw3d_fits,rw3d_uncaging_response
 wave rwPockelsVoltage,rw_uid
+
+prompt i_,"Point number"
+doprompt "Enter value",i_
+
 DeletePoints/M=1 i_,1, rw2d_fit_amplitude
 DeletePoints/M=1 i_,1, rw2d_amplitude_0
 DeletePoints/M=1 i_,1, rw2d_amplitude_0_np
@@ -977,4 +981,5 @@ menu "macros"
 	"Kill_Input_Waves"
 	"SetResponseNan/5"
 	"RemoveResponse/6"
+	"RemoveSpineData"
 end
