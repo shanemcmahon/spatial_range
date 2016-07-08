@@ -22,9 +22,30 @@ variable i0
 variable i1
 variable dv
 variable Ri
-Rs = (W20160607g3_3_13_1_1_Amp[2] - W20160607g3_3_13_1_1_Amp[3])/(mean(W20160607g3_3_13_1_1,W20160607g3_3_13_1_1_Dur[1],W20160607g3_3_13_1_1_Dur[2])-wavemin(W20160607g3_3_13_1_1))
-print
-i0 = mean(W20160607g3_3_14_1_1,W20160607g3_3_14_1_1_Dur[1],W20160607g3_3_14_1_1_Dur[2])
-i1 = mean(W20160607g3_3_14_1_1,W20160607g3_3_14_1_1_Dur[4]-.25,W20160607g3_3_14_1_1_Dur[4])
-dv = W20160607g3_3_14_1_1_Amp[3] - W20160607g3_3_14_1_1_Amp[2]
+variable Vr
+string RsTraceName
+RsTraceName = "root:W20160614g5_5_12_1_1"
+duplicate /o $RsTraceName RsTrace
+duplicate /o $(RsTraceName+"_Amp") RsTraceAmp
+duplicate /o $(RsTraceName+"_Dur") RsTraceDur
+
+string RiTraceName
+RiTraceName = "root:W20160614g5_5_13_1_1"
+duplicate /o $RiTraceName RiTrace
+duplicate /o $(RiTraceName+"_Amp") RiTraceAmp
+duplicate /o $(RiTraceName+"_Dur") RiTraceDur
+
+Rs = (RsTraceAmp[2] - RsTraceAmp[3])/(mean(RsTrace,RsTraceDur[1],RsTraceDur[2])-wavemin(RsTrace))
+print Rs
+i0 = mean(RiTrace,RiTraceDur[1],RiTraceDur[2])
+i1 = mean(RiTrace,RiTraceDur[4]-.25,RiTraceDur[4])
+dv = RiTraceAmp[3] - RiTraceAmp[2]
 Ri = dv/(i1-i0)
+Vr = RiTraceAmp[0]-Ri*i0
+print Vr
+print Rs,Ri,Vr
+
+
+Save/T/B  wavelist("ws*1p1",";","")+wavelist("ws*2p1",";","") as wavelist("ws*1p1","","")+"++.itx"
+
+edit w_amplitude,w_amplitude_0,w_amplitude_1,w_amplitude_1_se,w_amplitude_se,w_decay_time,w_onset_delay,w_rise_time,w_t0,w_y0

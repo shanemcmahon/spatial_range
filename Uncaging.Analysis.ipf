@@ -10,6 +10,7 @@ macro Do_Uncaging_Analysis()
 // the global variables s_wavenames and s_path are not available inside functions, therefore somethings are done first in the macro
 	String /g data_wave_list = s_wavenames
   String /g uid =  StringFromList(ItemsInList(s_path, ":")-4, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-3, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-2, s_path , ":")+"_ts"+s_path[strlen(s_path)-4,strlen(s_path)-2]
+	uid = uid + s_filename[0,strlen(s_filename)-5]
 	Uncaging_Analysis(data_wave_list)
 
 endmacro
@@ -571,7 +572,7 @@ macro DoMakeFigures()
 MakeFigures()
 
 variable vNumStim
-variable vUncageSpacing = 100
+variable vUncageSpacing = 400
 
 dowindow/k graph0
 display w_uncage_response
@@ -637,6 +638,7 @@ Label bottom "distance \\u#2 (nm)"
 ModifyGraph mode=3,marker=19;DelayUpdate
 ErrorBars/T=0/L=0.7 w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
 Label left "I\\u#2 (pA)"
+SetAxis left *,max(wavemax(w_amplitude),0)
 Sort WNrAmplitude WNrAmplitude
 setscale /i x,0,1,WNrAmplitude
 SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
@@ -973,6 +975,21 @@ DeletePoints i_,1, w2d_responses
 DeletePoints i_,1, w2d_fits
 end
 
+function InsertResponse()
+wave w_amplitude,w_amplitude_se,w_t0,w_decay_time,w_rise_time,w_y0,w_onset_delay
+wave w_amplitude_1,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
+Insertpoints 0,1, w_amplitude,w_amplitude_se,w_t0,w_decay_time,w_rise_time,w_y0;DelayUpdate
+Insertpoints 0,1, w_onset_delay,w_amplitude_1,w_amplitude_0,w_amplitude_1_se
+Insertpoints 0,1, w2d_responses
+Insertpoints 0,1, w2d_fits
+
+w_amplitude[0]=NaN;w_amplitude_se[0]=NaN;w_t0[0]=NaN;w_decay_time[0]=NaN;w_rise_time[0]=NaN;w_y0[0]=NaN;
+w_onset_delay[0]=NaN;w_amplitude_1[0]=NaN;w_amplitude_0[0]=NaN;w_amplitude_1_se[0]=NaN;
+w2d_responses[0][]=NaN
+w2d_fits[0][]=NaN
+
+end
+
 menu "macros"
 	"Do_Uncaging_Analysis/1"
 	"DoMakeFigures/2"
@@ -981,5 +998,6 @@ menu "macros"
 	"Kill_Input_Waves"
 	"SetResponseNan/5"
 	"RemoveResponse/6"
+	"InsertResponse/7"
 	"RemoveSpineData"
 end
