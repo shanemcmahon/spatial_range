@@ -1,3 +1,79 @@
+################################################################
+################################################################
+regexp for uncaging points in triggersync
+Point [0-9]* [x,y,z]=
+################################################################
+################################################################
+
+redimension/n=(256,256) w_waveaverage
+
+make /o /n=(numpnts(wave0)/3) xpos, ypos
+xpos = wave0[p*3]
+ypos = wave0[p*3+1]
+duplicate /o xpos xpos2
+duplicate /o ypos ypos2
+xpos2 =128 + (xpos-128)/2
+ypos2 =128 + (ypos-128)/2
+
+AppendToGraph/w=graph0 /T ypos vs xpos
+ModifyGraph /w=graph0 marker=19,msize=1
+ModifyGraph /w=graph0 mode=3
+ModifyGraph /w=graph0 noLabel=2,axRGB=(65535,65535,65535)
+AppendToGraph/w=graph1 /T ypos vs xpos
+ModifyGraph /w=graph1 marker=19,msize=1
+ModifyGraph /w=graph1 mode=3
+ModifyGraph /w=graph1 noLabel=2,axRGB=(65535,65535,65535)
+AutoPositionWindow/M=0/R=graph0 graph1
+//AppendToGraph/w=graph2 /T ypos2 vs xpos2
+//ModifyGraph /w=graph2 marker=19,msize=1
+//ModifyGraph /w=graph2 mode=3
+ModifyGraph /w=graph2 noLabel=2,axRGB=(65535,65535,65535)
+AutoPositionWindow/M=0/R=graph1 graph2
+
+################################################################
+################################################################
+analyze spatial range
+################################################################
+################################################################
+#pragma rtGlobals=3		// Use modern global access method and strict wave access.
+duplicate /o /r=(0,*)(0,(numpnts(rw_uid)-1)) rw2d_fit_amplitude rw2dNormAmp
+columnmins(rw2dNormAmp)
+rw2dNormAmp = rw2dNormAmp[p][q]/wcolumnmins[q]
+rowmeans(rw2dNormAmp,naremove=1)
+duplicate /o wrowmeans rwMeanNormAmp
+duplicate /o rw2dNormAmp rw2dNormAmpDiff
+rw2dNormAmpdiff = rw2dNormAmp[p][q] -  rwMeanNormAmp[p]
+duplicate /o rw2dNormAmpDiff rw2dNormAmpDiffSq
+rw2dNormAmpDiffSq = rw2dNormAmpDiff^2
+rowmeans(rw2dNormAmpDiffSq,naremove=1)
+duplicate /o wrowmeans rwSDNormAmp
+rwSDNormAmp = wrowmeans^0.5
+duplicate /o rw2dNormAmp rwIsNaN
+rwIsNaN = !numtype(rw2dNormAmp[p][q])
+rowmeans(rwIsNaN)
+wrowmeans = wrowmeans*numpnts(rw_uid)
+duplicate /o rwSDNormAmp rwSENormAmp
+rwSENormAmp = rwSDNormAmp[p][q]/(wrowmeans[p]^0.5)
+display rwMeanNormAmp
+setscale /p x,1400,-100,rwMeanNormAmp
+ModifyGraph mode=3,marker=19;DelayUpdate
+ErrorBars/T=0 rwMeanNormAmp Y,wave=(rwSENormAmp,rwSENormAmp)
+K0 = 0;K1 = 1;K2 = 400;
+CurveFit/G/H="110"/NTHR=0/TBOX=768/K={0} exp_XOffset  rwMeanNormAmp /D
+edit rwMeanNormAmp
+appendtotable rwSENormAmp
+plotcols(rw2dnormamp)
+setscale /p x,1400,-100,"nm",rw2dnormamp
+AppendToGraph root:fit_rwMeanNormAmp
+
+
+
+
+
+pathinfo home; save /b/t wavelist("*",";","") as stringfromlist(9,stringfromlist(0,s_path),":") + stringfromlist(10,stringfromlist(0,s_path),":") + stringfromlist(11,stringfromlist(0,s_path),":")+".itx"
+save /b/t wavelist("*",";","") as stringfromlist(9,stringfromlist(0,s_path),":") + stringfromlist(10,stringfromlist(0,s_path),":") + stringfromlist(11,stringfromlist(0,s_path),":")+".itx"
+save /b/t/p=home wavelist("*",";","") as stringfromlist(9,stringfromlist(0,s_path),":") + stringfromlist(10,stringfromlist(0,s_path),":") + stringfromlist(11,stringfromlist(0,s_path),":")+".itx"
+
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 variable vNumStim
 variable vUncageSpacing = 100

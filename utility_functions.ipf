@@ -1,5 +1,4 @@
 #pragma rtGlobals=1
-#pragma moduleName=KBColorizeTraces
 #include <Waves Average>
 #include <Wave Arithmetic Panel>
 
@@ -229,6 +228,16 @@ display wIn[][0]
 ncols = dimsize(wIn,1)
 	for(i=0;i<ncols;i=i+1)	// Initialize variables;continue test
 		appendtograph wIn[][i]
+	endfor												// Execute body code until continue test is FALSE
+end
+
+function PlotRows(wIn)
+wave wIn
+variable nrows, i
+display wIn[0][]
+nrows = dimsize(wIn,0)
+	for(i=0;i<nrows;i=i+1)	// Initialize variables;continue test
+		appendtograph wIn[i][]
 	endfor												// Execute body code until continue test is FALSE
 end
 

@@ -572,7 +572,7 @@ macro DoMakeFigures()
 MakeFigures()
 
 variable vNumStim
-variable vUncageSpacing = 400
+variable vUncageSpacing = 100
 
 dowindow/k graph0
 display w_uncage_response
@@ -649,7 +649,13 @@ SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
 DrawLine 0,(WNrAmplitude(0.5)),1,(WNrAmplitude(0.5))
 AutoPositionWindow/M=1/R=graph1
 
+dowindow/k graph5
+plotrows(w2d_responses)
+AutoPositionWindow/M=0/R=graph4 graph5
 
+dowindow/k graph6
+plotrows(w2d_fits)
+AutoPositionWindow/M=0/R=graph5 graph6
 
 endmacro
 
