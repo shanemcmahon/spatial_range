@@ -1,5 +1,7 @@
+
 ################################################################
 ################################################################
+make marked points panels
 regexp for uncaging points in triggersync
 Point [0-9]* [x,y,z]=
 ################################################################
@@ -75,29 +77,46 @@ save /b/t wavelist("*",";","") as stringfromlist(9,stringfromlist(0,s_path),":")
 save /b/t/p=home wavelist("*",";","") as stringfromlist(9,stringfromlist(0,s_path),":") + stringfromlist(10,stringfromlist(0,s_path),":") + stringfromlist(11,stringfromlist(0,s_path),":")+".itx"
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
+//******************************************************************************
+//******************************************************************************
+//make figure 1
+//******************************************************************************
+//******************************************************************************
+
 variable vNumStim
 variable vUncageSpacing = 100
 
-dowindow/k graph0
-display w_uncage_response
+newimage /n=UncagePositionZoom48Panel SpineImage48x
+make /o /n=(numpnts(wave0)/3) xpos, ypos
+xpos = wave0[p*3]
+ypos = wave0[p*3+1]
+duplicate /o xpos xpos2
+duplicate /o ypos ypos2
+AppendToGraph/w=UncagePositionZoom48Panel /T ypos vs xpos
+ModifyGraph /w=UncagePositionZoom48Panel marker=19,msize=1
+ModifyGraph /w=UncagePositionZoom48Panel mode=3
+ModifyGraph /w=UncagePositionZoom48Panel noLabel=2,axRGB=(65535,65535,65535)
+
+newimage /n=UncagePositionZoom12Panel SpineImage12x
+ModifyGraph /w=UncagePositionZoom12Panel noLabel=2,axRGB=(65535,65535,65535)
+
+
+display /n=UncageFullTrace w_uncage_response
 wavestats w_uncage_response
-SetAxis left v_min,(v_max+v_sdev)
+SetAxis /w=UncageFullTrace left v_min,(v_max+v_sdev)
 duplicate /o w_uncage_time wUncageIndicator
 wUncageIndicator = (v_max+v_sdev)
-appendtograph wUncageIndicator vs w_uncage_time
-ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
-ModifyGraph rgb(wUncageIndicator)=(0,0,0)
-ModifyGraph width={Aspect,7}
-ModifyGraph tick=3,nticks(left)=2,noLabel=2;DelayUpdate
-ModifyGraph manTick(left)={0,10,-12,0},manMinor(left)={0,50};DelayUpdate
-ModifyGraph manTick(bottom)={2,1,0,0},manMinor(bottom)={0,0};DelayUpdate
-ModifyGraph axRGB=(65535,65535,65535),tlblRGB(bottom)=(65535,65535,65535);DelayUpdate
-ModifyGraph alblRGB(bottom)=(65535,65535,65535)
-SetDrawEnv ycoord= left;SetDrawEnv dash= 0;DelayUpdate;SetDrawEnv xcoord= bottom
-DrawLine -0.1,v_min,0.4,v_min
-SetDrawEnv ycoord= left;SetDrawEnv dash= 0;DelayUpdate;SetDrawEnv xcoord= bottom
-DrawLine -0.1,v_min,-0.1,v_min+10E-12
-ModifyGraph width=498.898,height=113.386
+appendtograph /w=UncageFullTrace wUncageIndicator vs w_uncage_time
+ModifyGraph /w=UncageFullTrace mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
+ModifyGraph /w=UncageFullTrace rgb(wUncageIndicator)=(0,0,0)
+ModifyGraph /w=UncageFullTrace tick=3,nticks(left)=2,noLabel=2;DelayUpdate
+ModifyGraph /w=UncageFullTrace axRGB=(65535,65535,65535),tlblRGB(bottom)=(65535,65535,65535);DelayUpdate
+ModifyGraph /w=UncageFullTrace alblRGB(bottom)=(65535,65535,65535)
+SetDrawEnv /w=UncageFullTrace ycoord= left;SetDrawEnv dash= 0;DelayUpdate;SetDrawEnv xcoord= bottom
+DrawLine /w=UncageFullTrace -0.1,v_min,0.4,v_min
+SetDrawEnv /w=UncageFullTrace ycoord= left;SetDrawEnv dash= 0;DelayUpdate;SetDrawEnv xcoord= bottom
+DrawLine /w=UncageFullTrace -0.1,v_min,-0.1,v_min+10E-12
+ModifyGraph /w=UncageFullTrace width=470,height=102.5
 ModifyGraph margin=10
 
 vNumStim = dimsize(w2d_responses,0)
@@ -164,6 +183,23 @@ SetDrawEnv ycoord= left;SetDrawEnv dash= 0;DelayUpdate;SetDrawEnv xcoord= bottom
 DrawLine -0.005,v_min,-0.005,v_min+10E-12
 ModifyGraph margin=10,width=136.2993,height=113.386
 ModifyGraph margin(left)=20
+
+display /n=SpRange10to14 NormAmpMean
+setscale /p x,900,-100, "", NormAmpMean
+Label /w=SpRange10to14 left "Normalized Amplitude"
+Label /w=SpRange10to14 bottom "Distance (nm)"
+ModifyGraph /w=SpRange10to14 mode=3,marker=19;DelayUpdate
+ErrorBars/w=SpRange10to14 /T=0 NormAmpMean Y,wave=(NormAmpSE,NormAmpSE)
+K0 = 0;K1 = 1;K2 = 400;
+CurveFit/n/q/H="110"/NTHR=0/K={0} exp_XOffset  NormAmpMean /D
+
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
+
+
 
 
 
