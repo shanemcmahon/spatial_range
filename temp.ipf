@@ -101,6 +101,13 @@ newimage /n=UncagePositionZoom12Panel SpineImage12x
 ModifyGraph /w=UncagePositionZoom12Panel noLabel=2,axRGB=(65535,65535,65535)
 
 
+ModifyGraph /w=UncagePositionZoom48Panel width=205,height=205
+ModifyGraph /w=UncagePositionZoom48Panel margin=20
+ModifyGraph /w=UncagePositionZoom12Panel width=205,height=205
+ModifyGraph /w=UncagePositionZoom12Panel margin=20
+
+
+
 display /n=UncageFullTrace w_uncage_response
 wavestats w_uncage_response
 SetAxis /w=UncageFullTrace left v_min,(v_max+v_sdev)
@@ -190,8 +197,49 @@ Label /w=SpRange10to14 left "Normalized Amplitude"
 Label /w=SpRange10to14 bottom "Distance (nm)"
 ModifyGraph /w=SpRange10to14 mode=3,marker=19;DelayUpdate
 ErrorBars/w=SpRange10to14 /T=0 NormAmpMean Y,wave=(NormAmpSE,NormAmpSE)
-K0 = 0;K1 = 1;K2 = 400;
-CurveFit/n/q/H="110"/NTHR=0/K={0} exp_XOffset  NormAmpMean /D
+K0 = 0;K1=64 = 1;K2 = 400;
+CurveFit/L=64/n/q/H="110"/NTHR=0/K={0} exp_XOffset  NormAmpMean /D
+ModifyGraph /w=SpRange10to14 width=190,height=190
+ModifyGraph /w=SpRange10to14 margin=55
+ModifyGraph margin(top)=0,margin(right)=0
+ModifyGraph /w= SpRange10to14 lblMargin=10
+SetAxis /w=SpRange10to14 left 0,1
+
+
+
+
+
+newlayout /n=Fig1
+modifylayout /w=Fig1 units=0
+modifylayout /w=Fig1 frame = 0
+appendtolayout UncagePositionZoom12Panel
+modifylayout left(UncagePositionZoom12Panel)=0
+modifylayout top(UncagePositionZoom12Panel)=0
+appendtolayout UncagePositionZoom48Panel
+modifylayout /w=Fig1 frame = 0
+modifylayout left(UncagePositionZoom48Panel)=245
+modifylayout top(UncagePositionZoom48Panel)=0
+appendtolayout UncageFullTrace
+modifylayout /w=Fig1 frame = 0
+modifylayout left(UncageFullTrace)=0
+modifylayout top(UncageFullTrace)=245
+appendtolayout UncageResponse0
+modifylayout /w=Fig1 frame = 0
+modifylayout left(UncageResponse0)=0
+modifylayout top(UncageResponse0)=367.5
+appendtolayout UncageResponse6
+modifylayout /w=Fig1 frame = 0
+modifylayout left(UncageResponse6)=166.333
+modifylayout top(UncageResponse6)=367.5
+appendtolayout UncageResponse10
+modifylayout /w=Fig1 frame = 0
+modifylayout left(UncageResponse10)=332.666
+modifylayout top(UncageResponse10)=367.5
+appendtolayout SpRange10to14
+modifylayout /w=Fig1 frame = 0
+modifylayout left(SpRange10to14)=0
+modifylayout top(SpRange10to14)=501
+
 
 //******************************************************************************
 //******************************************************************************
