@@ -123,8 +123,8 @@ SetDrawEnv /w=UncageFullTrace ycoord= left;SetDrawEnv dash= 0;DelayUpdate;SetDra
 DrawLine /w=UncageFullTrace -0.1,v_min,0.4,v_min
 SetDrawEnv /w=UncageFullTrace ycoord= left;SetDrawEnv dash= 0;DelayUpdate;SetDrawEnv xcoord= bottom
 DrawLine /w=UncageFullTrace -0.1,v_min,-0.1,v_min+10E-12
-ModifyGraph /w=UncageFullTrace width=470,height=102.5
-ModifyGraph margin=10
+ModifyGraph /w=UncageFullTrace width=450,height=102.5
+ModifyGraph /w=UncageFullTrace margin(left)=20
 
 vNumStim = dimsize(w2d_responses,0)
 duplicate /o w_uncage_time wUncageIndicatorTime
@@ -201,7 +201,7 @@ K0 = 0;K1=64 = 1;K2 = 400;
 CurveFit/L=64/n/q/H="110"/NTHR=0/K={0} exp_XOffset  NormAmpMean /D
 ModifyGraph /w=SpRange10to14 width=190,height=190
 ModifyGraph /w=SpRange10to14 margin=55
-ModifyGraph margin(top)=0,margin(right)=0
+ModifyGraph /w=SpRange10to14 margin(top)=0,margin(right)=0
 ModifyGraph /w= SpRange10to14 lblMargin=10
 SetAxis /w=SpRange10to14 left 0,1
 
@@ -319,3 +319,170 @@ print Rs,Ri,Vr
 Save/T/B  wavelist("ws*1p1",";","")+wavelist("ws*2p1",";","") as wavelist("ws*1p1","","")+"++.itx"
 
 edit w_amplitude,w_amplitude_0,w_amplitude_1,w_amplitude_1_se,w_amplitude_se,w_decay_time,w_onset_delay,w_rise_time,w_t0,w_y0
+
+
+
+
+macro DoMakeFigures()
+	//MakeFigures()
+
+	variable vNumStim
+	variable vUncageSpacing = 100
+	variable i
+	String cmd
+
+	dowindow/k FullResponse
+	display /n=FullResponse w_uncage_response
+	Label bottom "time \\u#2 (s)"
+	Label left "I\\u#2 (pA)"
+	wavestats /	q w_uncage_response
+	SetAxis left v_min,(v_max+v_sdev)
+	duplicate /o w_uncage_time wUncageIndicator
+	wUncageIndicator = (v_max+v_sdev)
+	appendtograph wUncageIndicator vs w_uncage_time
+	ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
+	ModifyGraph rgb(wUncageIndicator)=(0,0,0)
+	ModifyGraph width={Aspect,7}
+	ModifyGraph width=430,height=225
+	ModifyGraph margin(bottom)=40
+	ModifyGraph margin(left)=40
+	ModifyGraph margin(top)=20
+	ModifyGraph margin(right)=20
+
+	vNumStim = dimsize(w2d_responses,0)
+	duplicate /o w_uncage_time wUncageIndicatorTime
+	wUncageIndicatorTime = w_uncage_time[0]-w_fit_start_time[0]
+	i = 0
+	do
+	sprintf cmd, "dowindow /k response%s", num2str(i)
+	print cmd
+	Execute cmd
+	sprintf cmd, "Display /n= response%s w2d_responses[%s][*]", num2str(i), num2str(i)
+	print cmd
+	Execute cmd
+		Label bottom "\\u#2time (ms)"
+		Label left "I\\u#2 (pA)"
+		appendtograph w2d_fits[i][*]
+		ModifyGraph rgb(w2d_fits)=(0,0,0)
+		appendtograph wUncageIndicator vs wUncageIndicatorTime
+		ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
+		ModifyGraph rgb(wUncageIndicator)=(0,0,0)
+		SetAxis left v_min,(v_max+v_sdev)
+		ModifyGraph width=185,height=80
+		ModifyGraph margin=50
+		ModifyGraph margin(top)=0,margin(right)=0
+		ModifyGraph lblMargin=10
+
+		i += 1
+	while (i < vNumStim)
+
+
+
+
+
+
+	dowindow/k FitAmplitude
+	display /n=FitAmplitude w_amplitude
+	setscale /p x,((numpnts(w_amplitude)-1)*vUncageSpacing),-vUncageSpacing,"nm",w_amplitude
+	Label bottom "distance \\u#2 (nm)"
+	ModifyGraph mode=3,marker=19;DelayUpdate
+	ErrorBars/T=0/L=0.7 w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
+	Label left "I\\u#2 (pA)"
+	SetAxis left *,max(wavemax(w_amplitude),0)
+	Sort WNrAmplitude WNrAmplitude
+	setscale /i x,0,1,WNrAmplitude
+	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+	DrawLine 0,(WNrAmplitude(0.01)),1,(WNrAmplitude(0.01))
+	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+	DrawLine 0,(WNrAmplitude(0.05)),1,(WNrAmplitude(0.05))
+	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+	DrawLine 0,(WNrAmplitude(0.5)),1,(WNrAmplitude(0.5))
+	ModifyGraph width=185,height=80
+	ModifyGraph margin=50
+	ModifyGraph margin(top)=0,margin(right)=0
+	ModifyGraph lblMargin=10
+	//AutoPositionWindow/M=1/R=graph1
+
+	dowindow/k UncageResponses
+	plotrows(w2d_responses)
+	dowindow /c UncageResponses
+	ModifyGraph width=185,height=80
+	ModifyGraph margin=50
+	ModifyGraph margin(top)=0,margin(right)=0
+	ModifyGraph lblMargin=10
+
+	//AutoPositionWindow/M=0/R=graph4 graph5
+
+	dowindow/k UncageFits
+	plotrows(w2d_fits)
+	dowindow /c UncageFits
+	ModifyGraph width=185,height=80
+	ModifyGraph margin=50
+	ModifyGraph margin(top)=0,margin(right)=0
+	ModifyGraph lblMargin=10
+	//AutoPositionWindow/M=0/R=graph5 graph6
+	duplicate /o VPockelsVoltage VLaserPower
+	VLaserPower = LaserPower(VPockelsVoltage)
+
+endmacro
+
+macro DoLayout()
+newlayout /n=SummaryFig
+appendtolayout FullResponse
+modifylayout left(FullResponse)=0
+modifylayout top(FullResponse)=0
+
+appendtolayout Response0
+modifylayout left(Response0)=0
+modifylayout top(Response0)=285
+appendtolayout Response1
+modifylayout left(Response1)=245
+modifylayout top(Response1)=285
+
+appendtolayout Response2
+modifylayout left(Response2)=0
+modifylayout top(Response2)=420
+appendtolayout Response3
+modifylayout left(Response3)=245
+modifylayout top(Response3)=420
+
+appendtolayout Response4
+modifylayout left(Response4)=0
+modifylayout top(Response4)=555
+appendtolayout Response5
+modifylayout left(Response5)=245
+modifylayout top(Response5)=555
+
+appendtolayout Response6
+modifylayout left(Response6)=0
+modifylayout top(Response6)=690
+appendtolayout Response7
+modifylayout left(Response7)=245
+modifylayout top(Response7)=690
+
+appendtolayout Response8
+modifylayout left(Response8)=0
+modifylayout top(Response8)=825
+appendtolayout Response9
+modifylayout left(Response9)=245
+modifylayout top(Response9)=825
+
+appendtolayout UncageResponses
+modifylayout left(UncageResponses)=0
+modifylayout top(UncageResponses)=960
+appendtolayout UncageFits
+modifylayout left(UncageFits)=245
+modifylayout top(UncageFits)=960
+
+appendtolayout FitAmplitude
+modifylayout left(FitAmplitude)=0
+modifylayout top(FitAmplitude)=1095
+
+appendtolayout Table0
+modifylayout left(Table0)=245
+modifylayout top(Table0)=1095
+modifylayout frame = 0
+
+edit VPockelsVoltage
+
+endmacro

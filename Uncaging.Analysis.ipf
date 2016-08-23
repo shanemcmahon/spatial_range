@@ -568,214 +568,7 @@ return sse_out
 
 End
 
-macro DoMakeFigures()
-MakeFigures()
 
-variable vNumStim
-variable vUncageSpacing = 100
-
-dowindow/k graph0
-display w_uncage_response
-Label bottom "time (s)"
-Label left "I\\u#2 (pA)"
-wavestats w_uncage_response
-SetAxis left v_min,(v_max+v_sdev)
-duplicate /o w_uncage_time wUncageIndicator
-wUncageIndicator = (v_max+v_sdev)
-appendtograph wUncageIndicator vs w_uncage_time
-ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
-ModifyGraph rgb(wUncageIndicator)=(0,0,0)
-ModifyGraph width={Aspect,7}
-
-vNumStim = dimsize(w2d_responses,0)
-duplicate /o w_uncage_time wUncageIndicatorTime
-wUncageIndicatorTime = w_uncage_time[0]-w_fit_start_time[0]
-
-dowindow/k graph1
-Display w2d_responses[0][*]
-Label bottom "\\u#2time (ms)"
-Label left "I\\u#2 (pA)"
-appendtograph w2d_fits[0][*]
-ModifyGraph rgb(w2d_fits)=(0,0,0)
-//make /o /n=1 wUncageIndicator
-//wUncageIndicator = w_y0[0] + v_sdev
-appendtograph wUncageIndicator vs wUncageIndicatorTime
-ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
-ModifyGraph rgb(wUncageIndicator)=(0,0,0)
-SetAxis left v_min,(v_max+v_sdev)
-AutoPositionWindow/M=1/R=graph0
-
-dowindow/k graph2
-Display w2d_responses[(vNumStim-1)/2+1][*]
-Label bottom "\\u#2time (ms)"
-Label left "I\\u#2 (pA)"
-appendtograph w2d_fits[(vNumStim-1)/2+1][*]
-ModifyGraph rgb(w2d_fits)=(0,0,0)
-appendtograph wUncageIndicator vs wUncageIndicatorTime
-ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
-ModifyGraph rgb(wUncageIndicator)=(0,0,0)
-SetAxis left v_min,(v_max+v_sdev)
-AutoPositionWindow/M=0/R=graph1
-
-dowindow/k graph3
-Display w2d_responses[vNumStim-1][*]
-appendtograph w2d_fits[vNumStim-1][*]
-Label bottom "\\u#2time (ms)"
-Label left "I\\u#2 (pA)"
-ModifyGraph rgb(w2d_fits)=(0,0,0)
-appendtograph wUncageIndicator vs wUncageIndicatorTime
-ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
-ModifyGraph rgb(wUncageIndicator)=(0,0,0)
-SetAxis left v_min,(v_max+v_sdev)
-AutoPositionWindow/M=0/R=graph2
-
-
-
-dowindow/k graph4
-display w_amplitude
-setscale /p x,((numpnts(w_amplitude)-1)*vUncageSpacing),-vUncageSpacing,"nm",w_amplitude
-Label bottom "distance \\u#2 (nm)"
-ModifyGraph mode=3,marker=19;DelayUpdate
-ErrorBars/T=0/L=0.7 w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
-Label left "I\\u#2 (pA)"
-SetAxis left *,max(wavemax(w_amplitude),0)
-Sort WNrAmplitude WNrAmplitude
-setscale /i x,0,1,WNrAmplitude
-SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-DrawLine 0,(WNrAmplitude(0.01)),1,(WNrAmplitude(0.01))
-SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-DrawLine 0,(WNrAmplitude(0.05)),1,(WNrAmplitude(0.05))
-SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-DrawLine 0,(WNrAmplitude(0.5)),1,(WNrAmplitude(0.5))
-AutoPositionWindow/M=1/R=graph1
-
-dowindow/k graph5
-plotrows(w2d_responses)
-AutoPositionWindow/M=0/R=graph4 graph5
-
-dowindow/k graph6
-plotrows(w2d_fits)
-AutoPositionWindow/M=0/R=graph5 graph6
-
-endmacro
-
-Function MakeFigures()
-wave w2dFitUncagingResponseCoef, w_amplitude_0,w2dFitUncagingResponseCoefSE,w2d_fits
-wave w2d_responses,w_amplitude,w_amplitude_1,w_amplitude_1_se,w_amplitude_se
-wave w_decay_time,w_fit_start_pt,w_fit_start_time,w_fit_stop_time,w_onset_delay
-wave w_rise_time, w_t0,w_uncage_time,w_y0
-variable VXPos,UserResponse
-variable VNCols = DimSize(w2dFitUncagingResponseCoef, 0 )
-Prompt UserResponse, "Do you whish to set any points to NaN?", popup, "Select point for deletion; Continue analysis"
-dowindow/k graph0
-display w_amplitude
-ModifyGraph mode=3,marker=19;
-SetDrawEnv ycoord= left;SetDrawEnv dash= 3;
-showinfo
-cursor a,$StringFromList(0, tracenamelist("",";",1) ),0
-UserResponse = 1
-
-do
-DoUpdate
-doprompt "",UserResponse
-if(UserResponse!=1)
-break
-endif
-
-NewPanel/K=2 /n=pause_for_user as "Pause for user"; AutoPositionWindow/M=0/R=graph0
-DrawText 21,20,"Select points for deletion with cursor a";	DrawText 21,40,""
-Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=User_Continue
-PauseForUser pause_for_user, graph0
-
-VXPos = xcsr(a)
-if(VXPos==(VNCols-1))
-DeletePoints VXPos,1, w2dFitUncagingResponseCoef
-InsertPoints 0,1, w2dFitUncagingResponseCoef
-DeletePoints VXPos,1,w2dFitUncagingResponseCoefSE
-InsertPoints 0,1,w2dFitUncagingResponseCoefSE
-DeletePoints VXPos,1,w2d_fits
-InsertPoints 0,1,w2d_fits
-DeletePoints VXPos,1,w2d_responses
-InsertPoints 0,1,w2d_responses
-
-w2dFitUncagingResponseCoef[0][] = NaN
-w2dFitUncagingResponseCoefSE[0][] = NaN
-w2d_fits[0][] = NaN
-w2d_responses[0][] = NaN
-
-DeletePoints VXPos,1,w_amplitude
-InsertPoints 0,1,w_amplitude
-DeletePoints VXPos,1, w_amplitude_0
-InsertPoints 0,1, w_amplitude_0
-DeletePoints VXPos,1, w_amplitude_1
-InsertPoints 0,1, w_amplitude_1
-DeletePoints VXPos,1, w_amplitude_1_se
-InsertPoints 0,1, w_amplitude_1_se
-DeletePoints VXPos,1, w_amplitude_se
-InsertPoints 0,1, w_amplitude_se
-DeletePoints VXPos,1, w_decay_time
-InsertPoints 0,1, w_decay_time
-DeletePoints VXPos,1, w_fit_start_pt
-InsertPoints 0,1, w_fit_start_pt
-DeletePoints VXPos,1, w_fit_start_time
-InsertPoints 0,1, w_fit_start_time
-DeletePoints VXPos,1, w_fit_stop_time
-InsertPoints 0,1, w_fit_stop_time
-DeletePoints VXPos,1, w_onset_delay
-InsertPoints 0,1, w_onset_delay
-DeletePoints VXPos,1, w_rise_time
-InsertPoints 0,1, w_rise_time
-DeletePoints VXPos,1, w_t0
-InsertPoints 0,1, w_t0
-DeletePoints VXPos,1, w_uncage_time
-InsertPoints 0,1, w_uncage_time
-DeletePoints VXPos,1, w_y0
-InsertPoints 0,1, w_y0
-
-w_amplitude[0] = NaN
-w_amplitude_0[0] = NaN
-w_amplitude_1[0] = NaN
-w_amplitude_1_se[0] = NaN
-w_amplitude_se[0] = NaN
-w_decay_time[0] = NaN
-w_fit_start_pt[0] = NaN
-w_fit_start_time[0] = NaN
-w_fit_stop_time[0] = NaN
-w_onset_delay[0] = NaN
-w_rise_time[0] = NaN
-w_t0[0] = NaN
-w_uncage_time[0] = NaN
-w_y0[0] = NaN
-else
-
-w2dFitUncagingResponseCoef[(VXPos)][] = NaN
-w2dFitUncagingResponseCoefSE[(VXPos)][] = NaN
-w2d_fits[(VXPos)][] = NaN
-w2d_responses[(VXPos)][] = NaN
-
-w_amplitude[(VXPos)] = NaN
-w_amplitude_0[(VXPos)] = NaN
-w_amplitude_1[(VXPos)] = NaN
-w_amplitude_1_se[(VXPos)] = NaN
-w_amplitude_se[(VXPos)] = NaN
-w_decay_time[(VXPos)] = NaN
-w_fit_start_pt[(VXPos)] = NaN
-w_fit_start_time[(VXPos)] = NaN
-w_fit_stop_time[(VXPos)] = NaN
-w_onset_delay[(VXPos)] = NaN
-w_rise_time[(VXPos)] = NaN
-w_t0[(VXPos)] = NaN
-w_uncage_time[(VXPos)] = NaN
-w_y0[(VXPos)] = NaN
-
-endif
-
-
-while(UserResponse == 1)
-
-
-
-end
 
 macro do_save_results()
 if(!exists("rw_uid"))
@@ -995,6 +788,171 @@ w2d_responses[0][]=NaN
 w2d_fits[0][]=NaN
 
 end
+
+macro DoMakeFigures()
+	//MakeFigures()
+
+	variable vNumStim
+	variable vUncageSpacing = 100
+	variable i
+	String cmd
+
+	dowindow/k FullResponse
+	display /n=FullResponse w_uncage_response
+	Label bottom "time \\u#2 (s)"
+	Label left "I\\u#2 (pA)"
+	wavestats /	q w_uncage_response
+	SetAxis left v_min,(v_max+v_sdev)
+	duplicate /o w_uncage_time wUncageIndicator
+	wUncageIndicator = (v_max+v_sdev)
+	appendtograph wUncageIndicator vs w_uncage_time
+	ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
+	ModifyGraph rgb(wUncageIndicator)=(0,0,0)
+	ModifyGraph width={Aspect,7}
+	ModifyGraph width=430,height=225
+	ModifyGraph margin(bottom)=40
+	ModifyGraph margin(left)=40
+	ModifyGraph margin(top)=20
+	ModifyGraph margin(right)=20	
+
+	vNumStim = dimsize(w2d_responses,0)
+	duplicate /o w_uncage_time wUncageIndicatorTime
+	wUncageIndicatorTime = w_uncage_time[0]-w_fit_start_time[0]
+	i = 0
+	do
+	sprintf cmd, "dowindow /k response%s", num2str(i)
+	print cmd
+	Execute cmd
+	sprintf cmd, "Display /n= response%s w2d_responses[%s][*]", num2str(i), num2str(i)
+	print cmd
+	Execute cmd
+		Label bottom "\\u#2time (ms)"
+		Label left "I\\u#2 (pA)"
+		appendtograph w2d_fits[i][*]
+		ModifyGraph rgb(w2d_fits)=(0,0,0)
+		appendtograph wUncageIndicator vs wUncageIndicatorTime
+		ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
+		ModifyGraph rgb(wUncageIndicator)=(0,0,0)
+		SetAxis left v_min,(v_max+v_sdev)
+		ModifyGraph width=185,height=80
+		ModifyGraph margin=50
+		ModifyGraph margin(top)=0,margin(right)=0
+		ModifyGraph lblMargin=10
+
+		i += 1	
+	while (i < vNumStim)				
+
+
+
+
+
+
+	dowindow/k FitAmplitude
+	display /n=FitAmplitude w_amplitude
+	setscale /p x,((numpnts(w_amplitude)-1)*vUncageSpacing),-vUncageSpacing,"nm",w_amplitude
+	Label bottom "distance \\u#2 (nm)"
+	ModifyGraph mode=3,marker=19;DelayUpdate
+	ErrorBars/T=0/L=0.7 w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
+	Label left "I\\u#2 (pA)"
+	SetAxis left *,max(wavemax(w_amplitude),0)
+	Sort WNrAmplitude WNrAmplitude
+	setscale /i x,0,1,WNrAmplitude
+	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+	DrawLine 0,(WNrAmplitude(0.01)),1,(WNrAmplitude(0.01))
+	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+	DrawLine 0,(WNrAmplitude(0.05)),1,(WNrAmplitude(0.05))
+	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
+	DrawLine 0,(WNrAmplitude(0.5)),1,(WNrAmplitude(0.5))
+	ModifyGraph width=185,height=80
+	ModifyGraph margin=50
+	ModifyGraph margin(top)=0,margin(right)=0
+	ModifyGraph lblMargin=10
+	//AutoPositionWindow/M=1/R=graph1
+
+	dowindow/k UncageResponses
+	plotrows(w2d_responses)
+	dowindow /c UncageResponses
+	ModifyGraph width=185,height=80
+	ModifyGraph margin=50
+	ModifyGraph margin(top)=0,margin(right)=0
+	ModifyGraph lblMargin=10
+
+	//AutoPositionWindow/M=0/R=graph4 graph5
+
+	dowindow/k UncageFits
+	plotrows(w2d_fits)
+	dowindow /c UncageFits
+	ModifyGraph width=185,height=80
+	ModifyGraph margin=50
+	ModifyGraph margin(top)=0,margin(right)=0
+	ModifyGraph lblMargin=10
+	//AutoPositionWindow/M=0/R=graph5 graph6
+	duplicate /o VPockelsVoltage VLaserPower
+	VLaserPower = LaserPower(VPockelsVoltage)
+
+endmacro
+
+macro DoLayout()
+newlayout /n=SummaryFig
+appendtolayout FullResponse
+modifylayout left(FullResponse)=0
+modifylayout top(FullResponse)=0
+
+appendtolayout Response0
+modifylayout left(Response0)=0
+modifylayout top(Response0)=285
+appendtolayout Response1
+modifylayout left(Response1)=245
+modifylayout top(Response1)=285
+
+appendtolayout Response2
+modifylayout left(Response2)=0
+modifylayout top(Response2)=420
+appendtolayout Response3
+modifylayout left(Response3)=245
+modifylayout top(Response3)=420
+
+appendtolayout Response4
+modifylayout left(Response4)=0
+modifylayout top(Response4)=555
+appendtolayout Response5
+modifylayout left(Response5)=245
+modifylayout top(Response5)=555
+
+appendtolayout Response6
+modifylayout left(Response6)=0
+modifylayout top(Response6)=690
+appendtolayout Response7
+modifylayout left(Response7)=245
+modifylayout top(Response7)=690
+
+appendtolayout Response8
+modifylayout left(Response8)=0
+modifylayout top(Response8)=825
+appendtolayout Response9
+modifylayout left(Response9)=245
+modifylayout top(Response9)=825
+
+appendtolayout UncageResponses
+modifylayout left(UncageResponses)=0
+modifylayout top(UncageResponses)=960
+appendtolayout UncageFits
+modifylayout left(UncageFits)=245
+modifylayout top(UncageFits)=960
+
+appendtolayout FitAmplitude
+modifylayout left(FitAmplitude)=0
+modifylayout top(FitAmplitude)=1095
+
+appendtolayout Table0
+modifylayout left(Table0)=245
+modifylayout top(Table0)=1095
+modifylayout frame = 0
+
+edit VPockelsVoltage
+
+endmacro
+
 
 menu "macros"
 	"Do_Uncaging_Analysis/1"
