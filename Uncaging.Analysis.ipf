@@ -10,6 +10,7 @@ macro Do_Uncaging_Analysis()
 // the global variables s_wavenames and s_path are not available inside functions, therefore somethings are done first in the macro
 	String /g data_wave_list = s_wavenames
   String /g uid =  StringFromList(ItemsInList(s_path, ":")-4, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-3, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-2, s_path , ":")+"_ts"+s_path[strlen(s_path)-4,strlen(s_path)-2]
+  string /g OutputPathStr = s_path
 	uid = uid + s_filename[0,strlen(s_filename)-5]
 	Uncaging_Analysis(data_wave_list)
 
@@ -587,6 +588,9 @@ wave w_amplitude_0, w2d_responses, w2d_fits, rw_uid, WNrAmplitude1
 wave WNrAmplitude, WNrAmplitude0, rwPockelsVoltage
 wave vPockelsVoltage
 variable n_results
+string /g OutputPathStr
+newpath /o OutputDir, OutputPathStr
+SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as "SummaryFig.png"
 
 if(!waveexists(rw2d_response))
 
