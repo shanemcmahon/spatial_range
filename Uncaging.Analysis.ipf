@@ -803,7 +803,7 @@ macro DoMakeFigures()
 	variable i
 	String cmd
 
-	vPockelsVoltage = 20*vPockelsVoltage
+	//vPockelsVoltage = 20*vPockelsVoltage
 	dowindow/k FullResponse
 	display /n=FullResponse w_uncage_response
 	Label bottom "time \\u#2 (s)"
