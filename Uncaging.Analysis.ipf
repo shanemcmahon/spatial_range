@@ -589,8 +589,10 @@ wave WNrAmplitude, WNrAmplitude0, rwPockelsVoltage
 wave vPockelsVoltage
 variable n_results
 string /g OutputPathStr
+string /g uid
 newpath /o OutputDir, OutputPathStr
-SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as "SummaryFig.png"
+SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid +".png")
+//SavePICT/O/E=-5/B=72 /p=OutputDir /win=SummaryFig as "SummaryFiglr.png"
 
 if(!waveexists(rw2d_response))
 
@@ -797,10 +799,11 @@ macro DoMakeFigures()
 	//MakeFigures()
 
 	variable vNumStim
-	variable vUncageSpacing = 100
+	variable vUncageSpacing = 400
 	variable i
 	String cmd
 
+	vPockelsVoltage = 20*vPockelsVoltage
 	dowindow/k FullResponse
 	display /n=FullResponse w_uncage_response
 	Label bottom "time \\u#2 (s)"
@@ -817,7 +820,7 @@ macro DoMakeFigures()
 	ModifyGraph margin(bottom)=40
 	ModifyGraph margin(left)=40
 	ModifyGraph margin(top)=20
-	ModifyGraph margin(right)=20	
+	ModifyGraph margin(right)=20
 
 	vNumStim = dimsize(w2d_responses,0)
 	duplicate /o w_uncage_time wUncageIndicatorTime
@@ -843,8 +846,8 @@ macro DoMakeFigures()
 		ModifyGraph margin(top)=0,margin(right)=0
 		ModifyGraph lblMargin=10
 
-		i += 1	
-	while (i < vNumStim)				
+		i += 1
+	while (i < vNumStim)
 
 
 
@@ -856,7 +859,7 @@ macro DoMakeFigures()
 	setscale /p x,((numpnts(w_amplitude)-1)*vUncageSpacing),-vUncageSpacing,"nm",w_amplitude
 	Label bottom "distance \\u#2 (nm)"
 	ModifyGraph mode=3,marker=19;DelayUpdate
-	ErrorBars/T=0/L=0.7 w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
+//	ErrorBars/T=0/L=0.7 w_amplitude Y,wave=(w_amplitude_se,w_amplitude_se)
 	Label left "I\\u#2 (pA)"
 	SetAxis left *,max(wavemax(w_amplitude),0)
 	Sort WNrAmplitude WNrAmplitude
@@ -892,22 +895,45 @@ macro DoMakeFigures()
 	ModifyGraph lblMargin=10
 	//AutoPositionWindow/M=0/R=graph5 graph6
 	duplicate /o VPockelsVoltage VLaserPower
+	setscale /p x, 0, 0.05, LaserPower
 	VLaserPower = LaserPower(VPockelsVoltage)
+
+	make/o/t/n=(3,2) SummaryFigTableData
+	summaryFigTableData[][0] = {"Pockels (mV)","Laser (mW)","ID"}
+	summaryFigTableData[][1] = {"","",""}
+	summaryFigTableData[0][1] = {num2str(vPockelsVoltage[0]),num2str(VLaserPower[0]),uid}
+	dowindow /k SummaryFigTable
+	edit /n=SummaryFigTable SummaryFigTableData
+	modifytable autosize = {0,1,-1,0,0}
+	ModifyTable width(Point)=0
+	modifytable alignment=0
+
+
 
 endmacro
 
 macro DoLayout()
+dowindow /k SummaryFig
 newlayout /n=SummaryFig
 appendtolayout FullResponse
 modifylayout left(FullResponse)=0
 modifylayout top(FullResponse)=0
 
+duplicate /o w_amplitude UncagePosition
+UncagePosition = x
+
 appendtolayout Response0
 modifylayout left(Response0)=0
 modifylayout top(Response0)=285
+TextBox/w=SummaryFig/C/N=text0/F=0 /A=LT (num2str(UncagePosition[0]) + "nm")
+modifylayout left(text0)=0
+modifylayout top(text0)=285
 appendtolayout Response1
 modifylayout left(Response1)=245
 modifylayout top(Response1)=285
+TextBox/w=SummaryFig/C/N=text1/F=0 /A=LT (num2str(UncagePosition[1]) + "nm")
+modifylayout left(text1)=245
+modifylayout top(text1)=285
 
 appendtolayout Response2
 modifylayout left(Response2)=0
@@ -948,14 +974,129 @@ appendtolayout FitAmplitude
 modifylayout left(FitAmplitude)=0
 modifylayout top(FitAmplitude)=1095
 
-appendtolayout Table0
-modifylayout left(Table0)=245
-modifylayout top(Table0)=1095
+appendtolayout SummaryFigTable
+modifylayout left(SummaryFigTable)=245
+modifylayout top(SummaryFigTable)=1095
 modifylayout frame = 0
 
-edit VPockelsVoltage
-
 endmacro
+
+macro DoLayout2()
+variable i
+string cmd
+dowindow /k SummaryFig
+newlayout /n=SummaryFig
+appendtolayout FullResponse
+modifylayout left(FullResponse)=0
+modifylayout top(FullResponse)=0
+
+duplicate /o w_amplitude UncagePosition
+UncagePosition = x
+
+i=0
+
+do
+sprintf cmd, "appendtolayout Response%s",num2str(i);	Execute cmd
+sprintf cmd, "modifylayout left(Response%s)=0",num2str(i);	Execute cmd
+sprintf cmd, "modifylayout top(Response%s)=%s",num2str(i),num2str(285 + 0.5*i*135);	Execute cmd
+sprintf cmd, "TextBox/w=SummaryFig/C/N=text%s/F=0 /A=LT (num2str(UncagePosition[%s]) + \"nm\")",num2str(i),num2str(i);	Execute cmd
+sprintf cmd, "modifylayout left(text%s)=0",num2str(i);	Execute cmd
+sprintf cmd, "modifylayout top(text%s)=%s",num2str(i),num2str(285 + 0.5*i*135);	Execute cmd
+
+if(i +1>= dimsize(w2d_fits,0))
+break
+endif
+sprintf cmd, "appendtolayout Response%s",num2str(i+1);	Execute cmd
+sprintf cmd, "modifylayout left(Response%s)=245",num2str(i+1);	Execute cmd
+//sprintf cmd, "modifylayout top(Response%s)=285",num2str(i+1);	Execute cmd
+sprintf cmd, "modifylayout top(Response%s)=%s",num2str(i+1),num2str(285 + 0.5*i*135);	Execute cmd
+sprintf cmd, "TextBox/w=SummaryFig/C/N=text%s/F=0 /A=LT (num2str(UncagePosition[%s]) + \"nm\")",num2str(i+1),num2str(i+1);	Execute cmd
+sprintf cmd, "modifylayout left(text%s)=245",num2str(i+1);	Execute cmd
+sprintf cmd, "modifylayout top(text%s)=%s",num2str(i+1),num2str(285 + 0.5*i*135);	Execute cmd
+
+
+i += 2
+while(i < dimsize(w2d_fits,0))
+appendtolayout UncageResponses
+modifylayout left(UncageResponses)=0
+modifylayout top(UncageResponses)=420+(i/2)*135
+appendtolayout UncageFits
+modifylayout left(UncageFits)=245
+modifylayout top(UncageFits)=420+(i/2)*135
+
+appendtolayout FitAmplitude
+modifylayout left(FitAmplitude)=0
+modifylayout top(FitAmplitude)=535+(i/2)*135
+
+appendtolayout SummaryFigTable
+modifylayout left(SummaryFigTable)=245
+modifylayout top(SummaryFigTable)=535+(i/2)*135
+modifylayout frame = 0
+endmacro
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+//
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+macro DoLayout3()
+variable i,nResponsePanelCols,j
+string cmd
+
+nResponsePanelCols = 3
+
+dowindow /k SummaryFig
+newlayout /n=SummaryFig
+ModifyGraph /w=FullResponse width=(245*nResponsePanelCols-60) 
+appendtolayout FullResponse
+modifylayout left(FullResponse)=0
+modifylayout top(FullResponse)=0
+
+duplicate /o w_amplitude UncagePosition
+UncagePosition = x
+
+
+i=0
+
+do
+print i
+j = 0
+do
+//print j
+//print (i*nResponsePanelCols+j)
+sprintf cmd, "appendtolayout Response%s",num2str(i*nResponsePanelCols+j);	Execute cmd
+sprintf cmd, "modifylayout left(Response%s)=%s",num2str(i*nResponsePanelCols+j),num2str(245*j);	Execute cmd
+sprintf cmd, "modifylayout top(Response%s)=%s",num2str(i*nResponsePanelCols+j),num2str(285 + i*135);	Execute cmd
+sprintf cmd, "TextBox/w=SummaryFig/C/N=text%s/F=0 /A=LT (num2str(UncagePosition[%s]) + \"nm\")",num2str(i*nResponsePanelCols+j),num2str(i*nResponsePanelCols+j);	Execute cmd
+sprintf cmd, "modifylayout left(text%s)=%s",num2str(i*nResponsePanelCols+j),num2str(245*j);	Execute cmd
+sprintf cmd, "modifylayout top(text%s)=%s",num2str(i*nResponsePanelCols+j),num2str(285 + i*135);	Execute cmd
+j += 1
+while(j<nResponsePanelCols)
+
+
+if(i*nResponsePanelCols + j + 1 >= dimsize(w2d_fits,0))
+break
+endif
+
+i += 1
+while(i < dimsize(w2d_fits,0))
+
+appendtolayout UncageResponses
+modifylayout left(UncageResponses)=0
+modifylayout top(UncageResponses)=420+(i)*135
+appendtolayout UncageFits
+modifylayout left(UncageFits)=245
+modifylayout top(UncageFits)=420+(i)*135
+
+appendtolayout FitAmplitude
+modifylayout left(FitAmplitude)=0
+modifylayout top(FitAmplitude)=535+(i)*135
+
+appendtolayout SummaryFigTable
+modifylayout left(SummaryFigTable)=245
+modifylayout top(SummaryFigTable)=535+(i)*135
+modifylayout frame = 0
+endmacro
+
 
 
 menu "macros"
@@ -968,4 +1109,7 @@ menu "macros"
 	"RemoveResponse/6"
 	"InsertResponse/7"
 	"RemoveSpineData"
+	"DoLayout"
+	"DoLayout2"
+	"DoLayout3"
 end
