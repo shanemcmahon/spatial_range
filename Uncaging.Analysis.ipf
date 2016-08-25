@@ -32,22 +32,22 @@ endmacro
 //******************************************************************************
 //******************************************************************************
 
-function UserDefineInitialEstimates(ParametersIn,w_coef,UncageTime,y0_time_window,v_amplitude_0_window, response_max_time, v_delay_to_response_start,FitStop)
+function UserDefineInitialEstimates(ParametersIn,w_coef,UncageTime,y0timeWindow,v_amplitude_0_window, response_max_time, v_delay_to_response_start,FitStop)
 wave ParametersIn, w_coef
-variable UncageTime, &y0_time_window, &v_amplitude_0_window, &response_max_time, &v_delay_to_response_start, &FitStop
+variable UncageTime, &y0timeWindow, &v_amplitude_0_window, &response_max_time, &v_delay_to_response_start, &FitStop
 //
 //graph average response and get user input for initial estimates
 //
 //graph
 dowindow /k review
 display /n=review ParametersIn
-SetAxis bottom (UncageTime-y0_time_window),FitStop
+SetAxis bottom (UncageTime-y0timeWindow),FitStop
 SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
 //draw line indicates the location of the uncaging pulse in the aligned average
 //because we have aligned the resonse traces at the begining of the fit window, the uncaging pulse occurs at time = UncageTime
 DrawLine UncageTime,0,UncageTime,1
 ShowInfo/CP=0/W=review
-cursor a,$StringFromList(0, tracenamelist("",";",1) ),(UncageTime-y0_time_window)
+cursor a,$StringFromList(0, tracenamelist("",";",1) ),(UncageTime-y0timeWindow)
 //user interaction
 //estimate response onset delay
 NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=review
@@ -109,8 +109,8 @@ function UncagingAnalysis(DataWaveList)
 	Variable v_amplitude_0
 	Variable v_amplitude_0_window = 0.001
 	Prompt v_amplitude_0_window,"Window size for amplitude estimate"
-	Variable y0_time_window = 0.01	//time window before uncaging pulse used to estimate y0
-	Prompt y0_time_window,"Window size for y0 estimate."
+	Variable y0timeWindow = 0.01	//time window before uncaging pulse used to estimate y0
+	Prompt y0timeWindow,"Window size for y0 estimate."
 	Variable UncageTime	//time of uncaging event for current fit
 	// Variable response_max_amplitude	//not used
 	Variable response_max_time	//time of peak amplitude
@@ -156,7 +156,7 @@ function UncagingAnalysis(DataWaveList)
 	UserSetPar0 = 3
 
 // promp user for starting parameters
-	DoPrompt "",fit_range,decay_time_0,rise_time_0,v_amplitude_0_window,y0_time_window,UserSetPar0,LaswerPowerWaveScaling
+	DoPrompt "",fit_range,decay_time_0,rise_time_0,v_amplitude_0_window,y0timeWindow,UserSetPar0,LaswerPowerWaveScaling
 
 // set stimulus and response wave references from chosen names
 	wave uncaging_response_wave = $uncaging_response_wave_name
@@ -232,9 +232,9 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 //if the number of points differs, we use the smallest for analysis
 //!note maybe we want to just throw an error if the number of points differs instead
 	for(i=0;i < n_uncaging_pulses;i+=1)	// for1
-		fit_start = w_uncage_time[i] - y0_time_window
+		fit_start = w_uncage_time[i] - y0timeWindow
 		w_fit_start_time[i] = fit_start
-		UncageTime = fit_start + y0_time_window
+		UncageTime = fit_start + y0timeWindow
 		fit_stop = fit_start + fit_range
 		w_fit_stop_time[i] = fit_stop
 		v_n_fit_points = min(v_n_fit_points,	(x2pnt(uncaging_response_wave, fit_stop )-x2pnt(uncaging_response_wave, fit_start )))
@@ -271,9 +271,9 @@ fit_stop = fit_range
 	if (UserSetPar0 == 1)
 	// set user parameters interactively
 	// to get user input for initial paramters we call UserDefineInitialEstimates
-	// the function has inputs (ParametersIn,w_coef,UncageTime,y0_time_window,v_amplitude_0_window)
-	// //because we have aligned the resonse traces at the begining of the fit window, the uncaging pulse occurs at time = y0_time_window
-	UserDefineInitialEstimates(w_avg_response,w_coef,y0_time_window,y0_time_window,v_amplitude_0_window, response_max_time, v_delay_to_response_start,fit_stop)
+	// the function has inputs (ParametersIn,w_coef,UncageTime,y0timeWindow,v_amplitude_0_window)
+	// //because we have aligned the resonse traces at the begining of the fit window, the uncaging pulse occurs at time = y0timeWindow
+	UserDefineInitialEstimates(w_avg_response,w_coef,y0timeWindow,y0timeWindow,v_amplitude_0_window, response_max_time, v_delay_to_response_start,fit_stop)
 	response_max_time_0 = response_max_time
 	v_delay_to_response_start_0 = v_delay_to_response_start
 	V_AbortCode = 0
@@ -286,25 +286,25 @@ fit_stop = fit_range
 	endif
 	if(UserSetPar0 == 2)
 	// use parameter values set in dialog
-		// response_max_time = y0_time_window + 3 * rise_time_0
+		// response_max_time = y0timeWindow + 3 * rise_time_0
 		v_delay_to_response_start = 0
 		v_amplitude_0 = -10
-    // duplicate /o /r=(0,y0_time_window) w_avg_response WTemp
+    // duplicate /o /r=(0,y0timeWindow) w_avg_response WTemp
     // wavestats /q WTemp
-		w_coef = {-10,v_delay_to_response_start,rise_time_0,decay_time_0,mean(w_avg_response,0,y0_time_window),y0_time_window}
+		w_coef = {-10,v_delay_to_response_start,rise_time_0,decay_time_0,mean(w_avg_response,0,y0timeWindow),y0timeWindow}
 		// perform fit of average response for display purposes
 		FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
-		response_max_time = y0_time_window + v_delay_to_response_start_0 + (decay_time_0*rise_time_0)/(decay_time_0-rise_time_0)*ln(decay_time_0/rise_time_0)
+		response_max_time = y0timeWindow + v_delay_to_response_start_0 + (decay_time_0*rise_time_0)/(decay_time_0-rise_time_0)*ln(decay_time_0/rise_time_0)
 		response_max_time_0 = response_max_time
 		v_delay_to_response_start = w_coef[1]
 		v_delay_to_response_start_0 = v_delay_to_response_start
 	endif
 	if(UserSetPar0==3)
 	// auto guess start parameters
-	response_max_time = y0_time_window + 3 * rise_time_0
+	response_max_time = y0timeWindow + 3 * rise_time_0
 	v_delay_to_response_start = 0
 	v_amplitude_0 = -10
-	w_coef = {-10,v_delay_to_response_start,rise_time_0,decay_time_0,mean(w_avg_response,0,y0_time_window),y0_time_window}
+	w_coef = {-10,v_delay_to_response_start,rise_time_0,decay_time_0,mean(w_avg_response,0,y0timeWindow),y0timeWindow}
 	FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
 	duplicate /o w_coef wAvgUncageResponseFitCoef
 	duplicate /o w_sigma wAvgUncageResponseFitCoefSE
@@ -313,7 +313,7 @@ fit_stop = fit_range
 	v_amplitude_0 = w_coef[0]
 	decay_time_0 = w_coef[2]
 	rise_time_0 = w_coef[3]
-	response_max_time = y0_time_window + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
+	response_max_time = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
 	response_max_time_0 = response_max_time
 
 	endif
@@ -337,7 +337,7 @@ T_Constraints[0] = {"K1 > 0","K1 < .01"}
 
 // calculate time window for ith uncaging event
 		UncageTime = w_uncage_time[i]
-		fit_start = UncageTime - y0_time_window
+		fit_start = UncageTime - y0timeWindow
 		fit_stop = fit_start + fit_range
 
 	// set w_coef to initial parameter estimates
@@ -361,10 +361,10 @@ T_Constraints[0] = {"K1 > 0","K1 < .01"}
 		setscale /p x,0, dimdelta(uncaging_response_wave,0), w_temp
 		duplicate /o w_temp wThisResponse
 		//save nonparametric estimate of amplitude
-		w_amplitude_0[i] = mean(w_temp,(response_max_time_0-v_amplitude_0_window),(response_max_time_0+v_amplitude_0_window)) - mean(w_temp,0,y0_time_window)
+		w_amplitude_0[i] = mean(w_temp,(response_max_time_0-v_amplitude_0_window),(response_max_time_0+v_amplitude_0_window)) - mean(w_temp,0,y0timeWindow)
 		// save nonparametric estimate of amplitude
-		// response_max_time = y0_time_window + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
-		// w_amplitude_0[i] = mean(uncaging_response_wave,(fit_start+response_max_time-v_amplitude_0_window),(fit_start+response_max_time+v_amplitude_0_window)) - mean(uncaging_response_wave,fit_start,(fit_start+y0_time_window))
+		// response_max_time = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
+		// w_amplitude_0[i] = mean(uncaging_response_wave,(fit_start+response_max_time-v_amplitude_0_window),(fit_start+response_max_time+v_amplitude_0_window)) - mean(uncaging_response_wave,fit_start,(fit_start+y0timeWindow))
 
 do
 // open display window for checking the fit; igor will automatically append the fit to the graph when funcfit is called
@@ -391,7 +391,7 @@ switch(user_response)	// numeric switch
 case 1:		// fit is good, nothing to do
 	break						// exit from switch
 case 2: //user indicated to perform a refit, call UserDefineInitialEstimates
-	UserDefineInitialEstimates(uncaging_response_wave,w_coef,UncageTime,y0_time_window,v_amplitude_0_window, response_max_time, v_delay_to_response_start, fit_stop)
+	UserDefineInitialEstimates(uncaging_response_wave,w_coef,UncageTime,y0timeWindow,v_amplitude_0_window, response_max_time, v_delay_to_response_start, fit_stop)
 	break
 case 3: // user indicates no response
 
@@ -453,7 +453,7 @@ for(j=0;j < n_false_replicates;j+=1)	// for2
 
 // set initial parameters and fit window
 fit_start = w_fit_stop_time[i] + j*inter_false_fit_time
-UncageTime = fit_start + y0_time_window
+UncageTime = fit_start + y0timeWindow
 fit_stop = fit_start + fit_range
 k4 = mean(uncaging_response_wave,fit_start,UncageTime)
 k0 = mean(uncaging_response_wave,(fit_start + response_max_time_0 - v_amplitude_0_window),(fit_start + response_max_time_0 - v_amplitude_0_window)) - k4
@@ -468,9 +468,9 @@ V_FitError = 0
 // fit restricted model
 FuncFit/N/Q/W=2/H="011101" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D
 // FuncFit/N/Q/W=2/H="001101" /NTHR=0 DiffTwoExp2 W_coef  uncaging_response_wave(fit_start, fit_stop) /D /C=T_Constraints
-// response_max_time = y0_time_window + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
+// response_max_time = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
 // save nonparametric estimate of amplitude
-// WNrAmplitude0[i*n_false_replicates+j] = mean(uncaging_response_wave,(fit_start+response_max_time-v_amplitude_0_window),(fit_start+response_max_time+v_amplitude_0_window)) - mean(uncaging_response_wave,fit_start,(fit_start+y0_time_window))
+// WNrAmplitude0[i*n_false_replicates+j] = mean(uncaging_response_wave,(fit_start+response_max_time-v_amplitude_0_window),(fit_start+response_max_time+v_amplitude_0_window)) - mean(uncaging_response_wave,fit_start,(fit_start+y0timeWindow))
 WNrAmplitude0[i*n_false_replicates+j] = v_amplitude
 // save amplitude from restricted model
 WNrAmplitude1[i*n_false_replicates+j] = w_coef[0]
