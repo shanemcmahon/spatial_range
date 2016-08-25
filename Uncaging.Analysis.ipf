@@ -1,30 +1,46 @@
 #pragma rtGlobals=1
-
-Function User_Continue(ctrlName) : ButtonControl
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
+Function UserContinue(ctrlName) : ButtonControl
 	String ctrlName
-	DoWindow/K pause_for_user
+	DoWindow/K PauseForUser0
 End
 
-macro Do_Uncaging_Analysis()
-// helper macro for uncaging_analysis Function
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
+
+macro DoUncagingAnalysis()
+// helper macro for UncagingAnalysis Function
 // the global variables s_wavenames and s_path are not available inside functions, therefore somethings are done first in the macro
-	String /g data_wave_list = s_wavenames
+	String /g DataWaveList = s_wavenames
   String /g uid =  StringFromList(ItemsInList(s_path, ":")-4, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-3, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-2, s_path , ":")+"_ts"+s_path[strlen(s_path)-4,strlen(s_path)-2]
   string /g OutputPathStr = s_path
 	uid = uid + s_filename[0,strlen(s_filename)-5]
-	Uncaging_Analysis(data_wave_list)
+	UncagingAnalysis(DataWaveList)
 
 endmacro
 
-function User_Define_Initial_Estimates(w_in,w_coef,uncage_time,y0_time_window,v_amplitude_0_window, response_max_time, v_delay_to_response_start,FitStop)
-wave w_in, w_coef
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
+
+function UserDefineInitialEstimates(ParametersIn,w_coef,uncage_time,y0_time_window,v_amplitude_0_window, response_max_time, v_delay_to_response_start,FitStop)
+wave ParametersIn, w_coef
 variable uncage_time, &y0_time_window, &v_amplitude_0_window, &response_max_time, &v_delay_to_response_start, &FitStop
 //
 //graph average response and get user input for initial estimates
 //
 //graph
 dowindow /k review
-display /n=review w_in
+display /n=review ParametersIn
 SetAxis bottom (uncage_time-y0_time_window),FitStop
 SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
 //draw line indicates the location of the uncaging pulse in the aligned average
@@ -34,47 +50,53 @@ ShowInfo/CP=0/W=review
 cursor a,$StringFromList(0, tracenamelist("",";",1) ),(uncage_time-y0_time_window)
 //user interaction
 //estimate response onset delay
-NewPanel/K=2 /n=pause_for_user as "Pause for user"; AutoPositionWindow/M=1/R=review
+NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=review
 DrawText 21,20,"Adjust cursor A to estimate response start";	DrawText 21,40,"time."
-Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=User_Continue
-PauseForUser pause_for_user, review
+Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserContinue
+PauseForUser PauseForUser0, review
 v_delay_to_response_start = xcsr(a)-uncage_time
 k1 = xcsr(a)
 //estimate peak location and amplitude
-NewPanel/K=2 /n=pause_for_user as "Pause for user"; AutoPositionWindow/M=1/R=review
+NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=review
 DrawText 21,20,"Adjust cursor A to peak response.";//	DrawText 21,40,"Click Continue."
-Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=User_Continue
-PauseForUser pause_for_user, review
+Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserContinue
+PauseForUser PauseForUser0, review
 response_max_time = xcsr(a)
-k0 = mean(w_in,response_max_time-v_amplitude_0_window,response_max_time+v_amplitude_0_window) - mean(w_in,0,uncage_time)
+k0 = mean(ParametersIn,response_max_time-v_amplitude_0_window,response_max_time+v_amplitude_0_window) - mean(ParametersIn,0,uncage_time)
 k3 = (response_max_time-k1)*0.33
 //estimate decay time
-NewPanel/K=2 /n=pause_for_user as "Pause for user"; AutoPositionWindow/M=1/R=review
+NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=review
 DrawText 21,20,"Adjust cursor A to indicate time at which the";	DrawText 21,40," response has decayed by 90%."
-Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=User_Continue
-PauseForUser pause_for_user, review
+Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserContinue
+PauseForUser PauseForUser0, review
 k2 = (xcsr(a)-response_max_time)*0.33
 
-k4 = mean(w_in,0,uncage_time)
+k4 = mean(ParametersIn,0,uncage_time)
 W_Coef = {k0, v_delay_to_response_start, k2, k3, k4, uncage_time}
 
 cursor a,$StringFromList(0, tracenamelist("",";",1) ),(FitStop)
 
 
-NewPanel/K=2 /n=pause_for_user as "Pause for user"; AutoPositionWindow/M=1/R=review
+NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=review
 DrawText 21,20,"If necessary, adjust cursor A to edit fit range";	DrawText 21,40,""
-Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=User_Continue
-PauseForUser pause_for_user, review
+Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserContinue
+PauseForUser PauseForUser0, review
 FitStop = xcsr(a)
 
 end
 
-function Uncaging_Analysis(data_wave_list)
-	String data_wave_list
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
+
+function UncagingAnalysis(DataWaveList)
+	String DataWaveList
 	String uncaging_response_wave_name	//name of the uncaging response wave
-	Prompt uncaging_response_wave_name,"uncaging response wave name",popup,data_wave_list+"Some other wave..."
+	Prompt uncaging_response_wave_name,"uncaging response wave name",popup,DataWaveList+"Some other wave..."
 	String uncaging_power_wave_name	//name of the uncaging power wave
-	Prompt uncaging_power_wave_name,"uncaging power wave name",popup,data_wave_list+"Some other wave..."
+	Prompt uncaging_power_wave_name,"uncaging power wave name",popup,DataWaveList+"Some other wave..."
 	Variable n_uncaging_pulses //variable that holds the number of uncaging pulses found in uncaging_power_wave
 	Variable fit_range = 0.05	//length of the time window used for fitting double exponential
 	Prompt fit_range,"Size of time window for fitting"
@@ -113,6 +135,7 @@ function Uncaging_Analysis(data_wave_list)
 	variable UserSetPar0
 	variable v_flag
 	prompt UserSetPar0,"Initial parameter estimates",popup,"Interactive;Default;Auto Guess"
+	Variable LaswerPowerWaveScaling = 0.1; Prompt LaswerPowerWaveScaling, "Laser power wave scaling"
 
 
 	String wave_data_list =  "w_amplitude;w_t0;w_decay_time;w_rise_time;w_uncage_time;w_onset_delay;w_y0;w_amplitude_se;"
@@ -133,7 +156,7 @@ function Uncaging_Analysis(data_wave_list)
 	UserSetPar0 = 3
 
 // promp user for starting parameters
-	DoPrompt "",fit_range,decay_time_0,rise_time_0,v_amplitude_0_window,y0_time_window,UserSetPar0
+	DoPrompt "",fit_range,decay_time_0,rise_time_0,v_amplitude_0_window,y0_time_window,UserSetPar0,LaswerPowerWaveScaling
 
 // set stimulus and response wave references from chosen names
 	wave uncaging_response_wave = $uncaging_response_wave_name
@@ -247,10 +270,10 @@ fit_stop = fit_range
 // ============================================================================
 	if (UserSetPar0 == 1)
 	// set user parameters interactively
-	// to get user input for initial paramters we call User_Define_Initial_Estimates
-	// the function has inputs (w_in,w_coef,uncage_time,y0_time_window,v_amplitude_0_window)
+	// to get user input for initial paramters we call UserDefineInitialEstimates
+	// the function has inputs (ParametersIn,w_coef,uncage_time,y0_time_window,v_amplitude_0_window)
 	// //because we have aligned the resonse traces at the begining of the fit window, the uncaging pulse occurs at time = y0_time_window
-	User_Define_Initial_Estimates(w_avg_response,w_coef,y0_time_window,y0_time_window,v_amplitude_0_window, response_max_time, v_delay_to_response_start,fit_stop)
+	UserDefineInitialEstimates(w_avg_response,w_coef,y0_time_window,y0_time_window,v_amplitude_0_window, response_max_time, v_delay_to_response_start,fit_stop)
 	response_max_time_0 = response_max_time
 	v_delay_to_response_start_0 = v_delay_to_response_start
 	V_AbortCode = 0
@@ -367,8 +390,8 @@ endif
 switch(user_response)	// numeric switch
 case 1:		// fit is good, nothing to do
 	break						// exit from switch
-case 2: //user indicated to perform a refit, call User_Define_Initial_Estimates
-	User_Define_Initial_Estimates(uncaging_response_wave,w_coef,uncage_time,y0_time_window,v_amplitude_0_window, response_max_time, v_delay_to_response_start, fit_stop)
+case 2: //user indicated to perform a refit, call UserDefineInitialEstimates
+	UserDefineInitialEstimates(uncaging_response_wave,w_coef,uncage_time,y0_time_window,v_amplitude_0_window, response_max_time, v_delay_to_response_start, fit_stop)
 	break
 case 3: // user indicates no response
 
@@ -499,6 +522,11 @@ endfor//for1
 end
 
 
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
 
 Function DiffTwoExp2(w,t) : FitFunc
 	Wave w
@@ -523,6 +551,12 @@ Function DiffTwoExp2(w,t) : FitFunc
     // return (w[4]+w[0]*(-exp(-(t-(w[1]+w[5]))/(w[3]))+exp(-(t-(w[1]+w[5]))/(w[2])))/(-exp(-((w[1])+((w[2])*(w[3])/((w[2])-(w[3])))*ln((w[2])/(w[3]))-(w[1]))/(w[3]))+exp(-((w[1])+((w[2])*(w[3])/((w[2])-(w[3])))*ln((w[2])/(w[3]))-(w[1]))/(w[2]))))
 	ENDIF
 End
+
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
 
 Function DiffTwoExpSM(par,xIn)
 	Wave par,xIn
@@ -569,6 +603,11 @@ return sse_out
 
 End
 
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
 
 
 macro do_save_results()
@@ -579,6 +618,12 @@ InsertPoints numpnts(rw_uid), 1, rw_uid
 rw_uid[numpnts(rw_uid)] = uid
 save_results()
 endmacro
+
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
 
 function save_results()
 wave rw2d_response, w_uncage_response,w_uncage_time
@@ -684,6 +729,11 @@ WAmplitudeCorrelation[n_results] = StatsCorrelation(w_amplitude,w_amplitude_0)
 WAmplitudeNrCorrelation[n_results] = StatsCorrelation(WNrAmplitude,WNrAmplitude0)
 end
 
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
 
 macro Clean_Up()
 	dowindow/k graph5
@@ -706,23 +756,34 @@ kill_wave_list("ACH_1;ACH_3;w_uncage_time;w_refs;w_stim1;w_stim2;w_stim3;w_stim4
 	killstrings /a/z
 endmacro
 
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
+
 macro Kill_Input_Waves()
 	//
-	//Kill_Input_Waves kills the waves listed in the data_wave_list String
-	//if data_wave_list does not exist, then the function will attempt to kill the waves listed in s_wavenames
+	//Kill_Input_Waves kills the waves listed in the DataWaveList String
+	//if DataWaveList does not exist, then the function will attempt to kill the waves listed in s_wavenames
 	//s_wavenames is auto generated by igor whenever a data wave is loaded
-	//this function would normally be invoked by the user after Do_Uncaging_Analysis which would kill only the input waves but leave the output from the analysis in place
+	//this function would normally be invoked by the user after DoUncagingAnalysis which would kill only the input waves but leave the output from the analysis in place
 	//
 
-	if(!exists("data_wave_list"))//if1
+	if(!exists("DataWaveList"))//if1
 		if(!exists("s_wavenames"))//if2
 			return
 		endif//endif2
-		String data_wave_list = s_wavenames
+		String DataWaveList = s_wavenames
 	endif//endif1
-	Kill_Wave_List(data_wave_list)
+	Kill_Wave_List(DataWaveList)
 endmacro
 
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
 
 
 function RemoveSpineData()
@@ -754,6 +815,12 @@ DeletePoints i_,1, rwPockelsVoltage
 DeletePoints i_,1, rw_uid
 end
 
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
+
 function SetResponseNaN()
 wave w_amplitude,w_amplitude_se,w_t0,w_decay_time,w_rise_time,w_y0,w_onset_delay
 wave w_amplitude_1,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
@@ -768,6 +835,12 @@ w2d_responses[i_][]=NaN
 w2d_fits[i_][]=NaN
 end
 
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
+
 function RemoveResponse()
 wave w_amplitude,w_amplitude_se,w_t0,w_decay_time,w_rise_time,w_y0,w_onset_delay
 wave w_amplitude_1,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
@@ -779,6 +852,12 @@ DeletePoints i_,1, w_onset_delay,w_amplitude_1,w_amplitude_0,w_amplitude_1_se
 DeletePoints i_,1, w2d_responses
 DeletePoints i_,1, w2d_fits
 end
+
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
 
 function InsertResponse()
 wave w_amplitude,w_amplitude_se,w_t0,w_decay_time,w_rise_time,w_y0,w_onset_delay
@@ -794,6 +873,12 @@ w2d_responses[0][]=NaN
 w2d_fits[0][]=NaN
 
 end
+
+//******************************************************************************
+//******************************************************************************
+//
+//******************************************************************************
+//******************************************************************************
 
 macro DoMakeFigures()
 	//MakeFigures()
@@ -895,6 +980,9 @@ macro DoMakeFigures()
 	ModifyGraph lblMargin=10
 	//AutoPositionWindow/M=0/R=graph5 graph6
 	duplicate /o VPockelsVoltage VLaserPower
+	if(!exists("LaserPower"))
+		make LaserPower
+	endif
 	setscale /p x, 0, 0.05, LaserPower
 	VLaserPower = LaserPower(VPockelsVoltage)
 
@@ -912,133 +1000,13 @@ macro DoMakeFigures()
 
 endmacro
 
-macro DoLayout()
-dowindow /k SummaryFig
-newlayout /n=SummaryFig
-appendtolayout FullResponse
-modifylayout left(FullResponse)=0
-modifylayout top(FullResponse)=0
 
-duplicate /o w_amplitude UncagePosition
-UncagePosition = x
-
-appendtolayout Response0
-modifylayout left(Response0)=0
-modifylayout top(Response0)=285
-TextBox/w=SummaryFig/C/N=text0/F=0 /A=LT (num2str(UncagePosition[0]) + "nm")
-modifylayout left(text0)=0
-modifylayout top(text0)=285
-appendtolayout Response1
-modifylayout left(Response1)=245
-modifylayout top(Response1)=285
-TextBox/w=SummaryFig/C/N=text1/F=0 /A=LT (num2str(UncagePosition[1]) + "nm")
-modifylayout left(text1)=245
-modifylayout top(text1)=285
-
-appendtolayout Response2
-modifylayout left(Response2)=0
-modifylayout top(Response2)=420
-appendtolayout Response3
-modifylayout left(Response3)=245
-modifylayout top(Response3)=420
-
-appendtolayout Response4
-modifylayout left(Response4)=0
-modifylayout top(Response4)=555
-appendtolayout Response5
-modifylayout left(Response5)=245
-modifylayout top(Response5)=555
-
-appendtolayout Response6
-modifylayout left(Response6)=0
-modifylayout top(Response6)=690
-appendtolayout Response7
-modifylayout left(Response7)=245
-modifylayout top(Response7)=690
-
-appendtolayout Response8
-modifylayout left(Response8)=0
-modifylayout top(Response8)=825
-appendtolayout Response9
-modifylayout left(Response9)=245
-modifylayout top(Response9)=825
-
-appendtolayout UncageResponses
-modifylayout left(UncageResponses)=0
-modifylayout top(UncageResponses)=960
-appendtolayout UncageFits
-modifylayout left(UncageFits)=245
-modifylayout top(UncageFits)=960
-
-appendtolayout FitAmplitude
-modifylayout left(FitAmplitude)=0
-modifylayout top(FitAmplitude)=1095
-
-appendtolayout SummaryFigTable
-modifylayout left(SummaryFigTable)=245
-modifylayout top(SummaryFigTable)=1095
-modifylayout frame = 0
-
-endmacro
-
-macro DoLayout2()
-variable i
-string cmd
-dowindow /k SummaryFig
-newlayout /n=SummaryFig
-appendtolayout FullResponse
-modifylayout left(FullResponse)=0
-modifylayout top(FullResponse)=0
-
-duplicate /o w_amplitude UncagePosition
-UncagePosition = x
-
-i=0
-
-do
-sprintf cmd, "appendtolayout Response%s",num2str(i);	Execute cmd
-sprintf cmd, "modifylayout left(Response%s)=0",num2str(i);	Execute cmd
-sprintf cmd, "modifylayout top(Response%s)=%s",num2str(i),num2str(285 + 0.5*i*135);	Execute cmd
-sprintf cmd, "TextBox/w=SummaryFig/C/N=text%s/F=0 /A=LT (num2str(UncagePosition[%s]) + \"nm\")",num2str(i),num2str(i);	Execute cmd
-sprintf cmd, "modifylayout left(text%s)=0",num2str(i);	Execute cmd
-sprintf cmd, "modifylayout top(text%s)=%s",num2str(i),num2str(285 + 0.5*i*135);	Execute cmd
-
-if(i +1>= dimsize(w2d_fits,0))
-break
-endif
-sprintf cmd, "appendtolayout Response%s",num2str(i+1);	Execute cmd
-sprintf cmd, "modifylayout left(Response%s)=245",num2str(i+1);	Execute cmd
-//sprintf cmd, "modifylayout top(Response%s)=285",num2str(i+1);	Execute cmd
-sprintf cmd, "modifylayout top(Response%s)=%s",num2str(i+1),num2str(285 + 0.5*i*135);	Execute cmd
-sprintf cmd, "TextBox/w=SummaryFig/C/N=text%s/F=0 /A=LT (num2str(UncagePosition[%s]) + \"nm\")",num2str(i+1),num2str(i+1);	Execute cmd
-sprintf cmd, "modifylayout left(text%s)=245",num2str(i+1);	Execute cmd
-sprintf cmd, "modifylayout top(text%s)=%s",num2str(i+1),num2str(285 + 0.5*i*135);	Execute cmd
-
-
-i += 2
-while(i < dimsize(w2d_fits,0))
-appendtolayout UncageResponses
-modifylayout left(UncageResponses)=0
-modifylayout top(UncageResponses)=420+(i/2)*135
-appendtolayout UncageFits
-modifylayout left(UncageFits)=245
-modifylayout top(UncageFits)=420+(i/2)*135
-
-appendtolayout FitAmplitude
-modifylayout left(FitAmplitude)=0
-modifylayout top(FitAmplitude)=535+(i/2)*135
-
-appendtolayout SummaryFigTable
-modifylayout left(SummaryFigTable)=245
-modifylayout top(SummaryFigTable)=535+(i/2)*135
-modifylayout frame = 0
-endmacro
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 //
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-macro DoLayout3()
+macro MakeLayout()
 variable i,nResponsePanelCols,j
 string cmd
 
@@ -1046,7 +1014,7 @@ nResponsePanelCols = 3
 
 dowindow /k SummaryFig
 newlayout /n=SummaryFig
-ModifyGraph /w=FullResponse width=(245*nResponsePanelCols-60) 
+ModifyGraph /w=FullResponse width=(245*nResponsePanelCols-60)
 appendtolayout FullResponse
 modifylayout left(FullResponse)=0
 modifylayout top(FullResponse)=0
@@ -1100,7 +1068,7 @@ endmacro
 
 
 menu "macros"
-	"Do_Uncaging_Analysis/1"
+	"DoUncagingAnalysis/1"
 	"DoMakeFigures/2"
 	"Do_Save_Results/3"
 	"Clean_Up/4"
@@ -1109,7 +1077,5 @@ menu "macros"
 	"RemoveResponse/6"
 	"InsertResponse/7"
 	"RemoveSpineData"
-	"DoLayout"
-	"DoLayout2"
-	"DoLayout3"
+	"MakeLayout"
 end
