@@ -224,9 +224,9 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 	make /o/n=(nUncagingPulses) RiseTimeW
 	make /o/n=(nUncagingPulses) y0W
 	make /o/n=(nUncagingPulses) OnsetDelayW
-	make /o/n=(nUncagingPulses) AmplitudeAltWave
-	make /o/n=(nUncagingPulses) w_amplitude_0
-	make /o/n=(nUncagingPulses) w_amplitude_1_se
+	make /o/n=(nUncagingPulses) AmplitudeRestrictedModelWave
+	make /o/n=(nUncagingPulses) AmplitudeFromMeanWave
+	make /o/n=(nUncagingPulses) AmplitudeRestrictedModelSeWave
 	make /o/n=(nUncagingPulses,6) w2dFitUncagingResponseCoef
 	make /o/n=(nUncagingPulses,6) w2dFitUncagingResponseCoefSE
 	make /o/n=(nUncagingPulses,6) w2dFitUncgRespCoefBootSE
@@ -361,17 +361,17 @@ T_Constraints[0] = {"K1 > 0","K1 < .01"}
 		// FuncFit/N/Q/H="001101" /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitStart, FitStop) /D /C=T_Constraints
 		FuncFit/N/Q/H="011101" /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitStart, FitStop) /D
 		// save the amplitude for restricted model
-		AmplitudeAltWave[i] = w_coef[0]
-		w_amplitude_1_se[i] = w_sigma[0]
+		AmplitudeRestrictedModelWave[i] = w_coef[0]
+		AmplitudeRestrictedModelSeWave[i] = w_sigma[0]
 		make /o /n=(nFitPoints) w_temp
 		w_temp = w2d_responses[i][p]
 		setscale /p x,0, dimdelta(UncagingResponseWave,0), w_temp
 		duplicate /o w_temp wThisResponse
 		//save nonparametric estimate of amplitude
-		w_amplitude_0[i] = mean(w_temp,(ResponseMaxTime0-Amplitude0window),(ResponseMaxTime0+Amplitude0window)) - mean(w_temp,0,y0timeWindow)
+		AmplitudeFromMeanWave[i] = mean(w_temp,(ResponseMaxTime0-Amplitude0window),(ResponseMaxTime0+Amplitude0window)) - mean(w_temp,0,y0timeWindow)
 		// save nonparametric estimate of amplitude
 		// ResponseMaxTime = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
-		// w_amplitude_0[i] = mean(UncagingResponseWave,(FitStart+ResponseMaxTime-Amplitude0window),(FitStart+ResponseMaxTime+Amplitude0window)) - mean(UncagingResponseWave,FitStart,(FitStart+y0timeWindow))
+		// AmplitudeFromMeanWave[i] = mean(UncagingResponseWave,(FitStart+ResponseMaxTime-Amplitude0window),(FitStart+ResponseMaxTime+Amplitude0window)) - mean(UncagingResponseWave,FitStart,(FitStart+y0timeWindow))
 
 do
 // open display window for checking the fit; igor will automatically append the fit to the graph when funcfit is called
@@ -610,8 +610,8 @@ endmacro
 function save_results()
 wave rw2d_response, UncagingResponseWave,UncageTimeW
 wave FitStartTimeWave, FitStopTimeWave, AmplitudeW, AmplitudeSeW, T0W
-wave DecayTimeW, RiseTimeW, y0W, OnsetDelayW, AmplitudeAltWave
-wave w_amplitude_0, w2d_responses, w2d_fits, rw_uid, WNrAmplitude1
+wave DecayTimeW, RiseTimeW, y0W, OnsetDelayW, AmplitudeRestrictedModelWave
+wave AmplitudeFromMeanWave, w2d_responses, w2d_fits, rw_uid, WNrAmplitude1
 wave WNrAmplitude, WNrAmplitude0, rwPockelsVoltage
 wave vPockelsVoltage
 variable n_results
@@ -634,8 +634,8 @@ make /n=(numpnts(DecayTimeW),8) rw2d_fit_decay_time
 make /n=(numpnts(RiseTimeW),8) rw2d_fit_rise_time
 make /n=(numpnts(y0W),8) rw2d_fit_y0
 make /n=(numpnts(OnsetDelayW),8) rw2d_fit_onset_delay
-make /n=(numpnts(AmplitudeAltWave),8) rw2d_amplitude_0
-make /n=(numpnts(w_amplitude_0),8) rw2d_amplitude_0_np
+make /n=(numpnts(AmplitudeRestrictedModelWave),8) rw2d_amplitude_0
+make /n=(numpnts(AmplitudeFromMeanWave),8) rw2d_amplitude_0_np
 // make /n=(numpnts(),8)
 
 
@@ -693,8 +693,8 @@ rw2d_fit_decay_time[][n_results] = DecayTimeW[p]
 rw2d_fit_rise_time[][n_results] = RiseTimeW[p]
 rw2d_fit_y0[][n_results] = y0W[p]
 rw2d_fit_onset_delay[][n_results] = OnsetDelayW[p]
-rw2d_amplitude_0[][n_results] = AmplitudeAltWave[p]
-rw2d_amplitude_0_np[][n_results] = w_amplitude_0[p]
+rw2d_amplitude_0[][n_results] = AmplitudeRestrictedModelWave[p]
+rw2d_amplitude_0_np[][n_results] = AmplitudeFromMeanWave[p]
 W2dNrAmplitude0[][n_results] = WNrAmplitude1[p]
 W2dNrAmplitude1[][n_results] = WNrAmplitude[p]
 W2dNrAmplitude2[][n_results] = WNrAmplitude0[p]
@@ -707,7 +707,7 @@ InsertPoints numpnts(WAmplitudeCorrelation), 1, WAmplitudeCorrelation
 InsertPoints numpnts(WAmplitudeNrCorrelation), 1, WAmplitudeNrCorrelation
 InsertPoints numpnts(rwPockelsVoltage), 1, rwPockelsVoltage
 rwPockelsVoltage[n_results] = vPockelsVoltage[0]
-WAmplitudeCorrelation[n_results] = StatsCorrelation(AmplitudeW,w_amplitude_0)
+WAmplitudeCorrelation[n_results] = StatsCorrelation(AmplitudeW,AmplitudeFromMeanWave)
 WAmplitudeNrCorrelation[n_results] = StatsCorrelation(WNrAmplitude,WNrAmplitude0)
 end
 
@@ -731,7 +731,7 @@ kill_wave_list("ACH_1;ACH_3;")
 kill_wave_list("UncagingResponseWave;UncagingPowerWave;")
 kill_wave_list("fit_w2d_responses;w_t;w2d_fake_pars;fit_w_response_out;w_bs_amp0;w_bs_amp0alt;w_bs_amp0_Hist;w_bs_amp0alt_Hist;")
 kill_wave_list("w2d_responses;w2d_fits;w_fit;w_temp;w_avg_response;T_Constraints;fit_w_avg_response;")
-kill_wave_list("RiseTimeW;y0W;OnsetDelayW;AmplitudeAltWave;w_amplitude_0;w_amplitude_1_se;")
+kill_wave_list("RiseTimeW;y0W;OnsetDelayW;AmplitudeRestrictedModelWave;AmplitudeFromMeanWave;AmplitudeRestrictedModelSeWave;")
 kill_wave_list("FitStartTimeWave;FitStopTimeWave;AmplitudeW;AmplitudeSeW;T0W;DecayTimeW;")
 kill_wave_list("w_response_out;w_power_out;w_coef;W_sigma;UncageTimeW;FitStartPointWave;")
 kill_wave_list("ACH_1;ACH_3;UncageTimeW;w_refs;w_stim1;w_stim2;w_stim3;w_stim4;w_stim5;w_response_out;w_power_out;w2d_responses;w2d_stim;w_temp;w_avg_response;w_avg_power;")
@@ -805,14 +805,14 @@ end
 
 function SetResponseNaN()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave AmplitudeAltWave,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
+wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,w2d_responses,w2d_responses,w2d_fits
 variable i_
 prompt i_,"Point number"
 doprompt "Enter value",i_
 //ShowInfo/CP=0
 //cursor a,$StringFromList(0, tracenamelist("",";",1) ),0
 AmplitudeW[i_]=NaN;AmplitudeSeW[i_]=NaN;T0W[i_]=NaN;DecayTimeW[i_]=NaN;RiseTimeW[i_]=NaN;y0W[i_]=NaN;
-OnsetDelayW[i_]=NaN;AmplitudeAltWave[i_]=NaN;w_amplitude_0[i_]=NaN;w_amplitude_1_se[i_]=NaN;
+OnsetDelayW[i_]=NaN;AmplitudeRestrictedModelWave[i_]=NaN;AmplitudeFromMeanWave[i_]=NaN;AmplitudeRestrictedModelSeWave[i_]=NaN;
 w2d_responses[i_][]=NaN
 w2d_fits[i_][]=NaN
 end
@@ -825,12 +825,12 @@ end
 
 function RemoveResponse()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave AmplitudeAltWave,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
+wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,w2d_responses,w2d_responses,w2d_fits
 variable i_
 prompt i_,"Point number"
 doprompt "Enter value",i_
 DeletePoints i_,1, AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W;DelayUpdate
-DeletePoints i_,1, OnsetDelayW,AmplitudeAltWave,w_amplitude_0,w_amplitude_1_se
+DeletePoints i_,1, OnsetDelayW,AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave
 DeletePoints i_,1, w2d_responses
 DeletePoints i_,1, w2d_fits
 end
@@ -843,14 +843,14 @@ end
 
 function InsertResponse()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave AmplitudeAltWave,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
+wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,w2d_responses,w2d_responses,w2d_fits
 Insertpoints 0,1, AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W;DelayUpdate
-Insertpoints 0,1, OnsetDelayW,AmplitudeAltWave,w_amplitude_0,w_amplitude_1_se
+Insertpoints 0,1, OnsetDelayW,AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave
 Insertpoints 0,1, w2d_responses
 Insertpoints 0,1, w2d_fits
 
 AmplitudeW[0]=NaN;AmplitudeSeW[0]=NaN;T0W[0]=NaN;DecayTimeW[0]=NaN;RiseTimeW[0]=NaN;y0W[0]=NaN;
-OnsetDelayW[0]=NaN;AmplitudeAltWave[0]=NaN;w_amplitude_0[0]=NaN;w_amplitude_1_se[0]=NaN;
+OnsetDelayW[0]=NaN;AmplitudeRestrictedModelWave[0]=NaN;AmplitudeFromMeanWave[0]=NaN;AmplitudeRestrictedModelSeWave[0]=NaN;
 w2d_responses[0][]=NaN
 w2d_fits[0][]=NaN
 
