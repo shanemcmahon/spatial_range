@@ -109,14 +109,14 @@ function UncagingAnalysis(DataWaveList)
 	Variable RiseTime0 = 0.001;	Prompt RiseTime0,"response decay time initial estimate"
 	Variable DelayToResponseStart = 0
 	Variable Amplitude0
-	Variable Amplitude0window = 0.001
-	Prompt Amplitude0window,"Window size for amplitude estimate"
-	Variable y0timeWindow = 0.01	//time window before uncaging pulse used to estimate y0
-	Prompt y0timeWindow,"Window size for y0 estimate."
-	Variable UncageTime	//time of uncaging event for current fit
-	// Variable response_max_amplitude	//not used
-	Variable ResponseMaxTime	//time of peak amplitude
-	Variable user_response	//not used
+	Variable Amplitude0window = 0.001; Prompt Amplitude0window,"Window size for amplitude estimate"
+	//time window before uncaging pulse used to estimate y0
+	Variable y0timeWindow = 0.01;	Prompt y0timeWindow,"Window size for y0 estimate."
+//time of uncaging event for current fit
+	Variable UncageTime
+	//time of peak amplitude
+	Variable ResponseMaxTime
+	Variable UserResponse	//not used
 	// Variable V_FitMaxIters = 100	//not used
 	Variable threshold	//threshold value used while examining uncaging_power_wave to determine whether an algorithmically found peak is a true pulse
 	// Variable cursor_a, cursor_b	//not used
@@ -330,12 +330,12 @@ fit_stop = FitRange
 Make/O/T/N=2 T_Constraints
 T_Constraints[0] = {"K1 > 0","K1 < .01"}
 
-	Prompt user_response, "Is this fit good?", popup, "Yes: Save fit;No: Do a Refit; No response: Save zero; Too noisy, save NaN"
+	Prompt UserResponse, "Is this fit good?", popup, "Yes: Save fit;No: Do a Refit; No response: Save zero; Too noisy, save NaN"
 
 	for(i=0;i < nUncagingPulses;i+=1)	// for1
-	//the logical control for refitting is handled by performing the fit in a do-while loop with while(user_response=2)
+	//the logical control for refitting is handled by performing the fit in a do-while loop with while(UserResponse=2)
 	// set user response = 2 to initially enter the loop
-	user_response = 2
+	UserResponse = 2
 
 // calculate time window for ith uncaging event
 		UncageTime = w_uncage_time[i]
@@ -384,12 +384,12 @@ DoUpdate
 
 // allow user to interact to indicate whether the fit is good
 
-user_response = 1 //set default response in the dialog to indicate fit is good
-DoPrompt "Goodness of Fit", user_response
+UserResponse = 1 //set default response in the dialog to indicate fit is good
+DoPrompt "Goodness of Fit", UserResponse
 if(v_flag)
 	abort("user canceled")
 endif
-switch(user_response)	// numeric switch
+switch(UserResponse)	// numeric switch
 case 1:		// fit is good, nothing to do
 	break						// exit from switch
 case 2: //user indicated to perform a refit, call UserDefineInitialEstimates
@@ -405,7 +405,7 @@ case 4: //user indicates to save NaN
 	w_sigma = NaN
 endswitch
 
-while(user_response == 2) //if user indicated to perform a refit, continue loop, else break
+while(UserResponse == 2) //if user indicated to perform a refit, continue loop, else break
 
 // save fit parameters
 		w_amplitude[i] = w_coef[0]
