@@ -214,9 +214,9 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 	print "number of uncaging events found: ",nUncagingPulses
 
 	//create waves to store parameters
-	make /o/n=(nUncagingPulses) w_fit_start_pt
-	make /o/n=(nUncagingPulses) w_fit_start_time
-	make /o/n=(nUncagingPulses) w_fit_stop_time
+	make /o/n=(nUncagingPulses) FitStartPointWave
+	make /o/n=(nUncagingPulses) FitStartTimeWave
+	make /o/n=(nUncagingPulses) FitStopTimeWave
 	make /o/n=(nUncagingPulses) AmplitudeW
 	make /o/n=(nUncagingPulses) AmplitudeSeW
 	make /o/n=(nUncagingPulses) T0W
@@ -224,7 +224,7 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 	make /o/n=(nUncagingPulses) RiseTimeW
 	make /o/n=(nUncagingPulses) y0W
 	make /o/n=(nUncagingPulses) OnsetDelayW
-	make /o/n=(nUncagingPulses) w_amplitude_1
+	make /o/n=(nUncagingPulses) AmplitudeAltWave
 	make /o/n=(nUncagingPulses) w_amplitude_0
 	make /o/n=(nUncagingPulses) w_amplitude_1_se
 	make /o/n=(nUncagingPulses,6) w2dFitUncagingResponseCoef
@@ -240,12 +240,12 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 //!note maybe we want to just throw an error if the number of points differs instead
 	for(i=0;i < nUncagingPulses;i+=1)	// for1
 		FitStart = UncageTimeW[i] - y0timeWindow
-		w_fit_start_time[i] = FitStart
+		FitStartTimeWave[i] = FitStart
 		UncageTime = FitStart + y0timeWindow
 		FitStop = FitStart + FitRange
-		w_fit_stop_time[i] = FitStop
+		FitStopTimeWave[i] = FitStop
 		nFitPoints = min(nFitPoints,	(x2pnt(UncagingResponseWave, FitStop )-x2pnt(UncagingResponseWave, FitStart )))
-		w_fit_start_pt[i] = x2pnt(UncagingResponseWave, FitStart )
+		FitStartPointWave[i] = x2pnt(UncagingResponseWave, FitStart )
 	endfor		//for1
 
 //copy uncaging responses into 2d wave
@@ -253,7 +253,7 @@ make /o/n=(nUncagingPulses, nFitPoints) w2d_responses
 make /o/n=(nUncagingPulses, nFitPoints) w2d_fits
 make /o/n=(nFitPoints) w_fit
 for(i=0;i < nUncagingPulses;i+=1)	// for1
-w2d_responses[i][] = UncagingResponseWave[w_fit_start_pt[i]+q]
+w2d_responses[i][] = UncagingResponseWave[FitStartPointWave[i]+q]
 endfor		//for1
 setscale /p y,0,dimdelta(UncagingResponseWave,0),w2d_responses
 setscale /p y,0,dimdelta(UncagingResponseWave,0),w2d_fits
@@ -357,11 +357,11 @@ T_Constraints[0] = {"K1 > 0","K1 < .01"}
 		V_AbortCode = 0
 		V_FitError = 0
 
-// perform initial fit with some parameters fixed
+// perform initial fit with T0,RiseTime,DecayTime parameters fixed
 		// FuncFit/N/Q/H="001101" /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitStart, FitStop) /D /C=T_Constraints
 		FuncFit/N/Q/H="011101" /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitStart, FitStop) /D
 		// save the amplitude for restricted model
-		w_amplitude_1[i] = w_coef[0]
+		AmplitudeAltWave[i] = w_coef[0]
 		w_amplitude_1_se[i] = w_sigma[0]
 		make /o /n=(nFitPoints) w_temp
 		w_temp = w2d_responses[i][p]
@@ -453,13 +453,13 @@ make /o /n=((nUncagingPulses-1)*NFalseReplicates) WNrAmplitude0
 for(i=0;i < (nUncagingPulses-1);i+=1)	// for1
  // there is no stimulus between uncaging pulses
  // loop over uncaging pulses and perform fits during the time between uncaging events
-InterFitTime = w_fit_start_time[i+1] - w_fit_stop_time[i]
+InterFitTime = FitStartTimeWave[i+1] - FitStopTimeWave[i]
 InterFalseFitTime = InterFitTime/NFalseReplicates
 for(j=0;j < NFalseReplicates;j+=1)	// for2
 // during each inter-stimulus, perform NFalseReplicates fits
 
 // set initial parameters and fit window
-FitStart = w_fit_stop_time[i] + j*InterFalseFitTime
+FitStart = FitStopTimeWave[i] + j*InterFalseFitTime
 UncageTime = FitStart + y0timeWindow
 FitStop = FitStart + FitRange
 k4 = mean(UncagingResponseWave,FitStart,UncageTime)
@@ -609,8 +609,8 @@ endmacro
 
 function save_results()
 wave rw2d_response, UncagingResponseWave,UncageTimeW
-wave w_fit_start_time, w_fit_stop_time, AmplitudeW, AmplitudeSeW, T0W
-wave DecayTimeW, RiseTimeW, y0W, OnsetDelayW, w_amplitude_1
+wave FitStartTimeWave, FitStopTimeWave, AmplitudeW, AmplitudeSeW, T0W
+wave DecayTimeW, RiseTimeW, y0W, OnsetDelayW, AmplitudeAltWave
 wave w_amplitude_0, w2d_responses, w2d_fits, rw_uid, WNrAmplitude1
 wave WNrAmplitude, WNrAmplitude0, rwPockelsVoltage
 wave vPockelsVoltage
@@ -625,8 +625,8 @@ if(!waveexists(rw2d_response))
 
 make /n=(numpnts(UncagingResponseWave),8) rw2d_response
 make /n=(numpnts(UncageTimeW),8) rw2d_uncage_time
-make /n=(numpnts(w_fit_start_time),8) rw2d_fit_start_time
-make /n=(numpnts(w_fit_stop_time),8) rw2d_fit_stop_time
+make /n=(numpnts(FitStartTimeWave),8) rw2d_fit_start_time
+make /n=(numpnts(FitStopTimeWave),8) rw2d_fit_stop_time
 make /n=(numpnts(AmplitudeW),8) rw2d_fit_amplitude
 make /n=(numpnts(AmplitudeSeW),8) rw2d_fit_amplitude_se
 make /n=(numpnts(T0W),8) rw2d_fit_t0
@@ -634,7 +634,7 @@ make /n=(numpnts(DecayTimeW),8) rw2d_fit_decay_time
 make /n=(numpnts(RiseTimeW),8) rw2d_fit_rise_time
 make /n=(numpnts(y0W),8) rw2d_fit_y0
 make /n=(numpnts(OnsetDelayW),8) rw2d_fit_onset_delay
-make /n=(numpnts(w_amplitude_1),8) rw2d_amplitude_0
+make /n=(numpnts(AmplitudeAltWave),8) rw2d_amplitude_0
 make /n=(numpnts(w_amplitude_0),8) rw2d_amplitude_0_np
 // make /n=(numpnts(),8)
 
@@ -684,8 +684,8 @@ endif
 
 rw2d_response[][n_results] = UncagingResponseWave[p]
 rw2d_uncage_time[][n_results] = UncageTimeW[p]
-rw2d_fit_start_time[][n_results] = w_fit_start_time[p]
-rw2d_fit_stop_time[][n_results] = w_fit_stop_time[p]
+rw2d_fit_start_time[][n_results] = FitStartTimeWave[p]
+rw2d_fit_stop_time[][n_results] = FitStopTimeWave[p]
 rw2d_fit_amplitude[][n_results] = AmplitudeW[p]
 rw2d_fit_amplitude_se[][n_results] = AmplitudeSeW[p]
 rw2d_fit_t0[][n_results] = T0W[p]
@@ -693,7 +693,7 @@ rw2d_fit_decay_time[][n_results] = DecayTimeW[p]
 rw2d_fit_rise_time[][n_results] = RiseTimeW[p]
 rw2d_fit_y0[][n_results] = y0W[p]
 rw2d_fit_onset_delay[][n_results] = OnsetDelayW[p]
-rw2d_amplitude_0[][n_results] = w_amplitude_1[p]
+rw2d_amplitude_0[][n_results] = AmplitudeAltWave[p]
 rw2d_amplitude_0_np[][n_results] = w_amplitude_0[p]
 W2dNrAmplitude0[][n_results] = WNrAmplitude1[p]
 W2dNrAmplitude1[][n_results] = WNrAmplitude[p]
@@ -731,9 +731,9 @@ kill_wave_list("ACH_1;ACH_3;")
 kill_wave_list("UncagingResponseWave;UncagingPowerWave;")
 kill_wave_list("fit_w2d_responses;w_t;w2d_fake_pars;fit_w_response_out;w_bs_amp0;w_bs_amp0alt;w_bs_amp0_Hist;w_bs_amp0alt_Hist;")
 kill_wave_list("w2d_responses;w2d_fits;w_fit;w_temp;w_avg_response;T_Constraints;fit_w_avg_response;")
-kill_wave_list("RiseTimeW;y0W;OnsetDelayW;w_amplitude_1;w_amplitude_0;w_amplitude_1_se;")
-kill_wave_list("w_fit_start_time;w_fit_stop_time;AmplitudeW;AmplitudeSeW;T0W;DecayTimeW;")
-kill_wave_list("w_response_out;w_power_out;w_coef;W_sigma;UncageTimeW;w_fit_start_pt;")
+kill_wave_list("RiseTimeW;y0W;OnsetDelayW;AmplitudeAltWave;w_amplitude_0;w_amplitude_1_se;")
+kill_wave_list("FitStartTimeWave;FitStopTimeWave;AmplitudeW;AmplitudeSeW;T0W;DecayTimeW;")
+kill_wave_list("w_response_out;w_power_out;w_coef;W_sigma;UncageTimeW;FitStartPointWave;")
 kill_wave_list("ACH_1;ACH_3;UncageTimeW;w_refs;w_stim1;w_stim2;w_stim3;w_stim4;w_stim5;w_response_out;w_power_out;w2d_responses;w2d_stim;w_temp;w_avg_response;w_avg_power;")
 	killstrings /a/z
 endmacro
@@ -805,14 +805,14 @@ end
 
 function SetResponseNaN()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave w_amplitude_1,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
+wave AmplitudeAltWave,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
 variable i_
 prompt i_,"Point number"
 doprompt "Enter value",i_
 //ShowInfo/CP=0
 //cursor a,$StringFromList(0, tracenamelist("",";",1) ),0
 AmplitudeW[i_]=NaN;AmplitudeSeW[i_]=NaN;T0W[i_]=NaN;DecayTimeW[i_]=NaN;RiseTimeW[i_]=NaN;y0W[i_]=NaN;
-OnsetDelayW[i_]=NaN;w_amplitude_1[i_]=NaN;w_amplitude_0[i_]=NaN;w_amplitude_1_se[i_]=NaN;
+OnsetDelayW[i_]=NaN;AmplitudeAltWave[i_]=NaN;w_amplitude_0[i_]=NaN;w_amplitude_1_se[i_]=NaN;
 w2d_responses[i_][]=NaN
 w2d_fits[i_][]=NaN
 end
@@ -825,12 +825,12 @@ end
 
 function RemoveResponse()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave w_amplitude_1,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
+wave AmplitudeAltWave,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
 variable i_
 prompt i_,"Point number"
 doprompt "Enter value",i_
 DeletePoints i_,1, AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W;DelayUpdate
-DeletePoints i_,1, OnsetDelayW,w_amplitude_1,w_amplitude_0,w_amplitude_1_se
+DeletePoints i_,1, OnsetDelayW,AmplitudeAltWave,w_amplitude_0,w_amplitude_1_se
 DeletePoints i_,1, w2d_responses
 DeletePoints i_,1, w2d_fits
 end
@@ -843,14 +843,14 @@ end
 
 function InsertResponse()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave w_amplitude_1,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
+wave AmplitudeAltWave,w_amplitude_0,w_amplitude_1_se,w2d_responses,w2d_responses,w2d_fits
 Insertpoints 0,1, AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W;DelayUpdate
-Insertpoints 0,1, OnsetDelayW,w_amplitude_1,w_amplitude_0,w_amplitude_1_se
+Insertpoints 0,1, OnsetDelayW,AmplitudeAltWave,w_amplitude_0,w_amplitude_1_se
 Insertpoints 0,1, w2d_responses
 Insertpoints 0,1, w2d_fits
 
 AmplitudeW[0]=NaN;AmplitudeSeW[0]=NaN;T0W[0]=NaN;DecayTimeW[0]=NaN;RiseTimeW[0]=NaN;y0W[0]=NaN;
-OnsetDelayW[0]=NaN;w_amplitude_1[0]=NaN;w_amplitude_0[0]=NaN;w_amplitude_1_se[0]=NaN;
+OnsetDelayW[0]=NaN;AmplitudeAltWave[0]=NaN;w_amplitude_0[0]=NaN;w_amplitude_1_se[0]=NaN;
 w2d_responses[0][]=NaN
 w2d_fits[0][]=NaN
 
@@ -891,7 +891,7 @@ macro DoMakeFigures()
 
 	vNumStim = dimsize(w2d_responses,0)
 	duplicate /o UncageTimeW wUncageIndicatorTime
-	wUncageIndicatorTime = UncageTimeW[0]-w_fit_start_time[0]
+	wUncageIndicatorTime = UncageTimeW[0]-FitStartTimeWave[0]
 	i = 0
 	do
 	sprintf cmd, "dowindow /k response%s", num2str(i)
