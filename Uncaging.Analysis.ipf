@@ -227,9 +227,9 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 	make /o/n=(nUncagingPulses) AmplitudeRestrictedModelWave
 	make /o/n=(nUncagingPulses) AmplitudeFromMeanWave
 	make /o/n=(nUncagingPulses) AmplitudeRestrictedModelSeWave
-	make /o/n=(nUncagingPulses,6) w2dFitUncagingResponseCoef
-	make /o/n=(nUncagingPulses,6) w2dFitUncagingResponseCoefSE
-	make /o/n=(nUncagingPulses,6) w2dFitUncgRespCoefBootSE
+	make /o/n=(nUncagingPulses,6) ParametersW2d
+	make /o/n=(nUncagingPulses,6) ParameterSeW2d
+	//make /o/n=(nUncagingPulses,6) w2dFitUncgRespCoefBootSE
 
 // To get initial estimates of the parameters, the model is first fit to the average response
 // to calculate the average response, we need to align the uncaging response relative to the uncaging pulse
@@ -249,24 +249,24 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 	endfor		//for1
 
 //copy uncaging responses into 2d wave
-make /o/n=(nUncagingPulses, nFitPoints) w2d_responses
-make /o/n=(nUncagingPulses, nFitPoints) w2d_fits
-make /o/n=(nFitPoints) w_fit
+make /o/n=(nUncagingPulses, nFitPoints) ResponseWave2d
+make /o/n=(nUncagingPulses, nFitPoints) ModelPredictionWave2d
+make /o/n=(nFitPoints) ModelPredictionWave
 for(i=0;i < nUncagingPulses;i+=1)	// for1
-w2d_responses[i][] = UncagingResponseWave[FitStartPointWave[i]+q]
+ResponseWave2d[i][] = UncagingResponseWave[FitStartPointWave[i]+q]
 endfor		//for1
-setscale /p y,0,dimdelta(UncagingResponseWave,0),w2d_responses
-setscale /p y,0,dimdelta(UncagingResponseWave,0),w2d_fits
-setscale /p x,0,dimdelta(UncagingResponseWave,0),w_fit
+setscale /p y,0,dimdelta(UncagingResponseWave,0),ResponseWave2d
+setscale /p y,0,dimdelta(UncagingResponseWave,0),ModelPredictionWave2d
+setscale /p x,0,dimdelta(UncagingResponseWave,0),ModelPredictionWave
 
 
 //calculate average response
-make /o /n=(nUncagingPulses) w_temp
-w_temp = 1
-MatrixOp/O w_avg_response=w_temp^t x w2d_responses
-redimension /n=(nFitPoints) w_avg_response
-w_avg_response = w_avg_response/nUncagingPulses
-setscale /p x,0, dimdelta(UncagingResponseWave,0), w_avg_response
+make /o /n=(nUncagingPulses) TempW
+TempW = 1
+MatrixOp/O ResponseMeanWave=TempW^t x ResponseWave2d
+redimension /n=(nFitPoints) ResponseMeanWave
+ResponseMeanWave = ResponseMeanWave/nUncagingPulses
+setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
 
 FitStop = FitRange
 
@@ -280,12 +280,12 @@ FitStop = FitRange
 	// to get user input for initial paramters we call UserDefineInitialEstimates
 	// the function has inputs (ParametersIn,w_coef,UncageTime,y0timeWindow,Amplitude0window)
 	// //because we have aligned the resonse traces at the begining of the fit window, the uncaging pulse occurs at time = y0timeWindow
-	UserDefineInitialEstimates(w_avg_response,w_coef,y0timeWindow,y0timeWindow,Amplitude0window, ResponseMaxTime, DelayToResponseStart,FitStop)
+	UserDefineInitialEstimates(ResponseMeanWave,w_coef,y0timeWindow,y0timeWindow,Amplitude0window, ResponseMaxTime, DelayToResponseStart,FitStop)
 	ResponseMaxTime0 = ResponseMaxTime
 	DelayToResponseStart0 = DelayToResponseStart
 	V_AbortCode = 0
 	V_FitError = 0
-	FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
+	FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  ResponseMeanWave /D
 	DelayToResponseStart0 = w_coef[1]
 	Amplitude0 = w_coef[0]
 	DecayTime0 = w_coef[2]
@@ -296,11 +296,11 @@ FitStop = FitRange
 		// ResponseMaxTime = y0timeWindow + 3 * RiseTime0
 		DelayToResponseStart = 0
 		Amplitude0 = -10
-    // duplicate /o /r=(0,y0timeWindow) w_avg_response WTemp
+    // duplicate /o /r=(0,y0timeWindow) ResponseMeanWave WTemp
     // wavestats /q WTemp
-		w_coef = {-10,DelayToResponseStart,RiseTime0,DecayTime0,mean(w_avg_response,0,y0timeWindow),y0timeWindow}
+		w_coef = {-10,DelayToResponseStart,RiseTime0,DecayTime0,mean(ResponseMeanWave,0,y0timeWindow),y0timeWindow}
 		// perform fit of average response for display purposes
-		FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
+		FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  ResponseMeanWave /D
 		ResponseMaxTime = y0timeWindow + DelayToResponseStart0 + (DecayTime0*RiseTime0)/(DecayTime0-RiseTime0)*ln(DecayTime0/RiseTime0)
 		ResponseMaxTime0 = ResponseMaxTime
 		DelayToResponseStart = w_coef[1]
@@ -311,8 +311,8 @@ FitStop = FitRange
 	ResponseMaxTime = y0timeWindow + 3 * RiseTime0
 	DelayToResponseStart = 0
 	Amplitude0 = -10
-	w_coef = {-10,DelayToResponseStart,RiseTime0,DecayTime0,mean(w_avg_response,0,y0timeWindow),y0timeWindow}
-	FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
+	w_coef = {-10,DelayToResponseStart,RiseTime0,DecayTime0,mean(ResponseMeanWave,0,y0timeWindow),y0timeWindow}
+	FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  ResponseMeanWave /D
 	duplicate /o w_coef wAvgUncageResponseFitCoef
 	duplicate /o w_sigma wAvgUncageResponseFitCoefSE
 	DelayToResponseStart0 = w_coef[1]
@@ -332,8 +332,8 @@ FitStop = FitRange
 	// ============================================================================
 	// ============================================================================
 
-Make/O/T/N=2 T_Constraints
-T_Constraints[0] = {"K1 > 0","K1 < .01"}
+//Make/O/T/N=2 T_Constraints
+//T_Constraints[0] = {"K1 > 0","K1 < .01"}
 
 	Prompt UserResponse, "Is this fit good?", popup, "Yes: Save fit;No: Do a Refit; No response: Save zero; Too noisy, save NaN"
 
@@ -363,12 +363,12 @@ T_Constraints[0] = {"K1 > 0","K1 < .01"}
 		// save the amplitude for restricted model
 		AmplitudeRestrictedModelWave[i] = w_coef[0]
 		AmplitudeRestrictedModelSeWave[i] = w_sigma[0]
-		make /o /n=(nFitPoints) w_temp
-		w_temp = w2d_responses[i][p]
-		setscale /p x,0, dimdelta(UncagingResponseWave,0), w_temp
-		duplicate /o w_temp wThisResponse
+		make /o /n=(nFitPoints) TempW
+		TempW = ResponseWave2d[i][p]
+		setscale /p x,0, dimdelta(UncagingResponseWave,0), TempW
+		duplicate /o TempW wThisResponse
 		//save nonparametric estimate of amplitude
-		AmplitudeFromMeanWave[i] = mean(w_temp,(ResponseMaxTime0-Amplitude0window),(ResponseMaxTime0+Amplitude0window)) - mean(w_temp,0,y0timeWindow)
+		AmplitudeFromMeanWave[i] = mean(TempW,(ResponseMaxTime0-Amplitude0window),(ResponseMaxTime0+Amplitude0window)) - mean(TempW,0,y0timeWindow)
 		// save nonparametric estimate of amplitude
 		// ResponseMaxTime = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
 		// AmplitudeFromMeanWave[i] = mean(UncagingResponseWave,(FitStart+ResponseMaxTime-Amplitude0window),(FitStart+ResponseMaxTime+Amplitude0window)) - mean(UncagingResponseWave,FitStart,(FitStart+y0timeWindow))
@@ -423,12 +423,12 @@ while(UserResponse == 2) //if user indicated to perform a refit, continue loop, 
 		FitStop = FitStart + FitRange
 		duplicate /o /r=(FitStart, FitStop) UncagingResponseWave w_t
 		w_t = x
-		duplicate /o w_t w_fit
-		w_fit = DiffTwoExp2(w_coef, w_t)
-		w2d_fits[i][] = w_fit[q]
-		w2dfituncagingresponsecoef[i][] = w_coef[q]
-		w2dFitUncagingResponseCoef[i][] = w_coef[q]
-		w2dFitUncagingResponseCoefSE[i][] = w_sigma[q]
+		duplicate /o w_t ModelPredictionWave
+		ModelPredictionWave = DiffTwoExp2(w_coef, w_t)
+		ModelPredictionWave2d[i][] = ModelPredictionWave[q]
+		ParametersW2d[i][] = w_coef[q]
+		//ParametersW2d[i][] = w_coef[q]
+		ParameterSeW2d[i][] = w_sigma[q]
 
 
 
@@ -446,9 +446,9 @@ return 1
 // ============================================================================
 // ============================================================================
 
-make /o /n=((nUncagingPulses-1)*NFalseReplicates) WNrAmplitude1
-make /o /n=((nUncagingPulses-1)*NFalseReplicates) WNrAmplitude
-make /o /n=((nUncagingPulses-1)*NFalseReplicates) WNrAmplitude0
+make /o /n=((nUncagingPulses-1)*NFalseReplicates) NullAmpRestricedW
+	make /o /n=((nUncagingPulses-1)*NFalseReplicates) NullAmplitudeFullModelWave
+make /o /n=((nUncagingPulses-1)*NFalseReplicates) NullAmplitudeFromMeanWave
 
 for(i=0;i < (nUncagingPulses-1);i+=1)	// for1
  // there is no stimulus between uncaging pulses
@@ -477,10 +477,10 @@ FuncFit/N/Q/W=2/H="011101" /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitS
 // FuncFit/N/Q/W=2/H="001101" /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitStart, FitStop) /D /C=T_Constraints
 // ResponseMaxTime = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
 // save nonparametric estimate of amplitude
-// WNrAmplitude0[i*NFalseReplicates+j] = mean(UncagingResponseWave,(FitStart+ResponseMaxTime-Amplitude0window),(FitStart+ResponseMaxTime+Amplitude0window)) - mean(UncagingResponseWave,FitStart,(FitStart+y0timeWindow))
-WNrAmplitude0[i*NFalseReplicates+j] = Amplitude
+// NullAmplitudeFromMeanWave[i*NFalseReplicates+j] = mean(UncagingResponseWave,(FitStart+ResponseMaxTime-Amplitude0window),(FitStart+ResponseMaxTime+Amplitude0window)) - mean(UncagingResponseWave,FitStart,(FitStart+y0timeWindow))
+NullAmplitudeFromMeanWave[i*NFalseReplicates+j] = Amplitude
 // save amplitude from restricted model
-WNrAmplitude1[i*NFalseReplicates+j] = w_coef[0]
+NullAmpRestricedW[i*NFalseReplicates+j] = w_coef[0]
 // perform full model fit
 // FuncFit/N/Q/W=2/H="000001" /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitStart, FitStop) /D /C=T_Constraints
 FuncFit/N/Q/W=2/H="000001" /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitStart, FitStop) /D
@@ -492,11 +492,11 @@ FuncFit/N/Q/W=2/H="000001" /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitS
 // optimize /q /x=w_coef /R=w_coef /m={0,1} DiffTwoExpSM,w_coef
 // w_coef[0,4]=w_coef2[p]
 // save amplitude from full model fit
-WNrAmplitude[i*NFalseReplicates+j] = w_coef[0]
-// WNrAmplitude[i*NFalseReplicates+j] = w_coef[0]
+NullAmplitudeFullModelWave[i*NFalseReplicates+j] = w_coef[0]
+// NullAmplitudeFullModelWave[i*NFalseReplicates+j] = w_coef[0]
 
 // save nonparametric amplitude estimate
-// WNrAmplitude0[i*NFalseReplicates+j] = Amplitude
+// NullAmplitudeFromMeanWave[i*NFalseReplicates+j] = Amplitude
 
 endfor//for2
 endfor//for1
@@ -611,8 +611,8 @@ function save_results()
 wave rw2d_response, UncagingResponseWave,UncageTimeW
 wave FitStartTimeWave, FitStopTimeWave, AmplitudeW, AmplitudeSeW, T0W
 wave DecayTimeW, RiseTimeW, y0W, OnsetDelayW, AmplitudeRestrictedModelWave
-wave AmplitudeFromMeanWave, w2d_responses, w2d_fits, rw_uid, WNrAmplitude1
-wave WNrAmplitude, WNrAmplitude0, rwPockelsVoltage
+wave AmplitudeFromMeanWave, ResponseWave2d, ModelPredictionWave2d, rw_uid, NullAmpRestricedW
+wave NullAmplitudeFullModelWave, NullAmplitudeFromMeanWave, rwPockelsVoltage
 wave vPockelsVoltage
 variable n_results
 string /g OutputPathStr
@@ -639,15 +639,15 @@ make /n=(numpnts(AmplitudeFromMeanWave),8) rw2d_amplitude_0_np
 // make /n=(numpnts(),8)
 
 
-duplicate w2d_responses rw3d_uncaging_response
+duplicate ResponseWave2d rw3d_uncaging_response
 redimension /n=(-1,-1,8) rw3d_uncaging_response
-duplicate w2d_fits rw3d_fits
+duplicate ModelPredictionWave2d rw3d_fits
 redimension /n=(-1,-1,8) rw3d_fits
-duplicate WNrAmplitude1 W2dNrAmplitude0
+duplicate NullAmpRestricedW W2dNrAmplitude0
 redimension /n=(-1,8) W2dNrAmplitude0
-duplicate WNrAmplitude W2dNrAmplitude1
+duplicate NullAmplitudeFullModelWave W2dNrAmplitude1
 redimension /n=(-1,8) W2dNrAmplitude1
-duplicate WNrAmplitude0 W2dNrAmplitude2
+duplicate NullAmplitudeFromMeanWave W2dNrAmplitude2
 redimension /n=(-1,8) W2dNrAmplitude2
 make /o /n=0 WAmplitudeCorrelation
 make /o /n=0 WAmplitudeNrCorrelation
@@ -695,20 +695,20 @@ rw2d_fit_y0[][n_results] = y0W[p]
 rw2d_fit_onset_delay[][n_results] = OnsetDelayW[p]
 rw2d_amplitude_0[][n_results] = AmplitudeRestrictedModelWave[p]
 rw2d_amplitude_0_np[][n_results] = AmplitudeFromMeanWave[p]
-W2dNrAmplitude0[][n_results] = WNrAmplitude1[p]
-W2dNrAmplitude1[][n_results] = WNrAmplitude[p]
-W2dNrAmplitude2[][n_results] = WNrAmplitude0[p]
+W2dNrAmplitude0[][n_results] = NullAmpRestricedW[p]
+W2dNrAmplitude1[][n_results] = NullAmplitudeFullModelWave[p]
+W2dNrAmplitude2[][n_results] = NullAmplitudeFromMeanWave[p]
 // [][n_results] = [p]
 
-rw3d_uncaging_response[][][n_results]=w2d_responses[p][q]
-rw3d_fits[][][n_results]=w2d_fits[p][q]
+rw3d_uncaging_response[][][n_results]=ResponseWave2d[p][q]
+rw3d_fits[][][n_results]=ModelPredictionWave2d[p][q]
 
 InsertPoints numpnts(WAmplitudeCorrelation), 1, WAmplitudeCorrelation
 InsertPoints numpnts(WAmplitudeNrCorrelation), 1, WAmplitudeNrCorrelation
 InsertPoints numpnts(rwPockelsVoltage), 1, rwPockelsVoltage
 rwPockelsVoltage[n_results] = vPockelsVoltage[0]
 WAmplitudeCorrelation[n_results] = StatsCorrelation(AmplitudeW,AmplitudeFromMeanWave)
-WAmplitudeNrCorrelation[n_results] = StatsCorrelation(WNrAmplitude,WNrAmplitude0)
+WAmplitudeNrCorrelation[n_results] = StatsCorrelation(NullAmplitudeFullModelWave,NullAmplitudeFromMeanWave)
 end
 
 //******************************************************************************
@@ -730,11 +730,11 @@ macro Clean_Up()
 kill_wave_list("ACH_1;ACH_3;")
 kill_wave_list("UncagingResponseWave;UncagingPowerWave;")
 kill_wave_list("fit_w2d_responses;w_t;w2d_fake_pars;fit_w_response_out;w_bs_amp0;w_bs_amp0alt;w_bs_amp0_Hist;w_bs_amp0alt_Hist;")
-kill_wave_list("w2d_responses;w2d_fits;w_fit;w_temp;w_avg_response;T_Constraints;fit_w_avg_response;")
+kill_wave_list("ResponseWave2d;ModelPredictionWave2d;ModelPredictionWave;TempW;ResponseMeanWave;T_Constraints;fit_w_avg_response;")
 kill_wave_list("RiseTimeW;y0W;OnsetDelayW;AmplitudeRestrictedModelWave;AmplitudeFromMeanWave;AmplitudeRestrictedModelSeWave;")
 kill_wave_list("FitStartTimeWave;FitStopTimeWave;AmplitudeW;AmplitudeSeW;T0W;DecayTimeW;")
 kill_wave_list("w_response_out;w_power_out;w_coef;W_sigma;UncageTimeW;FitStartPointWave;")
-kill_wave_list("ACH_1;ACH_3;UncageTimeW;w_refs;w_stim1;w_stim2;w_stim3;w_stim4;w_stim5;w_response_out;w_power_out;w2d_responses;w2d_stim;w_temp;w_avg_response;w_avg_power;")
+kill_wave_list("ACH_1;ACH_3;UncageTimeW;w_refs;w_stim1;w_stim2;w_stim3;w_stim4;w_stim5;w_response_out;w_power_out;ResponseWave2d;w2d_stim;TempW;ResponseMeanWave;w_avg_power;")
 	killstrings /a/z
 endmacro
 
@@ -805,7 +805,7 @@ end
 
 function SetResponseNaN()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,w2d_responses,w2d_responses,w2d_fits
+wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
 variable i_
 prompt i_,"Point number"
 doprompt "Enter value",i_
@@ -813,8 +813,8 @@ doprompt "Enter value",i_
 //cursor a,$StringFromList(0, tracenamelist("",";",1) ),0
 AmplitudeW[i_]=NaN;AmplitudeSeW[i_]=NaN;T0W[i_]=NaN;DecayTimeW[i_]=NaN;RiseTimeW[i_]=NaN;y0W[i_]=NaN;
 OnsetDelayW[i_]=NaN;AmplitudeRestrictedModelWave[i_]=NaN;AmplitudeFromMeanWave[i_]=NaN;AmplitudeRestrictedModelSeWave[i_]=NaN;
-w2d_responses[i_][]=NaN
-w2d_fits[i_][]=NaN
+ResponseWave2d[i_][]=NaN
+ModelPredictionWave2d[i_][]=NaN
 end
 
 //******************************************************************************
@@ -825,14 +825,14 @@ end
 
 function RemoveResponse()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,w2d_responses,w2d_responses,w2d_fits
+wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
 variable i_
 prompt i_,"Point number"
 doprompt "Enter value",i_
 DeletePoints i_,1, AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W;DelayUpdate
 DeletePoints i_,1, OnsetDelayW,AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave
-DeletePoints i_,1, w2d_responses
-DeletePoints i_,1, w2d_fits
+DeletePoints i_,1, ResponseWave2d
+DeletePoints i_,1, ModelPredictionWave2d
 end
 
 //******************************************************************************
@@ -843,16 +843,16 @@ end
 
 function InsertResponse()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,w2d_responses,w2d_responses,w2d_fits
+wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
 Insertpoints 0,1, AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W;DelayUpdate
 Insertpoints 0,1, OnsetDelayW,AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave
-Insertpoints 0,1, w2d_responses
-Insertpoints 0,1, w2d_fits
+Insertpoints 0,1, ResponseWave2d
+Insertpoints 0,1, ModelPredictionWave2d
 
 AmplitudeW[0]=NaN;AmplitudeSeW[0]=NaN;T0W[0]=NaN;DecayTimeW[0]=NaN;RiseTimeW[0]=NaN;y0W[0]=NaN;
 OnsetDelayW[0]=NaN;AmplitudeRestrictedModelWave[0]=NaN;AmplitudeFromMeanWave[0]=NaN;AmplitudeRestrictedModelSeWave[0]=NaN;
-w2d_responses[0][]=NaN
-w2d_fits[0][]=NaN
+ResponseWave2d[0][]=NaN
+ModelPredictionWave2d[0][]=NaN
 
 end
 
@@ -889,7 +889,7 @@ macro DoMakeFigures()
 	ModifyGraph margin(top)=20
 	ModifyGraph margin(right)=20
 
-	vNumStim = dimsize(w2d_responses,0)
+	vNumStim = dimsize(ResponseWave2d,0)
 	duplicate /o UncageTimeW wUncageIndicatorTime
 	wUncageIndicatorTime = UncageTimeW[0]-FitStartTimeWave[0]
 	i = 0
@@ -897,13 +897,13 @@ macro DoMakeFigures()
 	sprintf cmd, "dowindow /k response%s", num2str(i)
 	print cmd
 	Execute cmd
-	sprintf cmd, "Display /n= response%s w2d_responses[%s][*]", num2str(i), num2str(i)
+	sprintf cmd, "Display /n= response%s ResponseWave2d[%s][*]", num2str(i), num2str(i)
 	print cmd
 	Execute cmd
 		Label bottom "\\u#2time (ms)"
 		Label left "I\\u#2 (pA)"
-		appendtograph w2d_fits[i][*]
-		ModifyGraph rgb(w2d_fits)=(0,0,0)
+		appendtograph ModelPredictionWave2d[i][*]
+		ModifyGraph rgb(ModelPredictionWave2d)=(0,0,0)
 		appendtograph wUncageIndicator vs wUncageIndicatorTime
 		ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
 		ModifyGraph rgb(wUncageIndicator)=(0,0,0)
@@ -929,14 +929,14 @@ macro DoMakeFigures()
 //	ErrorBars/T=0/L=0.7 AmplitudeW Y,wave=(AmplitudeSeW,AmplitudeSeW)
 	Label left "I\\u#2 (pA)"
 	SetAxis left *,max(wavemax(AmplitudeW),0)
-	Sort WNrAmplitude WNrAmplitude
-	setscale /i x,0,1,WNrAmplitude
+	Sort NullAmplitudeFullModelWave NullAmplitudeFullModelWave
+	setscale /i x,0,1,NullAmplitudeFullModelWave
 	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-	DrawLine 0,(WNrAmplitude(0.01)),1,(WNrAmplitude(0.01))
+	DrawLine 0,(NullAmplitudeFullModelWave(0.01)),1,(NullAmplitudeFullModelWave(0.01))
 	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-	DrawLine 0,(WNrAmplitude(0.05)),1,(WNrAmplitude(0.05))
+	DrawLine 0,(NullAmplitudeFullModelWave(0.05)),1,(NullAmplitudeFullModelWave(0.05))
 	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-	DrawLine 0,(WNrAmplitude(0.5)),1,(WNrAmplitude(0.5))
+	DrawLine 0,(NullAmplitudeFullModelWave(0.5)),1,(NullAmplitudeFullModelWave(0.5))
 	ModifyGraph width=185,height=80
 	ModifyGraph margin=50
 	ModifyGraph margin(top)=0,margin(right)=0
@@ -944,7 +944,7 @@ macro DoMakeFigures()
 	//AutoPositionWindow/M=1/R=graph1
 
 	dowindow/k UncageResponses
-	plotrows(w2d_responses)
+	plotrows(ResponseWave2d)
 	dowindow /c UncageResponses
 	ModifyGraph width=185,height=80
 	ModifyGraph margin=50
@@ -954,7 +954,7 @@ macro DoMakeFigures()
 	//AutoPositionWindow/M=0/R=graph4 graph5
 
 	dowindow/k UncageFits
-	plotrows(w2d_fits)
+	plotrows(ModelPredictionWave2d)
 	dowindow /c UncageFits
 	ModifyGraph width=185,height=80
 	ModifyGraph margin=50
@@ -1023,12 +1023,12 @@ j += 1
 while(j<nResponsePanelCols)
 
 
-if(i*nResponsePanelCols + j + 1 >= dimsize(w2d_fits,0))
+if(i*nResponsePanelCols + j + 1 >= dimsize(ModelPredictionWave2d,0))
 break
 endif
 
 i += 1
-while(i < dimsize(w2d_fits,0))
+while(i < dimsize(ModelPredictionWave2d,0))
 
 appendtolayout UncageResponses
 modifylayout left(UncageResponses)=0
