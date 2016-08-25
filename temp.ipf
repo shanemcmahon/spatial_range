@@ -1,3 +1,51 @@
+#pragma rtGlobals=3		// Use modern global access method and strict wave access.
+
+duplicate /o /r=[*][1,(numpnts(UidW)-1)]  AmpRestrictedModelW2d, TempW
+ColumnMins(tempw)
+duplicate /o TempW AmpRestrictedModelNormW2d
+AmpRestrictedModelNormW2d[][]=AmpRestrictedModelNormW2d[p][q]/wcolumnmins[q]
+
+
+
+
+///remove na's
+RowMeans(AmpRestrictedModelNormW2d,naremove=1)
+duplicate /o WRowMeans AmpRestrictedNormMeanW
+duplicate /o AmpRestrictedModelNormW2d TempW
+TempW[][] = AmpRestrictedModelNormW2d[p][q] - AmpRestrictedNormMeanW[p]
+TempW=TempW^2
+rowmeans(TempW,naremove=1)
+duplicate /o wrowmeans AmpRestrictedNormSdW
+AmpRestrictedNormSdW = wrowmeans^0.5
+
+duplicate /o TempW TempW2
+TempW2[][] = !numtype(TempW[p][q])
+rowmeans(TempW2)
+wrowmeans = wrowmeans*dimsize(TempW2,1)
+duplicate /o AmpRestrictedNormSdW AmpRestrictedNormSeW
+AmpRestrictedNormSeW = AmpRestrictedNormSdW/(wrowmeans^0.5)
+
+
+
+
+duplicate /o /r=[*][1,(numpnts(UidW)-1)]  AmpRestrictedModelW2d, TempW
+ColumnMins(tempw)
+duplicate /o TempW AmpRestrictedModelNormW2d
+AmpRestrictedModelNormW2d[][]=AmpRestrictedModelNormW2d[p][q]/wcolumnmins[q]
+variable i = 0
+
+i_ =  11
+make /o /n = 15 wtemp
+wtemp[] = AmpRestrictedModelNormW2d[p][i_]
+ AmpRestrictedModelNormW2d[][i_] = wtemp[p]
+
+
+
+
+
+
+
+
 
 ################################################################
 ################################################################

@@ -24,7 +24,20 @@ macro DoUncagingAnalysis()
 	uid = uid + s_filename[0,strlen(s_filename)-5]
 if(!exists("PointSpacingW"))
 	make /o/n=1 PointSpacingW
-	PointSpacingW = 100
+	PointSpacingW = -100
+endif
+if(!exists("X0W"))
+	make /o/n=1 X0W
+	X0W = 1000
+endif
+
+if(!exists("T00W"))
+	make /o/n=1 T00W
+	T00W = 6.6E-4
+endif
+if(!exists("DeltaT0W"))
+	make /o/n=1 DeltaT0W
+	DeltaT0W = 1.1E-6
 endif
 
 	UncagingAnalysis(DataWaveList)
@@ -143,8 +156,12 @@ function UncagingAnalysis(DataWaveList)
 	Variable ResponseMaxTime0, DelayToResponseStart0 //intial parameter estimates
 	Variable Amplitude, TotalLengthUncaging
 	// Distance between uncaging points in nm
-Wave PointSpacingW
+  Wave PointSpacingW
 	Variable PointSpacingV = PointSpacingW[0]; prompt PointSpacingV,"Distance between uncaging points"
+	Wave T00W
+	Variable T00V = T00W[0]; prompt T00V,"T00"
+	Wave DeltaT0W
+	Variable DeltaT0V = DeltaT0W[0]; prompt DeltaT0V,"DeltaT0"
 	//make /o/n=1 PointSpacingW
 	wave w_Resampled, wColumnMeans
 	make /o /n=1 vPockelsVoltage
@@ -172,9 +189,10 @@ Wave PointSpacingW
 	UserSetPar0 = 3
 
 // promp user for starting parameters
-	DoPrompt "",FitRange,DecayTime0,RiseTime0,Amplitude0window,y0timeWindow,UserSetPar0,LaswerPowerWaveScaling,PointSpacingV
+	DoPrompt "",FitRange,DecayTime0,RiseTime0,Amplitude0window,y0timeWindow,UserSetPar0,LaswerPowerWaveScaling,PointSpacingV,T00V,DeltaT0V
 	PointSpacingW = PointSpacingV
-
+	T00W = T00V
+	DeltaT0W = DeltaT0V
 // set stimulus and response wave references from chosen names
 //	wave UncagingResponseWave = $UncagingResponseWaveName
 //	wave UncagingPowerWave = $UncagingPowerWaveName
@@ -271,11 +289,16 @@ setscale /p x,0,dimdelta(UncagingResponseWave,0),ModelPredictionWave
 
 
 //calculate average response
-make /o /n=(nUncagingPulses) TempW
+//make /o /n=(nUncagingPulses) TempW
+make /o /n=(3) TempW
 TempW = 1
-MatrixOp/O ResponseMeanWave=TempW^t x ResponseWave2d
+make /o/n=(3,nFitPoints) BigResponseW
+BigResponseW[][] = ResponseWave2d[nUncagingPulses-p-1][q]
+
+//MatrixOp/O ResponseMeanWave=TempW^t x ResponseWave2d
+MatrixOp/O ResponseMeanWave=TempW^t x BigResponseW
 redimension /n=(nFitPoints) ResponseMeanWave
-ResponseMeanWave = ResponseMeanWave/nUncagingPulses
+ResponseMeanWave = ResponseMeanWave/3
 setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
 
 FitStop = FitRange
@@ -360,10 +383,20 @@ FitStop = FitRange
 	// set w_coef to initial parameter estimates
 		k4 = mean(UncagingResponseWave,FitStart,UncageTime)
 		k0 = mean(UncagingResponseWave,(FitStart + ResponseMaxTime0-Amplitude0window),(FitStart + ResponseMaxTime0 + Amplitude0window)) - k4
-		k1 = UncageTime + DelayToResponseStart0
+		// k1 = UncageTime + DelayToResponseStart0
+		k1 = T00V + DeltaT0V*(i*PointSpacingV)
+		DelayToResponseStart0 = k1
+		if(PointSpacingV < 0)
+		k1 = T00V + DeltaT0V*(abs(PointSpacingV)*(nUncagingPulses-1) + i*PointSpacingV )
+		DelayToResponseStart0 = k1
+		endif
+		if(!DeltaT0V)
+		k1 = DelayToResponseStart0
+		endif
+
 		k2 = DecayTime0
 		k3 = RiseTime0
-    W_Coef = {k0, DelayToResponseStart0, k2, k3, k4, UncageTime}
+    W_Coef = {k0, k1, k2, k3, k4, UncageTime}
 		V_AbortCode = 0
 		V_FitError = 0
 
@@ -873,6 +906,7 @@ end
 macro DoMakeFigures(UncageSpacingV)
 	//MakeFigures()
 	variable UncageSpacingV = PointSpacingW[0]
+	UncageSpacingV = -UncageSpacingV
 	variable vNumStim
 
 	variable i
@@ -932,6 +966,7 @@ macro DoMakeFigures(UncageSpacingV)
 	dowindow/k FitAmplitude
 	display /n=FitAmplitude AmplitudeW
 	setscale /p x,((numpnts(AmplitudeW)-1)*UncageSpacingV),-UncageSpacingV,"nm",AmplitudeW
+	setscale /p x,((numpnts(AmplitudeW)-1)*UncageSpacingV),-UncageSpacingV,"nm",AmplitudeRestrictedModelWave
 	Label bottom "distance \\u#2 (nm)"
 	ModifyGraph mode=3,marker=19;DelayUpdate
 //	ErrorBars/T=0/L=0.7 AmplitudeW Y,wave=(AmplitudeSeW,AmplitudeSeW)
@@ -986,6 +1021,10 @@ macro DoMakeFigures(UncageSpacingV)
 	ModifyTable width(Point)=0
 	modifytable alignment=0
 
+	if(!exists("nResponsePanelColsW"))
+	make /n=1 nResponsePanelColsW
+	nResponsePanelColsW = 2
+	endif
 MakeLayout()
 
 endmacro
@@ -997,9 +1036,11 @@ endmacro
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 macro MakeLayout(nResponsePanelCols)
-Variable nResponsePanelCols = 2
+Variable nResponsePanelCols = nResponsePanelColsW[0]
 Variable i,j
 String cmd
+
+nResponsePanelColsW[0] = nResponsePanelCols
 
 dowindow /k SummaryFig
 newlayout /n=SummaryFig
