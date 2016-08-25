@@ -20,7 +20,7 @@ macro DoUncagingAnalysis()
 // the global variables s_wavenames and s_path are not available inside functions, therefore somethings are done first in the macro
 	String /g DataWaveList = s_wavenames
   String /g uid =  StringFromList(ItemsInList(s_path, ":")-4, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-3, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-2, s_path , ":")+"_ts"+s_path[strlen(s_path)-4,strlen(s_path)-2]
-  string /g OutputPathStr = s_path
+  String /g OutputPathStr = s_path
 	uid = uid + s_filename[0,strlen(s_filename)-5]
 	UncagingAnalysis(DataWaveList)
 
@@ -33,8 +33,8 @@ endmacro
 //******************************************************************************
 
 function UserDefineInitialEstimates(ParametersIn,w_coef,UncageTime,y0timeWindow,Amplitude0window, ResponseMaxTime, DelayToResponseStart,FitStop)
-wave ParametersIn, w_coef
-variable UncageTime, &y0timeWindow, &Amplitude0window, &ResponseMaxTime, &DelayToResponseStart, &FitStop
+Wave ParametersIn, w_coef
+Variable UncageTime, &y0timeWindow, &Amplitude0window, &ResponseMaxTime, &DelayToResponseStart, &FitStop
 //
 //graph average response and get user input for initial estimates
 //
@@ -42,7 +42,7 @@ variable UncageTime, &y0timeWindow, &Amplitude0window, &ResponseMaxTime, &DelayT
 dowindow /k review
 display /n=review ParametersIn
 SetAxis bottom (UncageTime-y0timeWindow),FitStop
-SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
+SetDrawEnv xcoord = bottom;SetDrawEnv dash= 3;DelayUpdate
 //draw line indicates the location of the uncaging pulse in the aligned average
 //because we have aligned the resonse traces at the begining of the fit window, the uncaging pulse occurs at time = UncageTime
 DrawLine UncageTime,0,UncageTime,1
@@ -93,8 +93,8 @@ end
 
 function UncagingAnalysis(DataWaveList)
 	String DataWaveList
-	String uncaging_response_wave_name	//name of the uncaging response wave
-	Prompt uncaging_response_wave_name,"uncaging response wave name",popup,DataWaveList+"Some other wave..."
+	//name of the uncaging response wave
+	String UncagingResponseWaveName;	Prompt UncagingResponseWaveName,"uncaging response wave name",popup,DataWaveList+"Some other wave..."
 	String uncaging_power_wave_name	//name of the uncaging power wave
 	Prompt uncaging_power_wave_name,"uncaging power wave name",popup,DataWaveList+"Some other wave..."
 	Variable n_uncaging_pulses //variable that holds the number of uncaging pulses found in uncaging_power_wave
@@ -144,11 +144,11 @@ function UncagingAnalysis(DataWaveList)
 // user is also provided the option "some other wave..."
 // if the user indicates that the stimulus/response wave is not lasted, then prompt again, offering a list of all waves in the current data folder
 	Variable n_data_waves = itemsinlist(wave_data_list)
-	doPrompt "",uncaging_response_wave_name,uncaging_power_wave_name
-	if(!(cmpstr(uncaging_response_wave_name, "Some other wave..." )*cmpstr(uncaging_power_wave_name, "Some other wave..." )))
-	Prompt uncaging_response_wave_name,"uncaging response wave name",popup,wavelist("*",";","")
+	doPrompt "",UncagingResponseWaveName,uncaging_power_wave_name
+	if(!(cmpstr(UncagingResponseWaveName, "Some other wave..." )*cmpstr(uncaging_power_wave_name, "Some other wave..." )))
+	Prompt UncagingResponseWaveName,"uncaging response wave name",popup,wavelist("*",";","")
 	Prompt uncaging_power_wave_name,"uncaging power wave name",popup,wavelist("*",";","")
-	doPrompt "",uncaging_response_wave_name,uncaging_power_wave_name
+	doPrompt "",UncagingResponseWaveName,uncaging_power_wave_name
 	endif
 
 
@@ -159,7 +159,7 @@ function UncagingAnalysis(DataWaveList)
 	DoPrompt "",fit_range,decay_time_0,rise_time_0,Amplitude0window,y0timeWindow,UserSetPar0,LaswerPowerWaveScaling
 
 // set stimulus and response wave references from chosen names
-	wave uncaging_response_wave = $uncaging_response_wave_name
+	wave uncaging_response_wave = $UncagingResponseWaveName
 	wave uncaging_power_wave = $uncaging_power_wave_name
 
 // it is unclear why I felt the need to duplicate these waves
