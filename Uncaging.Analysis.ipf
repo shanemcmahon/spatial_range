@@ -661,7 +661,7 @@ duplicate NullAmplitudeFromMeanWave NullAmpFromMeanW2d
 redimension /n=(-1,8) NullAmpFromMeanW2d
 //make /o /n=0 WAmplitudeCorrelation
 // make /o /n=0 WAmplitudeNrCorrelation
-make /o /n=0 PockelsVoltageW 
+make /o /n=0 PockelsVoltageW
 endif
 
 nResults = numpnts(UidW)-1
@@ -736,15 +736,13 @@ macro Clean_Up()
 	dowindow/k graph0
   dowindow /k review
 	//killwindow layout0
-	Kill_Input_Waves()
-kill_wave_list("ACH_1;ACH_3;")
+Kill_Input_Waves()
 kill_wave_list("UncagingResponseWave;UncagingPowerWave;")
-kill_wave_list("fit_w2d_responses;w_t;w2d_fake_pars;fit_w_response_out;w_bs_amp0;w_bs_amp0alt;w_bs_amp0_Hist;w_bs_amp0alt_Hist;")
-kill_wave_list("ResponseWave2d;ModelPredictionWave2d;ModelPredictionWave;TempW;ResponseMeanWave;T_Constraints;fit_w_avg_response;")
+kill_wave_list("ResponseWave2d;ModelPredictionWave2d;ModelPredictionWave;TempW;ResponseMeanWave;")
 kill_wave_list("RiseTimeW;y0W;OnsetDelayW;AmplitudeRestrictedModelWave;AmplitudeFromMeanWave;AmplitudeRestrictedModelSeWave;")
 kill_wave_list("FitStartTimeWave;FitStopTimeWave;AmplitudeW;AmplitudeSeW;T0W;DecayTimeW;")
-kill_wave_list("w_response_out;w_power_out;w_coef;W_sigma;UncageTimeW;FitStartPointWave;")
-kill_wave_list("ACH_1;ACH_3;UncageTimeW;w_refs;w_stim1;w_stim2;w_stim3;w_stim4;w_stim5;w_response_out;w_power_out;ResponseWave2d;w2d_stim;TempW;ResponseMeanWave;w_avg_power;")
+kill_wave_list("w_coef;W_sigma;UncageTimeW;FitStartPointWave;")
+kill_wave_list("UncageTimeW;ResponseWave2d;TempW;ResponseMeanWave;")
 	killstrings /a/z
 endmacro
 
