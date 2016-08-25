@@ -96,9 +96,9 @@ function UncagingAnalysis(DataWaveList)
 	//name of the uncaging response wave
 	String UncagingResponseWaveName;	Prompt UncagingResponseWaveName,"uncaging response wave name",popup,DataWaveList+"Some other wave..."
 //name of the uncaging power wave
-	String UncagingPowerWaveName; 	Prompt UncagingPowerWaveName,"uncaging power wave name",popup,DataWaveList+"Some other wave..."	
-
-	Variable n_uncaging_pulses //variable that holds the number of uncaging pulses found in uncaging_power_wave
+	String UncagingPowerWaveName; 	Prompt UncagingPowerWaveName,"uncaging power wave name",popup,DataWaveList+"Some other wave..."
+//variable that holds the number of uncaging pulses found in uncaging_power_wave
+	Variable nUncagingPulses 
 	Variable fit_range = 0.05	//length of the time window used for fitting double exponential
 	Prompt fit_range,"Size of time window for fitting"
 	Variable i = 0, j = 0	//dummy variable for iteration control
@@ -204,26 +204,26 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 			abort("n>100 uncaging pulses found")
 		endif//if1
 	while(1)//do1
-	n_uncaging_pulses = i
-	print "number of uncaging events found: ",n_uncaging_pulses
+	nUncagingPulses = i
+	print "number of uncaging events found: ",nUncagingPulses
 
 	//create waves to store parameters
-	make /o/n=(n_uncaging_pulses) w_fit_start_pt
-	make /o/n=(n_uncaging_pulses) w_fit_start_time
-	make /o/n=(n_uncaging_pulses) w_fit_stop_time
-	make /o/n=(n_uncaging_pulses) w_amplitude
-	make /o/n=(n_uncaging_pulses) w_amplitude_se
-	make /o/n=(n_uncaging_pulses) w_t0
-	make /o/n=(n_uncaging_pulses) w_decay_time
-	make /o/n=(n_uncaging_pulses) w_rise_time
-	make /o/n=(n_uncaging_pulses) w_y0
-	make /o/n=(n_uncaging_pulses) w_onset_delay
-	make /o/n=(n_uncaging_pulses) w_amplitude_1
-	make /o/n=(n_uncaging_pulses) w_amplitude_0
-	make /o/n=(n_uncaging_pulses) w_amplitude_1_se
-	make /o/n=(n_uncaging_pulses,6) w2dFitUncagingResponseCoef
-	make /o/n=(n_uncaging_pulses,6) w2dFitUncagingResponseCoefSE
-	make /o/n=(n_uncaging_pulses,6) w2dFitUncgRespCoefBootSE
+	make /o/n=(nUncagingPulses) w_fit_start_pt
+	make /o/n=(nUncagingPulses) w_fit_start_time
+	make /o/n=(nUncagingPulses) w_fit_stop_time
+	make /o/n=(nUncagingPulses) w_amplitude
+	make /o/n=(nUncagingPulses) w_amplitude_se
+	make /o/n=(nUncagingPulses) w_t0
+	make /o/n=(nUncagingPulses) w_decay_time
+	make /o/n=(nUncagingPulses) w_rise_time
+	make /o/n=(nUncagingPulses) w_y0
+	make /o/n=(nUncagingPulses) w_onset_delay
+	make /o/n=(nUncagingPulses) w_amplitude_1
+	make /o/n=(nUncagingPulses) w_amplitude_0
+	make /o/n=(nUncagingPulses) w_amplitude_1_se
+	make /o/n=(nUncagingPulses,6) w2dFitUncagingResponseCoef
+	make /o/n=(nUncagingPulses,6) w2dFitUncagingResponseCoefSE
+	make /o/n=(nUncagingPulses,6) w2dFitUncgRespCoefBootSE
 
 // To get initial estimates of the parameters, the model is first fit to the average response
 // to calculate the average response, we need to align the uncaging response relative to the uncaging pulse
@@ -232,7 +232,7 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 //since the time window is a real number, it's possible that the integral index ranges could have different lengths due to rounding
 //if the number of points differs, we use the smallest for analysis
 //!note maybe we want to just throw an error if the number of points differs instead
-	for(i=0;i < n_uncaging_pulses;i+=1)	// for1
+	for(i=0;i < nUncagingPulses;i+=1)	// for1
 		fit_start = w_uncage_time[i] - y0timeWindow
 		w_fit_start_time[i] = fit_start
 		UncageTime = fit_start + y0timeWindow
@@ -243,10 +243,10 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 	endfor		//for1
 
 //copy uncaging responses into 2d wave
-make /o/n=(n_uncaging_pulses, v_n_fit_points) w2d_responses
-make /o/n=(n_uncaging_pulses, v_n_fit_points) w2d_fits
+make /o/n=(nUncagingPulses, v_n_fit_points) w2d_responses
+make /o/n=(nUncagingPulses, v_n_fit_points) w2d_fits
 make /o/n=(v_n_fit_points) w_fit
-for(i=0;i < n_uncaging_pulses;i+=1)	// for1
+for(i=0;i < nUncagingPulses;i+=1)	// for1
 w2d_responses[i][] = uncaging_response_wave[w_fit_start_pt[i]+q]
 endfor		//for1
 setscale /p y,0,dimdelta(uncaging_response_wave,0),w2d_responses
@@ -255,11 +255,11 @@ setscale /p x,0,dimdelta(uncaging_response_wave,0),w_fit
 
 
 //calculate average response
-make /o /n=(n_uncaging_pulses) w_temp
+make /o /n=(nUncagingPulses) w_temp
 w_temp = 1
 MatrixOp/O w_avg_response=w_temp^t x w2d_responses
 redimension /n=(v_n_fit_points) w_avg_response
-w_avg_response = w_avg_response/n_uncaging_pulses
+w_avg_response = w_avg_response/nUncagingPulses
 setscale /p x,0, dimdelta(uncaging_response_wave,0), w_avg_response
 
 fit_stop = fit_range
@@ -331,7 +331,7 @@ T_Constraints[0] = {"K1 > 0","K1 < .01"}
 
 	Prompt user_response, "Is this fit good?", popup, "Yes: Save fit;No: Do a Refit; No response: Save zero; Too noisy, save NaN"
 
-	for(i=0;i < n_uncaging_pulses;i+=1)	// for1
+	for(i=0;i < nUncagingPulses;i+=1)	// for1
 	//the logical control for refitting is handled by performing the fit in a do-while loop with while(user_response=2)
 	// set user response = 2 to initially enter the loop
 	user_response = 2
@@ -440,11 +440,11 @@ return 1
 // ============================================================================
 // ============================================================================
 
-make /o /n=((n_uncaging_pulses-1)*n_false_replicates) WNrAmplitude1
-make /o /n=((n_uncaging_pulses-1)*n_false_replicates) WNrAmplitude
-make /o /n=((n_uncaging_pulses-1)*n_false_replicates) WNrAmplitude0
+make /o /n=((nUncagingPulses-1)*n_false_replicates) WNrAmplitude1
+make /o /n=((nUncagingPulses-1)*n_false_replicates) WNrAmplitude
+make /o /n=((nUncagingPulses-1)*n_false_replicates) WNrAmplitude0
 
-for(i=0;i < (n_uncaging_pulses-1);i+=1)	// for1
+for(i=0;i < (nUncagingPulses-1);i+=1)	// for1
  // there is no stimulus between uncaging pulses
  // loop over uncaging pulses and perform fits during the time between uncaging events
 inter_fit_time = w_fit_start_time[i+1] - w_fit_stop_time[i]
