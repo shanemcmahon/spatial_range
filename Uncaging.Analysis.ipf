@@ -22,6 +22,11 @@ macro DoUncagingAnalysis()
   String /g uid =  StringFromList(ItemsInList(s_path, ":")-4, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-3, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-2, s_path , ":")+"_ts"+s_path[strlen(s_path)-4,strlen(s_path)-2]
   String /g OutputPathStr = s_path
 	uid = uid + s_filename[0,strlen(s_filename)-5]
+if(!exists("PointSpacingW"))
+	make /o/n=1 PointSpacingW
+	PointSpacingW = 100
+endif
+
 	UncagingAnalysis(DataWaveList)
 
 endmacro
@@ -137,11 +142,15 @@ function UncagingAnalysis(DataWaveList)
 	Variable InterFalseFitTime //time between fake responses
 	Variable ResponseMaxTime0, DelayToResponseStart0 //intial parameter estimates
 	Variable Amplitude, TotalLengthUncaging
+	// Distance between uncaging points in nm
+Wave PointSpacingW
+	Variable PointSpacingV = PointSpacingW[0]; prompt PointSpacingV,"Distance between uncaging points"
+	//make /o/n=1 PointSpacingW
 	wave w_Resampled, wColumnMeans
 	make /o /n=1 vPockelsVoltage
-	variable UserSetPar0
+	Variable UserSetPar0; prompt UserSetPar0,"Initial parameter estimates",popup,"Interactive;Default;Auto Guess"
 	variable v_flag
-	prompt UserSetPar0,"Initial parameter estimates",popup,"Interactive;Default;Auto Guess"
+
 	Variable LaswerPowerWaveScaling = 0.1; Prompt LaswerPowerWaveScaling, "Laser power wave scaling"
 
 
@@ -163,15 +172,16 @@ function UncagingAnalysis(DataWaveList)
 	UserSetPar0 = 3
 
 // promp user for starting parameters
-	DoPrompt "",FitRange,DecayTime0,RiseTime0,Amplitude0window,y0timeWindow,UserSetPar0,LaswerPowerWaveScaling
+	DoPrompt "",FitRange,DecayTime0,RiseTime0,Amplitude0window,y0timeWindow,UserSetPar0,LaswerPowerWaveScaling,PointSpacingV
+	PointSpacingW = PointSpacingV
 
 // set stimulus and response wave references from chosen names
-	wave UncagingResponseWave = $UncagingResponseWaveName
-	wave UncagingPowerWave = $UncagingPowerWaveName
+//	wave UncagingResponseWave = $UncagingResponseWaveName
+//	wave UncagingPowerWave = $UncagingPowerWaveName
 
-// it is unclear why I felt the need to duplicate these waves
-//duplicate /o UncagingResponseWave UncagingResponseWave
-//duplicate /o UncagingPowerWave UncagingPowerWave
+
+duplicate /o $UncagingResponseWaveName UncagingResponseWave
+duplicate /o $UncagingPowerWaveName UncagingPowerWave
 
 	//before we can make waves to put the fit parameters, we need to know how long to make them
 	//loop through uncaging events to count the number of uncaging pulses
@@ -439,7 +449,7 @@ while(UserResponse == 2) //if user indicated to perform a refit, continue loop, 
 dowindow/k review
 
 
-return 1
+
 // ============================================================================
 // ============================================================================
 // perform fits to response trace over periods where no stimulus is given
@@ -862,11 +872,11 @@ end
 //******************************************************************************
 //******************************************************************************
 
-macro DoMakeFigures()
+macro DoMakeFigures(UncageSpacingV)
 	//MakeFigures()
-
+	variable UncageSpacingV = PointSpacingW[0]
 	variable vNumStim
-	variable vUncageSpacing = 400
+
 	variable i
 	String cmd
 
@@ -923,7 +933,7 @@ macro DoMakeFigures()
 
 	dowindow/k FitAmplitude
 	display /n=FitAmplitude AmplitudeW
-	setscale /p x,((numpnts(AmplitudeW)-1)*vUncageSpacing),-vUncageSpacing,"nm",AmplitudeW
+	setscale /p x,((numpnts(AmplitudeW)-1)*UncageSpacingV),-UncageSpacingV,"nm",AmplitudeW
 	Label bottom "distance \\u#2 (nm)"
 	ModifyGraph mode=3,marker=19;DelayUpdate
 //	ErrorBars/T=0/L=0.7 AmplitudeW Y,wave=(AmplitudeSeW,AmplitudeSeW)
@@ -978,7 +988,7 @@ macro DoMakeFigures()
 	ModifyTable width(Point)=0
 	modifytable alignment=0
 
-
+MakeLayout()
 
 endmacro
 
@@ -988,11 +998,10 @@ endmacro
 //
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-macro MakeLayout()
-variable i,nResponsePanelCols,j
-string cmd
-
-nResponsePanelCols = 3
+macro MakeLayout(nResponsePanelCols)
+Variable nResponsePanelCols = 2
+Variable i,j
+String cmd
 
 dowindow /k SummaryFig
 newlayout /n=SummaryFig
