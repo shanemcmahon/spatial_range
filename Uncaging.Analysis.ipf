@@ -97,7 +97,7 @@ function UncagingAnalysis(DataWaveList)
 	String UncagingResponseWaveName;	Prompt UncagingResponseWaveName,"uncaging response wave name",popup,DataWaveList+"Some other wave..."
 //name of the uncaging power wave
 	String UncagingPowerWaveName; 	Prompt UncagingPowerWaveName,"uncaging power wave name",popup,DataWaveList+"Some other wave..."
-//variable that holds the number of uncaging pulses found in uncaging_power_wave
+//variable that holds the number of uncaging pulses found in UncagingPowerWave
 	Variable nUncagingPulses
 	//length of the time window used for fitting double exponential
 	Variable FitRange = 0.05;	Prompt FitRange,"Size of time window for fitting"
@@ -117,7 +117,7 @@ function UncagingAnalysis(DataWaveList)
 	//time of peak amplitude
 	Variable ResponseMaxTime
 	Variable UserResponse
-	//threshold value used while examining uncaging_power_wave to determine whether an algorithmically found peak is a true pulse
+	//threshold value used while examining UncagingPowerWave to determine whether an algorithmically found peak is a true pulse
 	Variable threshold
 	Make /O/D w_coef = NaN
 	Make /O/D w_sigma = NaN
@@ -167,36 +167,36 @@ function UncagingAnalysis(DataWaveList)
 
 // set stimulus and response wave references from chosen names
 	wave UncagingResponseWave = $UncagingResponseWaveName
-	wave uncaging_power_wave = $UncagingPowerWaveName
+	wave UncagingPowerWave = $UncagingPowerWaveName
 
 // it is unclear why I felt the need to duplicate these waves
 duplicate /o UncagingResponseWave w_uncage_response
-duplicate /o uncaging_power_wave w_uncage_power
+duplicate /o UncagingPowerWave w_uncage_power
 
 	//before we can make waves to put the fit parameters, we need to know how long to make them
 	//loop through uncaging events to count the number of uncaging pulses
 	//we find the first two pulses manually before entering the do loop
 	//as we treat the first pulse slightly different than the rest, treating the first pulses outside of the loop allows us to avoid using an if-then construct inside the loop
-	threshold = 0.8*wavemax(uncaging_power_wave)
+	threshold = 0.8*wavemax(UncagingPowerWave)
 
 //calculate average pockels voltage
-duplicate /o uncaging_power_wave temp
-temp = threshold < uncaging_power_wave
+duplicate /o UncagingPowerWave temp
+temp = threshold < UncagingPowerWave
 TotalLengthUncaging = sum(temp)
-temp = temp * uncaging_power_wave
+temp = temp * UncagingPowerWave
 vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 
 	// find rising edge in power trace greater than defined threshold
-	findlevel /Q/EDGE=1 /R= (V_LevelX,) uncaging_power_wave, threshold
+	findlevel /Q/EDGE=1 /R= (V_LevelX,) UncagingPowerWave, threshold
 	//we find the first pulse manually before entering the do loop, so we start the counter at 1
 	Make/O/N=1 UncageTimeW
 	UncageTimeW = V_LevelX
 	i = 1
 	do//do1
 		// findlevel may occasionaly find false peaks in the noise during the uncaging pulse, but we can reliably find the time where the voltage drops below the threshold
-		findlevel /Q/EDGE=2 /R= (V_LevelX,) uncaging_power_wave, threshold
+		findlevel /Q/EDGE=2 /R= (V_LevelX,) UncagingPowerWave, threshold
 		//the next findlevel searches again for a rising pulse crossing the threshold
-		findlevel /Q/EDGE=1 /R= (V_LevelX,) uncaging_power_wave, threshold
+		findlevel /Q/EDGE=1 /R= (V_LevelX,) UncagingPowerWave, threshold
 		//if no edge is found, V_LevelX will be set to NaN, this condition indicates that we have passed the last uncaging pulse
 		if(numtype(V_LevelX))
 			break
