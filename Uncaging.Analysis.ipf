@@ -98,9 +98,9 @@ function UncagingAnalysis(DataWaveList)
 //name of the uncaging power wave
 	String UncagingPowerWaveName; 	Prompt UncagingPowerWaveName,"uncaging power wave name",popup,DataWaveList+"Some other wave..."
 //variable that holds the number of uncaging pulses found in uncaging_power_wave
-	Variable nUncagingPulses 
-	Variable fit_range = 0.05	//length of the time window used for fitting double exponential
-	Prompt fit_range,"Size of time window for fitting"
+	Variable nUncagingPulses
+	//length of the time window used for fitting double exponential
+	Variable FitRange = 0.05;	Prompt FitRange,"Size of time window for fitting"
 	Variable i = 0, j = 0	//dummy variable for iteration control
 	Variable decay_time_0 = 0.008	//initial estimate for uncaging response decay time
 	Prompt decay_time_0,"response decay time initial estimate"
@@ -157,7 +157,7 @@ function UncagingAnalysis(DataWaveList)
 	UserSetPar0 = 3
 
 // promp user for starting parameters
-	DoPrompt "",fit_range,decay_time_0,rise_time_0,Amplitude0window,y0timeWindow,UserSetPar0,LaswerPowerWaveScaling
+	DoPrompt "",FitRange,decay_time_0,rise_time_0,Amplitude0window,y0timeWindow,UserSetPar0,LaswerPowerWaveScaling
 
 // set stimulus and response wave references from chosen names
 	wave uncaging_response_wave = $UncagingResponseWaveName
@@ -236,7 +236,7 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging
 		fit_start = w_uncage_time[i] - y0timeWindow
 		w_fit_start_time[i] = fit_start
 		UncageTime = fit_start + y0timeWindow
-		fit_stop = fit_start + fit_range
+		fit_stop = fit_start + FitRange
 		w_fit_stop_time[i] = fit_stop
 		v_n_fit_points = min(v_n_fit_points,	(x2pnt(uncaging_response_wave, fit_stop )-x2pnt(uncaging_response_wave, fit_start )))
 		w_fit_start_pt[i] = x2pnt(uncaging_response_wave, fit_start )
@@ -262,7 +262,7 @@ redimension /n=(v_n_fit_points) w_avg_response
 w_avg_response = w_avg_response/nUncagingPulses
 setscale /p x,0, dimdelta(uncaging_response_wave,0), w_avg_response
 
-fit_stop = fit_range
+fit_stop = FitRange
 
 // ============================================================================
 // ============================================================================
@@ -339,7 +339,7 @@ T_Constraints[0] = {"K1 > 0","K1 < .01"}
 // calculate time window for ith uncaging event
 		UncageTime = w_uncage_time[i]
 		fit_start = UncageTime - y0timeWindow
-		fit_stop = fit_start + fit_range
+		fit_stop = fit_start + FitRange
 
 	// set w_coef to initial parameter estimates
 		k4 = mean(uncaging_response_wave,fit_start,UncageTime)
@@ -414,7 +414,7 @@ while(user_response == 2) //if user indicated to perform a refit, continue loop,
 		w_rise_time[i] = w_coef[3]
 		w_y0[i] = w_coef[4]
 		w_onset_delay[i] = w_coef[1]
-		fit_stop = fit_start + fit_range
+		fit_stop = fit_start + FitRange
 		duplicate /o /r=(fit_start, fit_stop) uncaging_response_wave w_t
 		w_t = x
 		duplicate /o w_t w_fit
@@ -455,7 +455,7 @@ for(j=0;j < n_false_replicates;j+=1)	// for2
 // set initial parameters and fit window
 fit_start = w_fit_stop_time[i] + j*inter_false_fit_time
 UncageTime = fit_start + y0timeWindow
-fit_stop = fit_start + fit_range
+fit_stop = fit_start + FitRange
 k4 = mean(uncaging_response_wave,fit_start,UncageTime)
 k0 = mean(uncaging_response_wave,(fit_start + response_max_time_0 - Amplitude0window),(fit_start + response_max_time_0 - Amplitude0window)) - k4
 v_amplitude = k0
