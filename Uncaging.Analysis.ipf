@@ -171,7 +171,7 @@ function UncagingAnalysis(DataWaveList)
 
 // it is unclear why I felt the need to duplicate these waves
 //duplicate /o UncagingResponseWave UncagingResponseWave
-duplicate /o UncagingPowerWave w_uncage_power
+//duplicate /o UncagingPowerWave UncagingPowerWave
 
 	//before we can make waves to put the fit parameters, we need to know how long to make them
 	//loop through uncaging events to count the number of uncaging pulses
@@ -728,7 +728,7 @@ macro Clean_Up()
 	//killwindow layout0
 	Kill_Input_Waves()
 kill_wave_list("ACH_1;ACH_3;")
-kill_wave_list("UncagingResponseWave;w_uncage_power;")
+kill_wave_list("UncagingResponseWave;UncagingPowerWave;")
 kill_wave_list("fit_w2d_responses;w_t;w2d_fake_pars;fit_w_response_out;w_bs_amp0;w_bs_amp0alt;w_bs_amp0_Hist;w_bs_amp0alt_Hist;")
 kill_wave_list("w2d_responses;w2d_fits;w_fit;w_temp;w_avg_response;T_Constraints;fit_w_avg_response;")
 kill_wave_list("RiseTimeW;y0W;OnsetDelayW;w_amplitude_1;w_amplitude_0;w_amplitude_1_se;")
