@@ -602,13 +602,13 @@ End
 //******************************************************************************
 
 
-macro do_save_results()
-if(!exists("rw_uid"))
-make /o /n=0 /t rw_uid
+macro DoSaveResults()
+if(!exists("UidW"))
+make /o /n=0 /t UidW
 endif
-InsertPoints numpnts(rw_uid), 1, rw_uid
-rw_uid[numpnts(rw_uid)] = uid
-save_results()
+InsertPoints numpnts(UidW), 1, UidW
+UidW[numpnts(UidW)] = uid
+SaveResults()
 endmacro
 
 //******************************************************************************
@@ -617,108 +617,108 @@ endmacro
 //******************************************************************************
 //******************************************************************************
 
-function save_results()
-wave rw2d_response, UncagingResponseWave,UncageTimeW
+function SaveResults()
+wave ResponseW2d, UncagingResponseWave,UncageTimeW
 wave FitStartTimeWave, FitStopTimeWave, AmplitudeW, AmplitudeSeW, T0W
 wave DecayTimeW, RiseTimeW, y0W, OnsetDelayW, AmplitudeRestrictedModelWave
-wave AmplitudeFromMeanWave, ResponseWave2d, ModelPredictionWave2d, rw_uid, NullAmpRestricedW
-wave NullAmplitudeFullModelWave, NullAmplitudeFromMeanWave, rwPockelsVoltage
+wave AmplitudeFromMeanWave, ResponseWave2d, ModelPredictionWave2d, UidW, NullAmpRestricedW
+wave NullAmplitudeFullModelWave, NullAmplitudeFromMeanWave, PockelsVoltageW
 wave vPockelsVoltage
-variable n_results
+variable nResults
 string /g OutputPathStr
 string /g uid
 newpath /o OutputDir, OutputPathStr
 SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid +".png")
 //SavePICT/O/E=-5/B=72 /p=OutputDir /win=SummaryFig as "SummaryFiglr.png"
 
-if(!waveexists(rw2d_response))
+if(!waveexists(ResponseW2d))
 
-make /n=(numpnts(UncagingResponseWave),8) rw2d_response
-make /n=(numpnts(UncageTimeW),8) rw2d_uncage_time
-make /n=(numpnts(FitStartTimeWave),8) rw2d_fit_start_time
-make /n=(numpnts(FitStopTimeWave),8) rw2d_fit_stop_time
-make /n=(numpnts(AmplitudeW),8) rw2d_fit_amplitude
-make /n=(numpnts(AmplitudeSeW),8) rw2d_fit_amplitude_se
-make /n=(numpnts(T0W),8) rw2d_fit_t0
-make /n=(numpnts(DecayTimeW),8) rw2d_fit_decay_time
-make /n=(numpnts(RiseTimeW),8) rw2d_fit_rise_time
-make /n=(numpnts(y0W),8) rw2d_fit_y0
-make /n=(numpnts(OnsetDelayW),8) rw2d_fit_onset_delay
-make /n=(numpnts(AmplitudeRestrictedModelWave),8) rw2d_amplitude_0
-make /n=(numpnts(AmplitudeFromMeanWave),8) rw2d_amplitude_0_np
+make /n=(numpnts(UncagingResponseWave),8) ResponseW2d
+make /n=(numpnts(UncageTimeW),8) UncageTimeW2d
+make /n=(numpnts(FitStartTimeWave),8) UncageTimeW2dFitStartTimeW2d
+make /n=(numpnts(FitStopTimeWave),8) FitStopTimeW2d
+make /n=(numpnts(AmplitudeW),8) AmplitudeW2d
+make /n=(numpnts(AmplitudeSeW),8) AmplitudeSeW2d
+make /n=(numpnts(T0W),8) T0W2d
+make /n=(numpnts(DecayTimeW),8) DecayTimeW2d
+make /n=(numpnts(RiseTimeW),8) RiseTimeW2d
+make /n=(numpnts(y0W),8) y0W2d
+make /n=(numpnts(OnsetDelayW),8) OnsetDelayW2d
+make /n=(numpnts(AmplitudeRestrictedModelWave),8) AmpRestrictedModelW2d
+make /n=(numpnts(AmplitudeFromMeanWave),8) AmpFromMeanW2d
 // make /n=(numpnts(),8)
 
 
-duplicate ResponseWave2d rw3d_uncaging_response
-redimension /n=(-1,-1,8) rw3d_uncaging_response
-duplicate ModelPredictionWave2d rw3d_fits
-redimension /n=(-1,-1,8) rw3d_fits
-duplicate NullAmpRestricedW W2dNrAmplitude0
-redimension /n=(-1,8) W2dNrAmplitude0
-duplicate NullAmplitudeFullModelWave W2dNrAmplitude1
-redimension /n=(-1,8) W2dNrAmplitude1
-duplicate NullAmplitudeFromMeanWave W2dNrAmplitude2
-redimension /n=(-1,8) W2dNrAmplitude2
-make /o /n=0 WAmplitudeCorrelation
-make /o /n=0 WAmplitudeNrCorrelation
-make /o /n=0 rwPockelsVoltage
+duplicate ResponseWave2d UncagingResponseW3d
+redimension /n=(-1,-1,8) UncagingResponseW3d
+duplicate ModelPredictionWave2d ModelPredictionW3d
+redimension /n=(-1,-1,8) ModelPredictionW3d
+duplicate NullAmpRestricedW NullAmpRestricedW2d
+redimension /n=(-1,8) NullAmpRestricedW2d
+duplicate NullAmplitudeFullModelWave NullAmpFullModelW2d
+redimension /n=(-1,8) NullAmpFullModelW2d
+duplicate NullAmplitudeFromMeanWave NullAmpFromMeanW2d
+redimension /n=(-1,8) NullAmpFromMeanW2d
+//make /o /n=0 WAmplitudeCorrelation
+// make /o /n=0 WAmplitudeNrCorrelation
+make /o /n=0 PockelsVoltageW 
 endif
 
-n_results = numpnts(rw_uid)-1
+nResults = numpnts(UidW)-1
 
-if(n_results >  dimsize( rw2d_response, 1)*3/4)
-Redimension /N=(-1, 2*n_results) rw2d_response
-Redimension /N=(-1, 2*n_results) rw2d_uncage_time
-Redimension /N=(-1, 2*n_results) rw2d_fit_start_time
-Redimension /N=(-1, 2*n_results) rw2d_fit_stop_time
-Redimension /N=(-1, 2*n_results) rw2d_fit_amplitude
-Redimension /N=(-1, 2*n_results) rw2d_fit_amplitude_se
-Redimension /N=(-1, 2*n_results) rw2d_fit_t0
-Redimension /N=(-1, 2*n_results) rw2d_fit_decay_time
-Redimension /N=(-1, 2*n_results) rw2d_fit_rise_time
-Redimension /N=(-1, 2*n_results) rw2d_fit_y0
-Redimension /N=(-1, 2*n_results) rw2d_fit_onset_delay
-Redimension /N=(-1, 2*n_results) rw2d_amplitude_0
-Redimension /N=(-1, 2*n_results) rw2d_amplitude_0_np
-// Redimension /N=(-1, 2*n_results)
+if(nResults >  dimsize( ResponseW2d, 1)*3/4)
+Redimension /N=(-1, 2*nResults) ResponseW2d
+Redimension /N=(-1, 2*nResults) UncageTimeW2d
+Redimension /N=(-1, 2*nResults) UncageTimeW2dFitStartTimeW2d
+Redimension /N=(-1, 2*nResults) FitStopTimeW2d
+Redimension /N=(-1, 2*nResults) AmplitudeW2d
+Redimension /N=(-1, 2*nResults) AmplitudeSeW2d
+Redimension /N=(-1, 2*nResults) T0W2d
+Redimension /N=(-1, 2*nResults) DecayTimeW2d
+Redimension /N=(-1, 2*nResults) RiseTimeW2d
+Redimension /N=(-1, 2*nResults) y0W2d
+Redimension /N=(-1, 2*nResults) OnsetDelayW2d
+Redimension /N=(-1, 2*nResults) AmpRestrictedModelW2d
+Redimension /N=(-1, 2*nResults) AmpFromMeanW2d
+// Redimension /N=(-1, 2*nResults)
 
-Redimension /N=(-1,-1, 2*n_results) rw3d_uncaging_response
-Redimension /N=(-1,-1, 2*n_results) rw3d_fits
-redimension /n=(-1,2*n_results) W2dNrAmplitude0
-redimension /n=(-1,2*n_results) W2dNrAmplitude1
-redimension /n=(-1,2*n_results) W2dNrAmplitude2
+Redimension /N=(-1,-1, 2*nResults) UncagingResponseW3d
+Redimension /N=(-1,-1, 2*nResults) ModelPredictionW3d
+redimension /n=(-1,2*nResults) NullAmpRestricedW2d
+redimension /n=(-1,2*nResults) NullAmpFullModelW2d
+redimension /n=(-1,2*nResults) NullAmpFromMeanW2d
 
 
 endif
 
 
-rw2d_response[][n_results] = UncagingResponseWave[p]
-rw2d_uncage_time[][n_results] = UncageTimeW[p]
-rw2d_fit_start_time[][n_results] = FitStartTimeWave[p]
-rw2d_fit_stop_time[][n_results] = FitStopTimeWave[p]
-rw2d_fit_amplitude[][n_results] = AmplitudeW[p]
-rw2d_fit_amplitude_se[][n_results] = AmplitudeSeW[p]
-rw2d_fit_t0[][n_results] = T0W[p]
-rw2d_fit_decay_time[][n_results] = DecayTimeW[p]
-rw2d_fit_rise_time[][n_results] = RiseTimeW[p]
-rw2d_fit_y0[][n_results] = y0W[p]
-rw2d_fit_onset_delay[][n_results] = OnsetDelayW[p]
-rw2d_amplitude_0[][n_results] = AmplitudeRestrictedModelWave[p]
-rw2d_amplitude_0_np[][n_results] = AmplitudeFromMeanWave[p]
-W2dNrAmplitude0[][n_results] = NullAmpRestricedW[p]
-W2dNrAmplitude1[][n_results] = NullAmplitudeFullModelWave[p]
-W2dNrAmplitude2[][n_results] = NullAmplitudeFromMeanWave[p]
-// [][n_results] = [p]
+ResponseW2d[][nResults] = UncagingResponseWave[p]
+UncageTimeW2d[][nResults] = UncageTimeW[p]
+UncageTimeW2dFitStartTimeW2d[][nResults] = FitStartTimeWave[p]
+FitStopTimeW2d[][nResults] = FitStopTimeWave[p]
+AmplitudeW2d[][nResults] = AmplitudeW[p]
+AmplitudeSeW2d[][nResults] = AmplitudeSeW[p]
+T0W2d[][nResults] = T0W[p]
+DecayTimeW2d[][nResults] = DecayTimeW[p]
+RiseTimeW2d[][nResults] = RiseTimeW[p]
+y0W2d[][nResults] = y0W[p]
+OnsetDelayW2d[][nResults] = OnsetDelayW[p]
+AmpRestrictedModelW2d[][nResults] = AmplitudeRestrictedModelWave[p]
+AmpFromMeanW2d[][nResults] = AmplitudeFromMeanWave[p]
+NullAmpRestricedW2d[][nResults] = NullAmpRestricedW[p]
+NullAmpFullModelW2d[][nResults] = NullAmplitudeFullModelWave[p]
+NullAmpFromMeanW2d[][nResults] = NullAmplitudeFromMeanWave[p]
+// [][nResults] = [p]
 
-rw3d_uncaging_response[][][n_results]=ResponseWave2d[p][q]
-rw3d_fits[][][n_results]=ModelPredictionWave2d[p][q]
+UncagingResponseW3d[][][nResults]=ResponseWave2d[p][q]
+ModelPredictionW3d[][][nResults]=ModelPredictionWave2d[p][q]
 
-InsertPoints numpnts(WAmplitudeCorrelation), 1, WAmplitudeCorrelation
-InsertPoints numpnts(WAmplitudeNrCorrelation), 1, WAmplitudeNrCorrelation
-InsertPoints numpnts(rwPockelsVoltage), 1, rwPockelsVoltage
-rwPockelsVoltage[n_results] = vPockelsVoltage[0]
-WAmplitudeCorrelation[n_results] = StatsCorrelation(AmplitudeW,AmplitudeFromMeanWave)
-WAmplitudeNrCorrelation[n_results] = StatsCorrelation(NullAmplitudeFullModelWave,NullAmplitudeFromMeanWave)
+//InsertPoints numpnts(WAmplitudeCorrelation), 1, WAmplitudeCorrelation
+// InsertPoints numpnts(WAmplitudeNrCorrelation), 1, WAmplitudeNrCorrelation
+InsertPoints numpnts(PockelsVoltageW), 1, PockelsVoltageW
+PockelsVoltageW[nResults] = vPockelsVoltage[0]
+// WAmplitudeCorrelation[nResults] = StatsCorrelation(AmplitudeW,AmplitudeFromMeanWave)
+// WAmplitudeNrCorrelation[nResults] = StatsCorrelation(NullAmplitudeFullModelWave,NullAmplitudeFromMeanWave)
 end
 
 //******************************************************************************
@@ -780,31 +780,31 @@ endmacro
 
 function RemoveSpineData()
 variable i_
-wave rw2d_fit_amplitude,rw2d_amplitude_0,rw2d_amplitude_0_np,rw2d_fit_amplitude_se
-wave rw2d_fit_decay_time,rw2d_fit_onset_delay,rw2d_fit_rise_time,rw2d_fit_start_time,rw2d_fit_stop_time
-wave rw2d_fit_t0,rw2d_fit_y0,rw2d_response,rw2d_uncage_time,rw3d_fits,rw3d_uncaging_response
-wave rwPockelsVoltage,rw_uid
+wave AmplitudeW2d,AmpRestrictedModelW2d,AmpFromMeanW2d,AmplitudeSeW2d
+wave DecayTimeW2d,OnsetDelayW2d,RiseTimeW2d,UncageTimeW2dFitStartTimeW2d,FitStopTimeW2d
+wave T0W2d,y0W2d,ResponseW2d,UncageTimeW2d,ModelPredictionW3d,UncagingResponseW3d
+wave PockelsVoltageW,UidW
 
 prompt i_,"Point number"
 doprompt "Enter value",i_
 
-DeletePoints/M=1 i_,1, rw2d_fit_amplitude
-DeletePoints/M=1 i_,1, rw2d_amplitude_0
-DeletePoints/M=1 i_,1, rw2d_amplitude_0_np
-DeletePoints/M=1 i_,1, rw2d_fit_amplitude_se
-DeletePoints/M=1 i_,1, rw2d_fit_decay_time
-DeletePoints/M=1 i_,1, rw2d_fit_onset_delay
-DeletePoints/M=1 i_,1, rw2d_fit_rise_time
-DeletePoints/M=1 i_,1, rw2d_fit_start_time
-DeletePoints/M=1 i_,1, rw2d_fit_stop_time
-DeletePoints/M=1 i_,1, rw2d_fit_t0
-DeletePoints/M=1 i_,1, rw2d_fit_y0
-DeletePoints/M=1 i_,1, rw2d_response
-DeletePoints/M=1 i_,1, rw2d_uncage_time
-DeletePoints/M=2 i_,1, rw3d_fits
-DeletePoints/M=2 i_,1, rw3d_uncaging_response
-DeletePoints i_,1, rwPockelsVoltage
-DeletePoints i_,1, rw_uid
+DeletePoints/M=1 i_,1, AmplitudeW2d
+DeletePoints/M=1 i_,1, AmpRestrictedModelW2d
+DeletePoints/M=1 i_,1, AmpFromMeanW2d
+DeletePoints/M=1 i_,1, AmplitudeSeW2d
+DeletePoints/M=1 i_,1, DecayTimeW2d
+DeletePoints/M=1 i_,1, OnsetDelayW2d
+DeletePoints/M=1 i_,1, RiseTimeW2d
+DeletePoints/M=1 i_,1, UncageTimeW2dFitStartTimeW2d
+DeletePoints/M=1 i_,1, FitStopTimeW2d
+DeletePoints/M=1 i_,1, T0W2d
+DeletePoints/M=1 i_,1, y0W2d
+DeletePoints/M=1 i_,1, ResponseW2d
+DeletePoints/M=1 i_,1, UncageTimeW2d
+DeletePoints/M=2 i_,1, ModelPredictionW3d
+DeletePoints/M=2 i_,1, UncagingResponseW3d
+DeletePoints i_,1, PockelsVoltageW
+DeletePoints i_,1, UidW
 end
 
 //******************************************************************************
@@ -1061,7 +1061,7 @@ endmacro
 menu "macros"
 	"DoUncagingAnalysis/1"
 	"DoMakeFigures/2"
-	"Do_Save_Results/3"
+	"DoSaveResults/3"
 	"Clean_Up/4"
 	"Kill_Input_Waves"
 	"SetResponseNan/5"
