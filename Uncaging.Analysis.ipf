@@ -95,8 +95,9 @@ function UncagingAnalysis(DataWaveList)
 	String DataWaveList
 	//name of the uncaging response wave
 	String UncagingResponseWaveName;	Prompt UncagingResponseWaveName,"uncaging response wave name",popup,DataWaveList+"Some other wave..."
-	String uncaging_power_wave_name	//name of the uncaging power wave
-	Prompt uncaging_power_wave_name,"uncaging power wave name",popup,DataWaveList+"Some other wave..."
+//name of the uncaging power wave
+	String UncagingPowerWaveName; 	Prompt UncagingPowerWaveName,"uncaging power wave name",popup,DataWaveList+"Some other wave..."	
+
 	Variable n_uncaging_pulses //variable that holds the number of uncaging pulses found in uncaging_power_wave
 	Variable fit_range = 0.05	//length of the time window used for fitting double exponential
 	Prompt fit_range,"Size of time window for fitting"
@@ -144,11 +145,11 @@ function UncagingAnalysis(DataWaveList)
 // user is also provided the option "some other wave..."
 // if the user indicates that the stimulus/response wave is not lasted, then prompt again, offering a list of all waves in the current data folder
 	Variable n_data_waves = itemsinlist(wave_data_list)
-	doPrompt "",UncagingResponseWaveName,uncaging_power_wave_name
-	if(!(cmpstr(UncagingResponseWaveName, "Some other wave..." )*cmpstr(uncaging_power_wave_name, "Some other wave..." )))
+	doPrompt "",UncagingResponseWaveName,UncagingPowerWaveName
+	if(!(cmpstr(UncagingResponseWaveName, "Some other wave..." )*cmpstr(UncagingPowerWaveName, "Some other wave..." )))
 	Prompt UncagingResponseWaveName,"uncaging response wave name",popup,wavelist("*",";","")
-	Prompt uncaging_power_wave_name,"uncaging power wave name",popup,wavelist("*",";","")
-	doPrompt "",UncagingResponseWaveName,uncaging_power_wave_name
+	Prompt UncagingPowerWaveName,"uncaging power wave name",popup,wavelist("*",";","")
+	doPrompt "",UncagingResponseWaveName,UncagingPowerWaveName
 	endif
 
 
@@ -160,7 +161,7 @@ function UncagingAnalysis(DataWaveList)
 
 // set stimulus and response wave references from chosen names
 	wave uncaging_response_wave = $UncagingResponseWaveName
-	wave uncaging_power_wave = $uncaging_power_wave_name
+	wave uncaging_power_wave = $UncagingPowerWaveName
 
 // it is unclear why I felt the need to duplicate these waves
 duplicate /o uncaging_response_wave w_uncage_response
