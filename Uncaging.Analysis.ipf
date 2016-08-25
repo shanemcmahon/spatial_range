@@ -170,7 +170,7 @@ function UncagingAnalysis(DataWaveList)
 	wave UncagingPowerWave = $UncagingPowerWaveName
 
 // it is unclear why I felt the need to duplicate these waves
-duplicate /o UncagingResponseWave w_uncage_response
+//duplicate /o UncagingResponseWave UncagingResponseWave
 duplicate /o UncagingPowerWave w_uncage_power
 
 	//before we can make waves to put the fit parameters, we need to know how long to make them
@@ -608,7 +608,7 @@ endmacro
 //******************************************************************************
 
 function save_results()
-wave rw2d_response, w_uncage_response,UncageTimeW
+wave rw2d_response, UncagingResponseWave,UncageTimeW
 wave w_fit_start_time, w_fit_stop_time, AmplitudeW, AmplitudeSeW, T0W
 wave DecayTimeW, RiseTimeW, y0W, OnsetDelayW, w_amplitude_1
 wave w_amplitude_0, w2d_responses, w2d_fits, rw_uid, WNrAmplitude1
@@ -623,7 +623,7 @@ SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid +".png")
 
 if(!waveexists(rw2d_response))
 
-make /n=(numpnts(w_uncage_response),8) rw2d_response
+make /n=(numpnts(UncagingResponseWave),8) rw2d_response
 make /n=(numpnts(UncageTimeW),8) rw2d_uncage_time
 make /n=(numpnts(w_fit_start_time),8) rw2d_fit_start_time
 make /n=(numpnts(w_fit_stop_time),8) rw2d_fit_stop_time
@@ -682,7 +682,7 @@ redimension /n=(-1,2*n_results) W2dNrAmplitude2
 endif
 
 
-rw2d_response[][n_results] = w_uncage_response[p]
+rw2d_response[][n_results] = UncagingResponseWave[p]
 rw2d_uncage_time[][n_results] = UncageTimeW[p]
 rw2d_fit_start_time[][n_results] = w_fit_start_time[p]
 rw2d_fit_stop_time[][n_results] = w_fit_stop_time[p]
@@ -728,7 +728,7 @@ macro Clean_Up()
 	//killwindow layout0
 	Kill_Input_Waves()
 kill_wave_list("ACH_1;ACH_3;")
-kill_wave_list("w_uncage_response;w_uncage_power;")
+kill_wave_list("UncagingResponseWave;w_uncage_power;")
 kill_wave_list("fit_w2d_responses;w_t;w2d_fake_pars;fit_w_response_out;w_bs_amp0;w_bs_amp0alt;w_bs_amp0_Hist;w_bs_amp0alt_Hist;")
 kill_wave_list("w2d_responses;w2d_fits;w_fit;w_temp;w_avg_response;T_Constraints;fit_w_avg_response;")
 kill_wave_list("RiseTimeW;y0W;OnsetDelayW;w_amplitude_1;w_amplitude_0;w_amplitude_1_se;")
@@ -872,10 +872,10 @@ macro DoMakeFigures()
 
 	//vPockelsVoltage = 20*vPockelsVoltage
 	dowindow/k FullResponse
-	display /n=FullResponse w_uncage_response
+	display /n=FullResponse UncagingResponseWave
 	Label bottom "time \\u#2 (s)"
 	Label left "I\\u#2 (pA)"
-	wavestats /	q w_uncage_response
+	wavestats /	q UncagingResponseWave
 	SetAxis left v_min,(v_max+v_sdev)
 	duplicate /o UncageTimeW wUncageIndicator
 	wUncageIndicator = (v_max+v_sdev)
