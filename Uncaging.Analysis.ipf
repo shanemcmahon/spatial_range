@@ -101,9 +101,10 @@ function UncagingAnalysis(DataWaveList)
 	Variable nUncagingPulses
 	//length of the time window used for fitting double exponential
 	Variable FitRange = 0.05;	Prompt FitRange,"Size of time window for fitting"
-	Variable i = 0, j = 0	//dummy variable for iteration control
-	Variable decay_time_0 = 0.008	//initial estimate for uncaging response decay time
-	Prompt decay_time_0,"response decay time initial estimate"
+//dummy variable for iteration control
+	Variable i = 0, j = 0
+		//initial estimate for uncaging response decay time
+	Variable DecayTime0 = 0.008;	Prompt DecayTime0,"response decay time initial estimate"
 	Variable rise_time_0 = 0.001	//initial estimate for uncaging response rise time
 	Prompt rise_time_0,"response decay time initial estimate"
 	Variable DelayToResponseStart = 0
@@ -157,7 +158,7 @@ function UncagingAnalysis(DataWaveList)
 	UserSetPar0 = 3
 
 // promp user for starting parameters
-	DoPrompt "",FitRange,decay_time_0,rise_time_0,Amplitude0window,y0timeWindow,UserSetPar0,LaswerPowerWaveScaling
+	DoPrompt "",FitRange,DecayTime0,rise_time_0,Amplitude0window,y0timeWindow,UserSetPar0,LaswerPowerWaveScaling
 
 // set stimulus and response wave references from chosen names
 	wave uncaging_response_wave = $UncagingResponseWaveName
@@ -282,7 +283,7 @@ fit_stop = FitRange
 	FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
 	v_delay_to_response_start_0 = w_coef[1]
 	v_amplitude_0 = w_coef[0]
-	decay_time_0 = w_coef[2]
+	DecayTime0 = w_coef[2]
 	rise_time_0 = w_coef[3]
 	endif
 	if(UserSetPar0 == 2)
@@ -292,10 +293,10 @@ fit_stop = FitRange
 		v_amplitude_0 = -10
     // duplicate /o /r=(0,y0timeWindow) w_avg_response WTemp
     // wavestats /q WTemp
-		w_coef = {-10,DelayToResponseStart,rise_time_0,decay_time_0,mean(w_avg_response,0,y0timeWindow),y0timeWindow}
+		w_coef = {-10,DelayToResponseStart,rise_time_0,DecayTime0,mean(w_avg_response,0,y0timeWindow),y0timeWindow}
 		// perform fit of average response for display purposes
 		FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
-		ResponseMaxTime = y0timeWindow + v_delay_to_response_start_0 + (decay_time_0*rise_time_0)/(decay_time_0-rise_time_0)*ln(decay_time_0/rise_time_0)
+		ResponseMaxTime = y0timeWindow + v_delay_to_response_start_0 + (DecayTime0*rise_time_0)/(DecayTime0-rise_time_0)*ln(DecayTime0/rise_time_0)
 		response_max_time_0 = ResponseMaxTime
 		DelayToResponseStart = w_coef[1]
 		v_delay_to_response_start_0 = DelayToResponseStart
@@ -305,14 +306,14 @@ fit_stop = FitRange
 	ResponseMaxTime = y0timeWindow + 3 * rise_time_0
 	DelayToResponseStart = 0
 	v_amplitude_0 = -10
-	w_coef = {-10,DelayToResponseStart,rise_time_0,decay_time_0,mean(w_avg_response,0,y0timeWindow),y0timeWindow}
+	w_coef = {-10,DelayToResponseStart,rise_time_0,DecayTime0,mean(w_avg_response,0,y0timeWindow),y0timeWindow}
 	FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
 	duplicate /o w_coef wAvgUncageResponseFitCoef
 	duplicate /o w_sigma wAvgUncageResponseFitCoefSE
 	v_delay_to_response_start_0 = w_coef[1]
 	DelayToResponseStart = v_delay_to_response_start_0
 	v_amplitude_0 = w_coef[0]
-	decay_time_0 = w_coef[2]
+	DecayTime0 = w_coef[2]
 	rise_time_0 = w_coef[3]
 	ResponseMaxTime = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
 	response_max_time_0 = ResponseMaxTime
@@ -345,7 +346,7 @@ T_Constraints[0] = {"K1 > 0","K1 < .01"}
 		k4 = mean(uncaging_response_wave,fit_start,UncageTime)
 		k0 = mean(uncaging_response_wave,(fit_start + response_max_time_0-Amplitude0window),(fit_start + response_max_time_0 + Amplitude0window)) - k4
 		k1 = UncageTime + v_delay_to_response_start_0
-		k2 = decay_time_0
+		k2 = DecayTime0
 		k3 = rise_time_0
     W_Coef = {k0, v_delay_to_response_start_0, k2, k3, k4, UncageTime}
 		V_AbortCode = 0
@@ -460,7 +461,7 @@ k4 = mean(uncaging_response_wave,fit_start,UncageTime)
 k0 = mean(uncaging_response_wave,(fit_start + response_max_time_0 - Amplitude0window),(fit_start + response_max_time_0 - Amplitude0window)) - k4
 v_amplitude = k0
 k1 = UncageTime + DelayToResponseStart
-k2 = decay_time_0
+k2 = DecayTime0
 k3 = rise_time_0
 W_Coef = {k0, v_delay_to_response_start_0, k2, k3, k4,UncageTime}
 V_AbortCode = 0
