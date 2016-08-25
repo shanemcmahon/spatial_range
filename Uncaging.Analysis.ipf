@@ -108,7 +108,7 @@ function UncagingAnalysis(DataWaveList)
 	//initial estimate for uncaging response rise time
 	Variable RiseTime0 = 0.001;	Prompt RiseTime0,"response decay time initial estimate"
 	Variable DelayToResponseStart = 0
-	Variable v_amplitude_0
+	Variable Amplitude0
 	Variable Amplitude0window = 0.001
 	Prompt Amplitude0window,"Window size for amplitude estimate"
 	Variable y0timeWindow = 0.01	//time window before uncaging pulse used to estimate y0
@@ -282,7 +282,7 @@ fit_stop = FitRange
 	V_FitError = 0
 	FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
 	v_delay_to_response_start_0 = w_coef[1]
-	v_amplitude_0 = w_coef[0]
+	Amplitude0 = w_coef[0]
 	DecayTime0 = w_coef[2]
 	RiseTime0 = w_coef[3]
 	endif
@@ -290,7 +290,7 @@ fit_stop = FitRange
 	// use parameter values set in dialog
 		// ResponseMaxTime = y0timeWindow + 3 * RiseTime0
 		DelayToResponseStart = 0
-		v_amplitude_0 = -10
+		Amplitude0 = -10
     // duplicate /o /r=(0,y0timeWindow) w_avg_response WTemp
     // wavestats /q WTemp
 		w_coef = {-10,DelayToResponseStart,RiseTime0,DecayTime0,mean(w_avg_response,0,y0timeWindow),y0timeWindow}
@@ -305,14 +305,14 @@ fit_stop = FitRange
 	// auto guess start parameters
 	ResponseMaxTime = y0timeWindow + 3 * RiseTime0
 	DelayToResponseStart = 0
-	v_amplitude_0 = -10
+	Amplitude0 = -10
 	w_coef = {-10,DelayToResponseStart,RiseTime0,DecayTime0,mean(w_avg_response,0,y0timeWindow),y0timeWindow}
 	FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  w_avg_response /D
 	duplicate /o w_coef wAvgUncageResponseFitCoef
 	duplicate /o w_sigma wAvgUncageResponseFitCoefSE
 	v_delay_to_response_start_0 = w_coef[1]
 	DelayToResponseStart = v_delay_to_response_start_0
-	v_amplitude_0 = w_coef[0]
+	Amplitude0 = w_coef[0]
 	DecayTime0 = w_coef[2]
 	RiseTime0 = w_coef[3]
 	ResponseMaxTime = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
