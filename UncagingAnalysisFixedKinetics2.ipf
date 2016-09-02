@@ -253,13 +253,10 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging*20
 	make /o/n=(nUncagingPulses) RiseTimeW
 	make /o/n=(nUncagingPulses) y0W
 	make /o/n=(nUncagingPulses) OnsetDelayW
-	make /o/n=(nUncagingPulses) AmplitudeRestrictedModelWave
-	make /o/n=(nUncagingPulses) AmplitudeFromMeanWave
-	make /o/n=(nUncagingPulses) AmplitudeRestrictedModelSeWave
 	make /o/n=(nUncagingPulses,6) ParametersW2d
 	make /o/n=(nUncagingPulses,6) ParameterSeW2d
-	make /o/n=(nUncagingPulses,6) NestedParametersW2d
-	make /o/n=(nUncagingPulses,6) NestedParametersSeW2d
+	// make /o/n=(nUncagingPulses,6) NestedParametersW2d
+	// make /o/n=(nUncagingPulses,6) NestedParametersSeW2d
 
 
 // To get initial estimates of the parameters, the model is first fit to the average response
@@ -282,14 +279,14 @@ vPockelsVoltage[0] = sum(temp)/TotalLengthUncaging*20
 //copy uncaging responses into 2d wave
 make /o/n=(nUncagingPulses, nFitPoints) ResponseWave2d
 make /o/n=(nUncagingPulses, nFitPoints) ModelPredictionWave2d
-make /o/n=(nUncagingPulses, nFitPoints) NestedModelPredictW2d
+// make /o/n=(nUncagingPulses, nFitPoints) NestedModelPredictW2d
 make /o/n=(nFitPoints) ModelPredictionWave
 for(i=0;i < nUncagingPulses;i+=1)	// for1
 ResponseWave2d[i][] = UncagingResponseWave[FitStartPointWave[i]+q]
 endfor		//for1
 setscale /p y,0,dimdelta(UncagingResponseWave,0),ResponseWave2d
 setscale /p y,0,dimdelta(UncagingResponseWave,0),ModelPredictionWave2d
-setscale /p y,0,dimdelta(UncagingResponseWave,0),NestedModelPredictW2d
+// setscale /p y,0,dimdelta(UncagingResponseWave,0),NestedModelPredictW2d
 setscale /p x,0,dimdelta(UncagingResponseWave,0),ModelPredictionWave
 
 
@@ -413,8 +410,6 @@ FitStop = FitRange
 		// FuncFit/N/Q/H="001101" /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitStart, FitStop) /D /C=T_Constraints
 		//FuncFit/N/Q/H="011101" /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitStart, FitStop) /D
 		// save the amplitude for restricted model
-		//AmplitudeRestrictedModelWave[i] = w_coef[0]
-		//AmplitudeRestrictedModelSeWave[i] = w_sigma[0]
 		//duplicate /o w_coef CoefNestedModelW
 		//duplicate /o w_sigma CoefNestedModelSeW
 		make /o /n=(nFitPoints) TempW
@@ -422,10 +417,8 @@ FitStop = FitRange
 		setscale /p x,0, dimdelta(UncagingResponseWave,0), TempW
 		duplicate /o TempW wThisResponse
 		//save nonparametric estimate of amplitude
-		//AmplitudeFromMeanWave[i] = mean(TempW,(ResponseMaxTime0-Amplitude0window),(ResponseMaxTime0+Amplitude0window)) - mean(TempW,0,y0timeWindow)
 		// save nonparametric estimate of amplitude
 		// ResponseMaxTime = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
-		// AmplitudeFromMeanWave[i] = mean(UncagingResponseWave,(FitStart+ResponseMaxTime-Amplitude0window),(FitStart+ResponseMaxTime+Amplitude0window)) - mean(UncagingResponseWave,FitStart,(FitStart+y0timeWindow))
 
 do
 // open display window for checking the fit; igor will automatically append the fit to the graph when funcfit is called
@@ -492,7 +485,6 @@ while(UserResponse == 2) //if user indicated to perform a refit, continue loop, 
 
 
 
-
 	endfor												// for1; loop through uncaging events, performing fits for each
 
 dowindow/k review
@@ -501,7 +493,6 @@ dowindow/k review
 // then reverse order of data
 make /o /n=1 UncagingOrderIsReversed
 UncagingOrderIsReversed = 0
-//if(abs(AmplitudeRestrictedModelWave[0]) > abs(AmplitudeRestrictedModelWave[numpnts(AmplitudeW)-1]))
 if(PointSpacingV > 0)
 reverse AmplitudeW
 reverse AmplitudeSeW
@@ -530,8 +521,6 @@ ParameterSeW2d[][] = TempW[nUncagingPulses-p-1][q]
 //duplicate /o NestedParametersW2d TempW
 //NestedParametersW2d[][] = TempW[nUncagingPulses-p-1][q]
 
-//reverse AmplitudeRestrictedModelWave
-//reverse AmplitudeRestrictedModelSeWave
 //reverse AmplitudeFromMeanWave
 //reverse UncageTimeW
 
@@ -717,9 +706,11 @@ endmacro
 
 function SaveResults()
 wave ResponseW2d, UncagingResponseWave,UncageTimeW
-wave FitStartTimeWave, FitStopTimeWave, AmplitudeW, AmplitudeSeW, T0W
-wave DecayTimeW, RiseTimeW, y0W, OnsetDelayW, AmplitudeRestrictedModelWave
-wave AmplitudeFromMeanWave, ResponseWave2d, ModelPredictionWave2d, UidW, NullAmpRestricedW
+//wave FitStartTimeWave,
+// wave FitStopTimeWave,
+wave AmplitudeW, AmplitudeSeW, T0W
+wave DecayTimeW, RiseTimeW, y0W, OnsetDelayW
+wave ResponseWave2d, ModelPredictionWave2d, UidW, NullAmpRestricedW
 wave NullAmplitudeFullModelWave, NullAmplitudeFromMeanWave, PockelsVoltageW
 wave vPockelsVoltage
 variable nResults
@@ -733,8 +724,8 @@ if(!waveexists(ResponseW2d))
 
 make /n=(numpnts(UncagingResponseWave),8) ResponseW2d
 make /n=(numpnts(UncageTimeW),8) UncageTimeW2d
-make /n=(numpnts(FitStartTimeWave),8) UncageTimeW2dFitStartTimeW2d
-make /n=(numpnts(FitStopTimeWave),8) FitStopTimeW2d
+// make /n=(numpnts(FitStartTimeWave),8) UncageTimeW2d,FitStartTimeW2d
+// make /n=(numpnts(FitStopTimeWave),8) FitStopTimeW2d
 make /n=(numpnts(AmplitudeW),8) AmplitudeW2d
 make /n=(numpnts(AmplitudeSeW),8) AmplitudeSeW2d
 make /n=(numpnts(T0W),8) T0W2d
@@ -742,8 +733,6 @@ make /n=(numpnts(DecayTimeW),8) DecayTimeW2d
 make /n=(numpnts(RiseTimeW),8) RiseTimeW2d
 make /n=(numpnts(y0W),8) y0W2d
 make /n=(numpnts(OnsetDelayW),8) OnsetDelayW2d
-make /n=(numpnts(AmplitudeRestrictedModelWave),8) AmpRestrictedModelW2d
-make /n=(numpnts(AmplitudeFromMeanWave),8) AmpFromMeanW2d
 // make /n=(numpnts(),8)
 
 
@@ -751,12 +740,12 @@ duplicate ResponseWave2d UncagingResponseW3d
 redimension /n=(-1,-1,8) UncagingResponseW3d
 duplicate ModelPredictionWave2d ModelPredictionW3d
 redimension /n=(-1,-1,8) ModelPredictionW3d
-duplicate NullAmpRestricedW NullAmpRestricedW2d
-redimension /n=(-1,8) NullAmpRestricedW2d
-duplicate NullAmplitudeFullModelWave NullAmpFullModelW2d
-redimension /n=(-1,8) NullAmpFullModelW2d
-duplicate NullAmplitudeFromMeanWave NullAmpFromMeanW2d
-redimension /n=(-1,8) NullAmpFromMeanW2d
+//duplicate NullAmpRestricedW NullAmpRestricedW2d
+//redimension /n=(-1,8) NullAmpRestricedW2d
+//duplicate NullAmplitudeFullModelWave NullAmpFullModelW2d
+//redimension /n=(-1,8) NullAmpFullModelW2d
+//duplicate NullAmplitudeFromMeanWave NullAmpFromMeanW2d
+//redimension /n=(-1,8) NullAmpFromMeanW2d
 //make /o /n=0 WAmplitudeCorrelation
 // make /o /n=0 WAmplitudeNrCorrelation
 make /o /n=0 PockelsVoltageW
@@ -767,8 +756,8 @@ nResults = numpnts(UidW)-1
 if(nResults >  dimsize( ResponseW2d, 1)*3/4)
 Redimension /N=(-1, 2*nResults) ResponseW2d
 Redimension /N=(-1, 2*nResults) UncageTimeW2d
-Redimension /N=(-1, 2*nResults) UncageTimeW2dFitStartTimeW2d
-Redimension /N=(-1, 2*nResults) FitStopTimeW2d
+//Redimension /N=(-1, 2*nResults) UncageTimeW2d,FitStartTimeW2d
+// Redimension /N=(-1, 2*nResults) FitStopTimeW2d
 Redimension /N=(-1, 2*nResults) AmplitudeW2d
 Redimension /N=(-1, 2*nResults) AmplitudeSeW2d
 Redimension /N=(-1, 2*nResults) T0W2d
@@ -776,15 +765,15 @@ Redimension /N=(-1, 2*nResults) DecayTimeW2d
 Redimension /N=(-1, 2*nResults) RiseTimeW2d
 Redimension /N=(-1, 2*nResults) y0W2d
 Redimension /N=(-1, 2*nResults) OnsetDelayW2d
-Redimension /N=(-1, 2*nResults) AmpRestrictedModelW2d
-Redimension /N=(-1, 2*nResults) AmpFromMeanW2d
+//Redimension /N=(-1, 2*nResults) AmpRestrictedModelW2d
+//Redimension /N=(-1, 2*nResults) AmpFromMeanW2d
 // Redimension /N=(-1, 2*nResults)
 
 Redimension /N=(-1,-1, 2*nResults) UncagingResponseW3d
 Redimension /N=(-1,-1, 2*nResults) ModelPredictionW3d
-redimension /n=(-1,2*nResults) NullAmpRestricedW2d
-redimension /n=(-1,2*nResults) NullAmpFullModelW2d
-redimension /n=(-1,2*nResults) NullAmpFromMeanW2d
+//redimension /n=(-1,2*nResults) NullAmpRestricedW2d
+//redimension /n=(-1,2*nResults) NullAmpFullModelW2d
+//redimension /n=(-1,2*nResults) NullAmpFromMeanW2d
 
 
 endif
@@ -792,8 +781,8 @@ endif
 
 ResponseW2d[][nResults] = UncagingResponseWave[p]
 UncageTimeW2d[][nResults] = UncageTimeW[p]
-UncageTimeW2dFitStartTimeW2d[][nResults] = FitStartTimeWave[p]
-FitStopTimeW2d[][nResults] = FitStopTimeWave[p]
+// UncageTimeW2dFitStartTimeW2d[][nResults] = FitStartTimeWave[p]
+// FitStopTimeW2d[][nResults] = FitStopTimeWave[p]
 AmplitudeW2d[][nResults] = AmplitudeW[p]
 AmplitudeSeW2d[][nResults] = AmplitudeSeW[p]
 T0W2d[][nResults] = T0W[p]
@@ -801,11 +790,9 @@ DecayTimeW2d[][nResults] = DecayTimeW[p]
 RiseTimeW2d[][nResults] = RiseTimeW[p]
 y0W2d[][nResults] = y0W[p]
 OnsetDelayW2d[][nResults] = OnsetDelayW[p]
-AmpRestrictedModelW2d[][nResults] = AmplitudeRestrictedModelWave[p]
-AmpFromMeanW2d[][nResults] = AmplitudeFromMeanWave[p]
-NullAmpRestricedW2d[][nResults] = NullAmpRestricedW[p]
-NullAmpFullModelW2d[][nResults] = NullAmplitudeFullModelWave[p]
-NullAmpFromMeanW2d[][nResults] = NullAmplitudeFromMeanWave[p]
+//NullAmpRestricedW2d[][nResults] = NullAmpRestricedW[p]
+//NullAmpFullModelW2d[][nResults] = NullAmplitudeFullModelWave[p]
+//NullAmpFromMeanW2d[][nResults] = NullAmplitudeFromMeanWave[p]
 // [][nResults] = [p]
 
 UncagingResponseW3d[][][nResults]=ResponseWave2d[p][q]
@@ -815,7 +802,6 @@ ModelPredictionW3d[][][nResults]=ModelPredictionWave2d[p][q]
 // InsertPoints numpnts(WAmplitudeNrCorrelation), 1, WAmplitudeNrCorrelation
 InsertPoints numpnts(PockelsVoltageW), 1, PockelsVoltageW
 PockelsVoltageW[nResults] = vPockelsVoltage[0]
-// WAmplitudeCorrelation[nResults] = StatsCorrelation(AmplitudeW,AmplitudeFromMeanWave)
 // WAmplitudeNrCorrelation[nResults] = StatsCorrelation(NullAmplitudeFullModelWave,NullAmplitudeFromMeanWave)
 end
 
@@ -837,7 +823,7 @@ macro Clean_Up()
 Kill_Input_Waves()
 kill_wave_list("UncagingResponseWave;UncagingPowerWave;")
 kill_wave_list("ResponseWave2d;ModelPredictionWave2d;ModelPredictionWave;TempW;ResponseMeanWave;")
-kill_wave_list("RiseTimeW;y0W;OnsetDelayW;AmplitudeRestrictedModelWave;AmplitudeFromMeanWave;AmplitudeRestrictedModelSeWave;")
+kill_wave_list("RiseTimeW;y0W;OnsetDelayW;")
 kill_wave_list("FitStartTimeWave;FitStopTimeWave;AmplitudeW;AmplitudeSeW;T0W;DecayTimeW;")
 kill_wave_list("w_coef;W_sigma;UncageTimeW;FitStartPointWave;")
 kill_wave_list("UncageTimeW;ResponseWave2d;TempW;ResponseMeanWave;")
@@ -911,18 +897,22 @@ end
 
 function SetResponseNaN()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
-Wave NestedModelPredictW2d
+wave ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
+wave ParameterSeW2d, ParametersW2d
+// Wave NestedModelPredictW2d
 variable i_
 prompt i_,"Point number"
 doprompt "Enter value",i_
 //ShowInfo/CP=0
 //cursor a,$StringFromList(0, tracenamelist("",";",1) ),0
 AmplitudeW[i_]=NaN;AmplitudeSeW[i_]=NaN;T0W[i_]=NaN;DecayTimeW[i_]=NaN;RiseTimeW[i_]=NaN;y0W[i_]=NaN;
-OnsetDelayW[i_]=NaN;AmplitudeRestrictedModelWave[i_]=NaN;AmplitudeFromMeanWave[i_]=NaN;AmplitudeRestrictedModelSeWave[i_]=NaN;
+OnsetDelayW[i_]=NaN;
 //ResponseWave2d[i_][]=NaN
 ModelPredictionWave2d[i_][]=NaN
-NestedModelPredictW2d[i_][]=NaN
+ParameterSeW2d[i_][]=NaN
+ParametersW2d[i_][]=NaN
+
+// NestedModelPredictW2d[i_][]=NaN
 end
 
 //******************************************************************************
@@ -933,15 +923,18 @@ end
 
 function RemoveResponse()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
+wave ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
+wave ParameterSeW2d, ParametersW2d
 variable i_
 prompt i_,"Point number"
 doprompt "Enter value",i_
 DeletePoints i_,1, AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W;DelayUpdate
-DeletePoints i_,1, OnsetDelayW,AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave
+DeletePoints i_,1, OnsetDelayW
 DeletePoints i_,1, ResponseWave2d
 DeletePoints i_,1, ModelPredictionWave2d
-DeletePoints i_,1, NestedModelPredictW2d
+DeletePoints i_,1, ParameterSeW2d
+DeletePoints i_,1, ParametersW2d
+// DeletePoints i_,1, NestedModelPredictW2d
 
 end
 
@@ -953,20 +946,23 @@ end
 
 function InsertResponse()
 wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
-wave AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave,ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
-wave NestedModelPredictW2d
+wave ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
+wave ParameterSeW2d, ParametersW2d
+// wave NestedModelPredictW2d
 Insertpoints 0,1, AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W;DelayUpdate
-Insertpoints 0,1, OnsetDelayW,AmplitudeRestrictedModelWave,AmplitudeFromMeanWave,AmplitudeRestrictedModelSeWave
+Insertpoints 0,1, OnsetDelayW
 Insertpoints 0,1, ResponseWave2d
 Insertpoints 0,1, ModelPredictionWave2d
-Insertpoints 0,1, NestedModelPredictW2d
+// Insertpoints 0,1, NestedModelPredictW2d
 
 
 AmplitudeW[0]=NaN;AmplitudeSeW[0]=NaN;T0W[0]=NaN;DecayTimeW[0]=NaN;RiseTimeW[0]=NaN;y0W[0]=NaN;
-OnsetDelayW[0]=NaN;AmplitudeRestrictedModelWave[0]=NaN;AmplitudeFromMeanWave[0]=NaN;AmplitudeRestrictedModelSeWave[0]=NaN;
+OnsetDelayW[0]=NaN;
 ResponseWave2d[0][]=NaN
 ModelPredictionWave2d[0][]=NaN
-NestedModelPredictW2d[0][]=NaN
+ParameterSeW2d[0][]=NaN
+ParametersW2d[0][]=NaN
+// NestedModelPredictW2d[0][]=NaN
 end
 
 //******************************************************************************
@@ -1017,9 +1013,9 @@ macro DoMakeFigures(UncageSpacingV)
 		Label bottom "\\u#2time (ms)"
 		Label left "I\\u#2 (pA)"
 		appendtograph ModelPredictionWave2d[i][*]
-		appendtograph NestedModelPredictW2d[i][*]
-		ModifyGraph lstyle(NestedModelPredictW2d)=11,rgb(NestedModelPredictW2d)=(0,0,0)
-		ModifyGraph lsize(NestedModelPredictW2d)=2
+		// appendtograph NestedModelPredictW2d[i][*]
+		// ModifyGraph lstyle(NestedModelPredictW2d)=11,rgb(NestedModelPredictW2d)=(0,0,0)
+		// ModifyGraph lsize(NestedModelPredictW2d)=2
 		ModifyGraph rgb(ModelPredictionWave2d)=(0,0,0)
 		appendtograph wUncageIndicator vs wUncageIndicatorTime
 		ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
@@ -1029,7 +1025,7 @@ macro DoMakeFigures(UncageSpacingV)
 		ModifyGraph margin=50
 		ModifyGraph margin(top)=0,margin(right)=0
 		ModifyGraph lblMargin=10
-		Legend/C/N=text0/J/F=0/B=1/A=LT/X=38.00/Y=-11.00 "\\s(ModelPredictionWave2d) Full\r\\s(NestedModelPredictW2d) FixedKinetics\r"
+		// Legend/C/N=text0/J/F=0/B=1/A=LT/X=38.00/Y=-11.00 "\\s(ModelPredictionWave2d) Full\r\\s(NestedModelPredictW2d) FixedKinetics\r"
 
 		i += 1
 	while (i < vNumStim)
@@ -1042,11 +1038,8 @@ macro DoMakeFigures(UncageSpacingV)
 	dowindow/k FitAmplitude
 	display /n=FitAmplitude AmplitudeW
 	setscale /p x,((numpnts(AmplitudeW)-1)*UncageSpacingV),-UncageSpacingV,"nm",AmplitudeW
-	setscale /p x,((numpnts(AmplitudeW)-1)*UncageSpacingV),-UncageSpacingV,"nm",AmplitudeRestrictedModelWave
-	AppendToGraph AmplitudeRestrictedModelWave
 	Label bottom "distance \\u#2 (nm)"
 	ModifyGraph mode=3,marker=19;DelayUpdate
-	ModifyGraph rgb(AmplitudeRestrictedModelWave)=(0,0,0)
 //	ErrorBars/T=0/L=0.7 AmplitudeW Y,wave=(AmplitudeSeW,AmplitudeSeW)
 	Label left "I\\u#2 (pA)"
 	SetAxis left *,max(wavemax(AmplitudeW),0)
@@ -1062,7 +1055,6 @@ macro DoMakeFigures(UncageSpacingV)
 	ModifyGraph margin=50
 	ModifyGraph margin(top)=0,margin(right)=0
 	ModifyGraph lblMargin=10
-	Legend/C/N=text0/J/F=0/B=1/A=LT/X=60/Y=74.00 "\\s(AmplitudeW) Full\r\\s(AmplitudeRestrictedModelWave) FixedKinetics"
 	//AutoPositionWindow/M=1/R=graph1
 
 	dowindow/k UncageResponses
@@ -1213,15 +1205,15 @@ macro DoMakeFigures2(UncageSpacingV)
 	i = 0
 	do
 	sprintf cmd, "dowindow /k response%s", num2str(i)
-	print cmd
+//	print cmd
 	Execute cmd
 	sprintf cmd, "Display /n= response%s ResponseWave2d[%s][*]", num2str(i), num2str(i)
-	print cmd
+//	print cmd
 	Execute cmd
 		Label bottom "\\u#2time (ms)"
 		Label left "I\\u#2 (pA)"
-		appendtograph NestedModelPredictW2d[i][*]
-		ModifyGraph rgb(NestedModelPredictW2d)=(0,0,0)
+		 appendtograph ModelPredictionWave2d[i][*]
+		 ModifyGraph rgb(ModelPredictionWave2d)=(0,0,0)
 		appendtograph wUncageIndicator vs wUncageIndicatorTime
 		ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
 		ModifyGraph rgb(wUncageIndicator)=(0,0,0)
@@ -1240,22 +1232,12 @@ macro DoMakeFigures2(UncageSpacingV)
 
 
 	dowindow/k FitAmplitude
-	display /n=FitAmplitude AmplitudeRestrictedModelWave
+	display /n=FitAmplitude AmplitudeW
 	setscale /p x,((numpnts(AmplitudeW)-1)*UncageSpacingV),-UncageSpacingV,"nm",AmplitudeW
-	setscale /p x,((numpnts(AmplitudeW)-1)*UncageSpacingV),-UncageSpacingV,"nm",AmplitudeRestrictedModelWave
 	Label bottom "distance \\u#2 (nm)"
 	ModifyGraph mode=3,marker=19;DelayUpdate
 //	ErrorBars/T=0/L=0.7 AmplitudeW Y,wave=(AmplitudeSeW,AmplitudeSeW)
 	Label left "I\\u#2 (pA)"
-	SetAxis left *,max(wavemax(AmplitudeRestrictedModelWave),0)
-	Sort NullAmpRestricedW NullAmpRestricedW
-	setscale /i x,0,1,NullAmpRestricedW
-	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-	DrawLine 0,(NullAmpRestricedW(0.01)),1,(NullAmpRestricedW(0.01))
-	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-	DrawLine 0,(NullAmpRestricedW(0.05)),1,(NullAmpRestricedW(0.05))
-	SetDrawEnv ycoord= left;SetDrawEnv dash= 3;DelayUpdate
-	DrawLine 0,(NullAmpRestricedW(0.5)),1,(NullAmpRestricedW(0.5))
 	ModifyGraph width=185,height=80
 	ModifyGraph margin=50
 	ModifyGraph margin(top)=0,margin(right)=0
@@ -1273,7 +1255,7 @@ macro DoMakeFigures2(UncageSpacingV)
 	//AutoPositionWindow/M=0/R=graph4 graph5
 
 	dowindow/k UncageFits
-	plotrows(NestedModelPredictW2d)
+	plotrows(ModelPredictionWave2d)
 	dowindow /c UncageFits
 	ModifyGraph width=185,height=80
 	ModifyGraph margin=50

@@ -368,3 +368,38 @@ Save/T/B  wavelist("ws*1p1",";","")+wavelist("ws*2p1",";","") as wavelist("ws*1p
 Save/T/B/p=home  wavelist("*",";","")
 
 edit w_amplitude,w_amplitude_0,w_amplitude_1,w_amplitude_1_se,w_amplitude_se,w_decay_time,w_onset_delay,w_rise_time,w_t0,w_y0
+
+
+#pragma rtGlobals=3		// Use modern global access method and strict wave access.
+
+macro FitSingleSpineRange()
+string  ListOfWaves =  wavelist("wave*",";","")
+variable nWaves = itemsinlist(ListOfWaves)
+make /o /n=(nWaves) SpatialRanges,SpatialRangeSE
+make /o w_sigma
+variable i_
+i_ = 0
+	do
+		setscale /p x,  1400, -100, $StringFromList(i_,ListOfWaves)
+		display $StringFromList(i_,ListOfWaves)
+		K0=0;k1=wavemin($StringFromList(i_,ListOfWaves));k2=400
+		CurveFit/H="000"/G/N/q/w=2/NTHR=0/K={0} exp_XOffset  $StringFromList(i_,ListOfWaves) /D
+		SpatialRanges[i_] = w_coef[2]
+		SpatialRangeSE[i_] = w_sigma[2]
+		i_ = i_+1
+	while (i_<nWaves)				// as long as expression is TRUE
+endmacro
+
+
+macro KillAllGraphs()
+string ListOfGraphs = WinList("*", ";", "win:1" )
+variable nGraphs = itemsinlist(ListOfGraphs)
+variable i_=0
+do
+dowindow /k $stringfromlist(i_,ListOfGraphs)
+i_ = i_+1
+while(i_<nGraphs)
+endmacro
+
+print mean(spatialRanges)
+print (variance(spatialRanges)^0.5)/mean(spatialRanges)
