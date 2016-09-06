@@ -16,12 +16,25 @@ End
 //******************************************************************************
 
 macro DoUncagingAnalysis()
+string CurrentDataFolder = GetDataFolder(1)
+variable dfLevels = ItemsInList(CurrentDataFolder ,":")
+
+variable i_ = 1
+string /g ParentFolder
+ParentFolder = StringFromList(0, CurrentDataFolder,":")
+	do
+		ParentFolder = ParentFolder+ ":" + StringFromList(i_, CurrentDataFolder,":")
+		i_ = i_+1
+	while (i_ < dfLevels-1)				// as long as expression is TRUE
+
 // helper macro for UncagingAnalysis Function
 // the global variables s_wavenames and s_path are not available inside functions, therefore somethings are done first in the macro
 	String /g DataWaveList = s_wavenames
 //  String /g uid =  StringFromList(ItemsInList(s_path, ":")-4, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-3, s_path , ":") + "_" + StringFromList(ItemsInList(s_path, ":")-2, s_path , ":")+"_ts"+s_path[strlen(s_path)-4,strlen(s_path)-2]
 //  String /g uid =  StringFromList(ItemsInList(s_path, ":")-2, s_path , ":")+s_path[strlen(s_path)-4,strlen(s_path)-2]
-String /g uid = s_filename[0,strlen(s_filename)-5]
+make /t /o/n=1 uid
+//String /g uid = s_filename[0,strlen(s_filename)-5]
+uid[0] = s_filename[0,strlen(s_filename)-5]
   String /g OutputPathStr = s_path
 //	uid = uid + s_filename[0,strlen(s_filename)-5]
 if(!exists("PointSpacingW"))
@@ -691,11 +704,11 @@ End
 
 
 macro DoSaveResults()
-if(!exists("UidW"))
-make /o /n=0 /t UidW
-endif
-InsertPoints numpnts(UidW), 1, UidW
-UidW[numpnts(UidW)] = uid
+//if(!exists("root:UidW"))
+//make /o /n=0 /t root:UidW
+//endif
+//InsertPoints numpnts(root:UidW), 1, root:UidW
+//root:UidW[numpnts(root:UidW)] = uid"
 SaveResults()
 endmacro
 
@@ -711,9 +724,23 @@ wave ResponseW2d, UncagingResponseWave,UncageTimeW
 // wave FitStopTimeWave,
 wave AmplitudeW, AmplitudeSeW, T0W
 wave DecayTimeW, RiseTimeW, y0W, OnsetDelayW
-wave ResponseWave2d, ModelPredictionWave2d, UidW, NullAmpRestricedW
+wave ResponseWave2d, ModelPredictionWave2d, NullAmpRestricedW
 wave NullAmplitudeFullModelWave, NullAmplitudeFromMeanWave, PockelsVoltageW
 wave vPockelsVoltage
+
+wave /t uid
+//wave /t UidW = root:UidW
+
+if(!exists("root:UidW"))
+make /o /n=0 /t root:UidW
+//wave /t UidW = root:UidW
+endif
+wave /t UidW = root:UidW
+InsertPoints numpnts(UidW), 1, root:UidW
+
+root:UidW[numpnts(UidW)] = uid[0]
+
+
 variable nResults
 // string /g OutputPathStr
 // string /g uid
@@ -721,89 +748,81 @@ variable nResults
 // SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid +".png")
 //SavePICT/O/E=-5/B=72 /p=OutputDir /win=SummaryFig as "SummaryFiglr.png"
 
-if(!waveexists(ResponseW2d))
+if(!waveexists(root:ResponseW2d))
 
-make /n=(numpnts(UncagingResponseWave),8) ResponseW2d
-make /n=(numpnts(UncageTimeW),8) UncageTimeW2d
+make /n=(numpnts(UncagingResponseWave),8) root:ResponseW2d
+make /n=(numpnts(UncageTimeW),8) root:UncageTimeW2d
 // make /n=(numpnts(FitStartTimeWave),8) UncageTimeW2d,FitStartTimeW2d
 // make /n=(numpnts(FitStopTimeWave),8) FitStopTimeW2d
-make /n=(numpnts(AmplitudeW),8) AmplitudeW2d
-make /n=(numpnts(AmplitudeSeW),8) AmplitudeSeW2d
-make /n=(numpnts(T0W),8) T0W2d
-make /n=(numpnts(DecayTimeW),8) DecayTimeW2d
-make /n=(numpnts(RiseTimeW),8) RiseTimeW2d
-make /n=(numpnts(y0W),8) y0W2d
-make /n=(numpnts(OnsetDelayW),8) OnsetDelayW2d
-// make /n=(numpnts(),8)
+make /n=(numpnts(AmplitudeW),8) root:AmplitudeW2d
+make /n=(numpnts(AmplitudeSeW),8) root:AmplitudeSeW2d
+make /n=(numpnts(T0W),8) root:T0W2d
+make /n=(numpnts(DecayTimeW),8) root:DecayTimeW2d
+make /n=(numpnts(RiseTimeW),8) root:RiseTimeW2d
+make /n=(numpnts(y0W),8) root:y0W2d
+make /n=(numpnts(OnsetDelayW),8) root:OnsetDelayW2d
 
 
-duplicate ResponseWave2d UncagingResponseW3d
-redimension /n=(-1,-1,8) UncagingResponseW3d
-duplicate ModelPredictionWave2d ModelPredictionW3d
-redimension /n=(-1,-1,8) ModelPredictionW3d
-//duplicate NullAmpRestricedW NullAmpRestricedW2d
-//redimension /n=(-1,8) NullAmpRestricedW2d
-//duplicate NullAmplitudeFullModelWave NullAmpFullModelW2d
-//redimension /n=(-1,8) NullAmpFullModelW2d
-//duplicate NullAmplitudeFromMeanWave NullAmpFromMeanW2d
-//redimension /n=(-1,8) NullAmpFromMeanW2d
-//make /o /n=0 WAmplitudeCorrelation
-// make /o /n=0 WAmplitudeNrCorrelation
-make /o /n=0 PockelsVoltageW
+
+duplicate ResponseWave2d root:UncagingResponseW3d
+redimension /n=(-1,-1,8) root:UncagingResponseW3d
+duplicate ModelPredictionWave2d root:ModelPredictionW3d
+redimension /n=(-1,-1,8) root:ModelPredictionW3d
+make /o /n=0 root:PockelsVoltageW
 endif
 
-nResults = numpnts(UidW)-1
-
-if(nResults >  dimsize( ResponseW2d, 1)*3/4)
-Redimension /N=(-1, 2*nResults) ResponseW2d
-Redimension /N=(-1, 2*nResults) UncageTimeW2d
-//Redimension /N=(-1, 2*nResults) UncageTimeW2d,FitStartTimeW2d
-// Redimension /N=(-1, 2*nResults) FitStopTimeW2d
-Redimension /N=(-1, 2*nResults) AmplitudeW2d
-Redimension /N=(-1, 2*nResults) AmplitudeSeW2d
-Redimension /N=(-1, 2*nResults) T0W2d
-Redimension /N=(-1, 2*nResults) DecayTimeW2d
-Redimension /N=(-1, 2*nResults) RiseTimeW2d
-Redimension /N=(-1, 2*nResults) y0W2d
-Redimension /N=(-1, 2*nResults) OnsetDelayW2d
-//Redimension /N=(-1, 2*nResults) AmpRestrictedModelW2d
-//Redimension /N=(-1, 2*nResults) AmpFromMeanW2d
-// Redimension /N=(-1, 2*nResults)
-
-Redimension /N=(-1,-1, 2*nResults) UncagingResponseW3d
-Redimension /N=(-1,-1, 2*nResults) ModelPredictionW3d
-//redimension /n=(-1,2*nResults) NullAmpRestricedW2d
-//redimension /n=(-1,2*nResults) NullAmpFullModelW2d
-//redimension /n=(-1,2*nResults) NullAmpFromMeanW2d
+wave ResponseW2d = root:ResponseW2d
+wave UncageTimeW2d = root:UncageTimeW2d
+wave AmplitudeW2d = root:AmplitudeW2d
+wave AmplitudeSeW2d = root:AmplitudeSeW2d
+wave T0W2d = root:T0W2d
+wave DecayTimeW2d = root:DecayTimeW2d
+wave RiseTimeW2d = root:RiseTimeW2d
+wave y0W2d = root:y0W2d
+wave OnsetDelayW2d = root:OnsetDelayW2d
+wave UncagingResponseW3d = root:UncagingResponseW3d
+wave ModelPredictionW3d = root:ModelPredictionW3d
+wave PockelsVoltageW = root:PockelsVoltageW
 
 
+nResults = numpnts(root:UidW)-1
+
+if(nResults >  dimsize( root:ResponseW2d, 1)*3/4)
+Redimension /N=(-1, 2*nResults) root:ResponseW2d
+Redimension /N=(-1, 2*nResults) root:UncageTimeW2d
+Redimension /N=(-1, 2*nResults) root:AmplitudeW2d
+Redimension /N=(-1, 2*nResults) root:AmplitudeSeW2d
+Redimension /N=(-1, 2*nResults) root:T0W2d
+Redimension /N=(-1, 2*nResults) root:DecayTimeW2d
+Redimension /N=(-1, 2*nResults) root:RiseTimeW2d
+Redimension /N=(-1, 2*nResults) root:y0W2d
+Redimension /N=(-1, 2*nResults) root:OnsetDelayW2d
+
+Redimension /N=(-1,-1, 2*nResults) root:UncagingResponseW3d
+Redimension /N=(-1,-1, 2*nResults) root:ModelPredictionW3d
 endif
 
 
-ResponseW2d[][nResults] = UncagingResponseWave[p]
-UncageTimeW2d[][nResults] = UncageTimeW[p]
-// UncageTimeW2dFitStartTimeW2d[][nResults] = FitStartTimeWave[p]
-// FitStopTimeW2d[][nResults] = FitStopTimeWave[p]
-AmplitudeW2d[][nResults] = AmplitudeW[p]
-AmplitudeSeW2d[][nResults] = AmplitudeSeW[p]
-T0W2d[][nResults] = T0W[p]
-DecayTimeW2d[][nResults] = DecayTimeW[p]
-RiseTimeW2d[][nResults] = RiseTimeW[p]
-y0W2d[][nResults] = y0W[p]
-OnsetDelayW2d[][nResults] = OnsetDelayW[p]
-//NullAmpRestricedW2d[][nResults] = NullAmpRestricedW[p]
-//NullAmpFullModelW2d[][nResults] = NullAmplitudeFullModelWave[p]
-//NullAmpFromMeanW2d[][nResults] = NullAmplitudeFromMeanWave[p]
-// [][nResults] = [p]
 
-UncagingResponseW3d[][][nResults]=ResponseWave2d[p][q]
-ModelPredictionW3d[][][nResults]=ModelPredictionWave2d[p][q]
 
-//InsertPoints numpnts(WAmplitudeCorrelation), 1, WAmplitudeCorrelation
-// InsertPoints numpnts(WAmplitudeNrCorrelation), 1, WAmplitudeNrCorrelation
-InsertPoints numpnts(PockelsVoltageW), 1, PockelsVoltageW
-PockelsVoltageW[nResults] = vPockelsVoltage[0]
-// WAmplitudeNrCorrelation[nResults] = StatsCorrelation(NullAmplitudeFullModelWave,NullAmplitudeFromMeanWave)
+root:ResponseW2d[][nResults] = UncagingResponseWave[p]
+root:UncageTimeW2d[][nResults] = UncageTimeW[p]
+
+
+root:AmplitudeW2d[][nResults] = AmplitudeW[p]
+root:AmplitudeSeW2d[][nResults] = AmplitudeSeW[p]
+root:T0W2d[][nResults] = T0W[p]
+root:DecayTimeW2d[][nResults] = DecayTimeW[p]
+root:RiseTimeW2d[][nResults] = RiseTimeW[p]
+root:y0W2d[][nResults] = y0W[p]
+root:OnsetDelayW2d[][nResults] = OnsetDelayW[p]
+
+
+root:UncagingResponseW3d[][][nResults]=ResponseWave2d[p][q]
+root:ModelPredictionW3d[][][nResults]=ModelPredictionWave2d[p][q]
+InsertPoints numpnts(PockelsVoltageW), 1, root:PockelsVoltageW
+root:PockelsVoltageW[nResults] = vPockelsVoltage[0]
+
 end
 
 //******************************************************************************
@@ -1288,9 +1307,9 @@ macro DoMakeFigures2(UncageSpacingV)
 MakeLayout()
 
 string /g OutputPathStr
-string /g uid
+//wave  uid
 newpath /o OutputDir, OutputPathStr
-SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid +"_sub.png")
+SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid[0] +".png")
 endmacro
 
 menu "macros"
