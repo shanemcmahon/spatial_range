@@ -1,3 +1,4 @@
+
 #pragma rtGlobals=1
 #include <Waves Average>
 #include <Wave Arithmetic Panel>

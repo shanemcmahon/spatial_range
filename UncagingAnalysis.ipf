@@ -34,7 +34,6 @@ macro DoUncagingAnalysis()
 //generate spine id
 	make /t /o/n=1 uid
 	uid = s_filename[0,strlen(s_filename)-5]
-	//:FitResults:uid[0] = s_filename[0,strlen(s_filename)-5]
 	String /g OutputPathStr = s_path
 //provide wave containers and default values for some user specefied parameters
 //if the waves already exist then they are not overwritten, this allows parameters
@@ -413,8 +412,8 @@ function UncagingAnalysis()
 		FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  ResponseMeanWave /D
 
 		//review fit
-		Appendtograph :UAdata:PosNo_12, :UAdata:PosNo_13, :UAdata:PosNo_14
-		ReorderTraces ResponseMeanWave,{fit_ResponseMeanWave,posNo_12,posNo_13,posNo_14}
+//		Appendtograph :UAdata:PosNo_12, :UAdata:PosNo_13, :UAdata:PosNo_14
+//		ReorderTraces ResponseMeanWave,{fit_ResponseMeanWave,posNo_12,posNo_13,posNo_14}
 		NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=look
 		Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserContinue
 		PauseForUser PauseForUser0, look
@@ -481,7 +480,8 @@ function UncagingAnalysis()
 			// open display window for checking the fit; igor will automatically append the fit to the graph when funcfit is called
 			dowindow /k review
 			display /n=review UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart ),x2pnt(UncagingResponseWave, FitStop )]
-			SetAxis left (UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart )]-25e-12), (UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart )]+10e-12)
+			// SetAxis left (UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart )]-25e-12), (UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart )]+10e-12)
+			SetAxis left (UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart )]+2*wAvgUncageResponseFitCoef[0]), (UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart )]-wAvgUncageResponseFitCoef[0])
 
 			SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
 			DrawLine UncageTime,0,UncageTime,1
@@ -614,7 +614,6 @@ endmacro
 
 function SaveResults()
 	wave /t CurrentWaveNames = :UAdata:CurrentWaveNames
-	// wave /t currentwavenames
 	wave ResponseW2d
 	wave UncageTimeW = :UAdata:UncageTimeW
 	wave AmplitudeW = :FitResults:AmplitudeW
@@ -624,7 +623,7 @@ function SaveResults()
 	wave RiseTimeW = :FitResults:RiseTimeW
 	wave y0W = :FitResults:y0W
 	wave OnsetDelayW = :FitResults:OnsetDelayW
-	wave ResponseWave2d =:FitResults:ResponseWave2d 
+	wave ResponseWave2d =:FitResults:ResponseWave2d
 	wave ModelPredictionWave2d =	:FitResults:ModelPredictionWave2d
 	wave PockelsVoltageW
 	wave vPockelsVoltage
@@ -663,7 +662,6 @@ function SaveResults()
 		redimension /n=(-1,-1,8) root:ModelPredictionW3d
 		make /o /n=0 root:PockelsVoltageW
 	endif
-// abort "1"
 	wave ResponseW2d = root:ResponseW2d
 	wave UncageTimeW2d = root:UncageTimeW2d
 	wave AmplitudeW2d = root:AmplitudeW2d
@@ -677,7 +675,6 @@ function SaveResults()
 	wave ModelPredictionW3d = root:ModelPredictionW3d
 	wave PockelsVoltageW = root:PockelsVoltageW
 
-// abort "1"
 	nResults = numpnts(root:UidW)-1
 
 	if(nResults >  dimsize( root:ResponseW2d, 1)*3/4)
@@ -695,7 +692,6 @@ function SaveResults()
 		Redimension /N=(-1,-1, 2*nResults) root:ModelPredictionW3d
 	endif
 
-// abort "1"
 
 
 	root:ResponseW2d[][nResults] = UncagingResponseWave[p]
@@ -750,19 +746,14 @@ function RemoveSpineData()
 	doprompt "Enter value",i_
 
 	DeletePoints/M=1 i_,1, AmplitudeW2d
-	//DeletePoints/M=1 i_,1, AmpRestrictedModelW2d
-	//DeletePoints/M=1 i_,1, AmpFromMeanW2d
 	DeletePoints/M=1 i_,1, AmplitudeSeW2d
 	DeletePoints/M=1 i_,1, DecayTimeW2d
 	DeletePoints/M=1 i_,1, OnsetDelayW2d
 	DeletePoints/M=1 i_,1, RiseTimeW2d
 	DeletePoints/M=1 i_,1, UncageTimeW2d
-	//FitStartTimeW2d
-	//DeletePoints/M=1 i_,1, FitStopTimeW2d
 	DeletePoints/M=1 i_,1, T0W2d
 	DeletePoints/M=1 i_,1, y0W2d
 	DeletePoints/M=1 i_,1, ResponseW2d
-	//DeletePoints/M=1 i_,1, UncageTimeW2d
 	DeletePoints/M=2 i_,1, ModelPredictionW3d
 	DeletePoints/M=2 i_,1, UncagingResponseW3d
 	DeletePoints i_,1, PockelsVoltageW
@@ -778,21 +769,14 @@ end
 function SetResponseNaN()
 	wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
 	wave ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
-	// wave ParameterSeW2d,ParametersW2d
-	// Wave NestedModelPredictW2d
 	variable i_
 	prompt i_,"Point number"
 	doprompt "Enter value",i_
-	//ShowInfo/CP=0
-	//cursor a,$StringFromList(0, tracenamelist("",";",1) ),0
+
 	AmplitudeW[i_]=NaN;AmplitudeSeW[i_]=NaN;T0W[i_]=NaN;DecayTimeW[i_]=NaN;RiseTimeW[i_]=NaN;y0W[i_]=NaN;
 	OnsetDelayW[i_]=NaN;
-	//ResponseWave2d[i_][]=NaN
 	ModelPredictionWave2d[i_][]=NaN
-	// ParameterSeW2d[i_][]=NaN
-	// ParametersW2d[i_][]=NaN
 
-	// NestedModelPredictW2d[i_][]=NaN
 end
 
 //******************************************************************************
@@ -804,7 +788,6 @@ end
 function RemoveResponse()
 	wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
 	wave ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
-	// wave ParameterSeW2d, ParametersW2d
 	variable i_
 	prompt i_,"Point number"
 	doprompt "Enter value",i_
@@ -812,9 +795,6 @@ function RemoveResponse()
 	DeletePoints i_,1, OnsetDelayW
 	DeletePoints i_,1, ResponseWave2d
 	DeletePoints i_,1, ModelPredictionWave2d
-	// DeletePoints i_,1, ParameterSeW2d
-	// DeletePoints i_,1, ParametersW2d
-	// DeletePoints i_,1, NestedModelPredictW2d
 
 end
 
@@ -827,22 +807,16 @@ end
 function InsertResponse()
 	wave AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W,OnsetDelayW
 	wave ResponseWave2d,ResponseWave2d,ModelPredictionWave2d
-	// wave ParameterSeW2d, ParametersW2d
-	// wave NestedModelPredictW2d
 	Insertpoints 0,1, AmplitudeW,AmplitudeSeW,T0W,DecayTimeW,RiseTimeW,y0W;DelayUpdate
 	Insertpoints 0,1, OnsetDelayW
 	Insertpoints 0,1, ResponseWave2d
 	Insertpoints 0,1, ModelPredictionWave2d
-	// Insertpoints 0,1, NestedModelPredictW2d
 
 
 	AmplitudeW[0]=NaN;AmplitudeSeW[0]=NaN;T0W[0]=NaN;DecayTimeW[0]=NaN;RiseTimeW[0]=NaN;y0W[0]=NaN;
 	OnsetDelayW[0]=NaN;
 	ResponseWave2d[0][]=NaN
 	ModelPredictionWave2d[0][]=NaN
-	// ParameterSeW2d[0][]=NaN
-	// ParametersW2d[0][]=NaN
-	// NestedModelPredictW2d[0][]=NaN
 end
 
 //******************************************************************************
@@ -860,7 +834,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////
 macro MakeLayout(nResponsePanelCols)
 	Variable nResponsePanelCols = nResponsePanelColsW[0]
-//	duplicate /o /free $(currentwavenames[0][%response]), UncagingResponseWave
 
 	Variable i,j
 	String cmd
@@ -884,8 +857,6 @@ macro MakeLayout(nResponsePanelCols)
 		print i
 		j = 0
 		do
-			//print j
-			//print (i*nResponsePanelCols+j)
 			sprintf cmd, "appendtolayout Response%s",num2str(i*nResponsePanelCols+j);	Execute cmd
 			sprintf cmd, "modifylayout left(Response%s)=%s",num2str(i*nResponsePanelCols+j),num2str(245*j);	Execute cmd
 			sprintf cmd, "modifylayout top(Response%s)=%s",num2str(i*nResponsePanelCols+j),num2str(285 + i*135);	Execute cmd
@@ -925,7 +896,7 @@ endmacro
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-macro DoMakeFigures2(UncageSpacingV)
+macro DoMakeFigures(UncageSpacingV)
 	variable UncageSpacingV = :UAdata:PointSpacingW[0]
 	duplicate /o $(:UAdata:currentwavenames[0][%response]) UncagingResponseWave
 
@@ -1044,17 +1015,24 @@ macro DoMakeFigures2(UncageSpacingV)
 	//wave  uid
 	newpath /o OutputDir, OutputPathStr
 	SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid[0] +".png")
+
+
+display :fitresults:amplitudew
+make /o /n=3 w_coef
+K0 = 0;
+CurveFit/H="100"/NTHR=0/TBOX=768 exp_XOffset  :FitResults:AmplitudeW /D
+redimension /n=(1,3) w_coef
+edit uid,vPockelsVoltage,w_coef
+AutoPositionWindow /m=0 /r = table0 table1
 endmacro
 
 menu "macros"
 	"DoUncagingAnalysis/1"
-	"DoMakeFigures2/2"
+	"DoMakeFigures/2"
 	"DoSaveResults/3"
 	"Clean_Up/4"
 	"SetResponseNan/5"
 	"RemoveResponse/6"
 	"InsertResponse/7"
 	"RemoveSpineData"
-	"MakeLayout"
-	//	"DoMakeFigures2"
 end
