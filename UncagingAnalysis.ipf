@@ -545,7 +545,7 @@ function UncagingAnalysis()
 		duplicate /o DecayTimeW, TempW;		  DecayTimeW = TempW[(nUncagingPulses-1)-p]
 		duplicate /o RiseTimeW, TempW;		  RiseTimeW = TempW[(nUncagingPulses-1)-p]
 		duplicate /o y0W, TempW;		        y0W = TempW[(nUncagingPulses-1)-p]
-		duplicate /o OnsetDelayW, TempW;		OnsetDelayW = y0W[(nUncagingPulses-1)-p]
+		duplicate /o OnsetDelayW, TempW;		OnsetDelayW = TempW[(nUncagingPulses-1)-p]
 
 		duplicate /o ModelPredictionWave2d TempW
 		ModelPredictionWave2d[][] = TempW[(nUncagingPulses-1)-p][q]
@@ -864,13 +864,13 @@ macro MakeLayout(nResponsePanelCols)
 			sprintf cmd, "modifylayout left(text%s)=%s",num2str(i*nResponsePanelCols+j),num2str(245*j);	Execute cmd
 			sprintf cmd, "modifylayout top(text%s)=%s",num2str(i*nResponsePanelCols+j),num2str(285 + i*135);	Execute cmd
 			j += 1
+			if(i*nResponsePanelCols + j >= dimsize(:FitResults:ModelPredictionWave2d,0))
+				break
+			endif
 		while(j<nResponsePanelCols)
-
-
-		if(i*nResponsePanelCols + j + 1 >= dimsize(:FitResults:ModelPredictionWave2d,0))
+		if(i*nResponsePanelCols + j >= dimsize(:FitResults:ModelPredictionWave2d,0))
 			break
 		endif
-
 		i += 1
 	while(i < dimsize(:FitResults:ModelPredictionWave2d,0))
 
