@@ -890,6 +890,8 @@ macro MakeLayout(nResponsePanelCols)
 	modifylayout left(SummaryFigTable)=245
 	modifylayout top(SummaryFigTable)=535+(i)*135
 	modifylayout frame = 0
+	
+
 endmacro
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -1017,14 +1019,19 @@ macro DoMakeFigures(UncageSpacingV)
 	newpath /o OutputDir, OutputPathStr
 	SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid[0] +".png")
 
-
-display :fitresults:amplitudew
+DoWindow/K SpatialRange
+display /N = SpatialRange :fitresults:amplitudew
 make /o /n=3 w_coef
 K0 = 0;
 CurveFit/H="100"/NTHR=0/TBOX=768 exp_XOffset  :FitResults:AmplitudeW /D
 redimension /n=(1,3) w_coef
-edit uid,vPockelsVoltage,w_coef
-AutoPositionWindow /m=0 /r = table0 table1
+DoWindow /K SummaryInfo
+edit /N=SummaryInfo uid,vPockelsVoltage,w_coef
+AutoPositionWindow /m=0 /r = SummaryFig SummaryInfo
+AutoPositionWindow /m=0 /r = SummaryInfo SpatialRange 
+DoWindow /k AmplitudeData
+Edit/K=0 /n=AmplitudeData :FitResults:AmplitudeW
+autopositionwindow /m=1 /r=SummaryInfo AmplitudeData
 endmacro
 
 menu "macros"
