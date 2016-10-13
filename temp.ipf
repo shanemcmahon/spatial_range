@@ -1,4 +1,39 @@
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
+Save/T/M="\n" /p=home %s as "ws2016Apr05c1sp1.itx"
+
+newdatafolder root:$(s_fileName[0,(strlen(s_filename)-5)])
+movewave %s root:$(s_fileName[0,(strlen(s_filename)-5)]):
+
+string S_fileName
+string S_path = "Macintosh HD:Users:shane:Dropbox (Uniklinik Bonn):SMcM:data:projects:spatial range:p15-21:data:WS:"
+
+
+
+SpineNo = 7
+TraceNo=25
+
+newdatafolder root:$("sp"+num2str(SpineNo))
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo)+"_1_1"),root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo)+"_1_1")
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo)+"_1_1_Amp"), root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo)+"_1_1_Amp")
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo)+"_1_1_Dur"), root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo)+"_1_1_Dur")
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo)+"_1_2"), root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo)+"_1_2")
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo)+"_1_2_Amp"), root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo)+"_1_2_Amp")
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo)+"_1_2_Dur"), root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo)+"_1_2_Dur")
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo+1)+"_1_1"), root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo+1)+"_1_1")
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo+1)+"_1_1_Amp"), root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo+1)+"_1_1_Amp")
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo+1)+"_1_1_Dur"), root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo+1)+"_1_1_Dur")
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo+2)+"_1_1"), root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo+2)+"_1_1")
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo+2)+"_1_1_Amp"), root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo+2)+"_1_1_Amp")
+movewave root:$("W2016Oct09_2_"+num2str(TraceNo+2)+"_1_1_Dur"), root:$("sp"+num2str(SpineNo)):$("W2016Oct09_2_"+num2str(TraceNo+2)+"_1_1_Dur")
+SpineNo = SpineNo+1
+TraceNo=TraceNo+3
+
+
+
+
+Save/T/M="\n" /p=home %s as "ws2016Apr05c1sp1.itx"
+
+
 
 duplicate /o /r=[*][1,(numpnts(UidW)-1)]  AmpRestrictedModelW2d, TempW
 ColumnMins(tempw)

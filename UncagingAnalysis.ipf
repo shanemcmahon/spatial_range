@@ -34,7 +34,19 @@ macro DoUncagingAnalysis()
 
 //generate spine id
 	make /t /o/n=1 uid
+	if(exists("s_filename"))
 	uid = s_filename[0,strlen(s_filename)-5]
+	else
+	//make /o /n=26 numbers = x+65
+	//statssample /n=6 numbers
+	//uid = num2char(w_sampled[0])+num2char(w_sampled[1])+num2char(w_sampled[2])+num2char(w_sampled[3])
+	//uid = uid + num2char(w_sampled[4]) +num2char(w_sampled[5])
+	uid = getdatafolder(0)
+	endif
+
+	if(!exists("s_path"))
+		pathinfo home
+	endif
 	String /g OutputPathStr = s_path
 //provide wave containers and default values for some user specefied parameters
 //if the waves already exist then they are not overwritten, this allows parameters
@@ -186,7 +198,7 @@ function UncagingAnalysis()
 	//wColumnMeans is the output of a user defined function (ColumnMeans), to make igor happy we need to tell it that the wave exists
 	make /o wColumnMeans
 	// (optional) string containing the name of a user defined wave to be used to estimate initial fit parameters
-	String UserAvgResponseWaveName = ""; prompt UserAvgResponseWaveName, "Name of user specified average wave name (optional)"
+
 	//bit string specifying which model parameters are fixed/free. Used as funcfit /H=CoefIsFixed
 	String CoefIsFixed = "011101"; prompt CoefIsFixed, "Bit string specifying parameters to fix in the model." //see Igor help on funcfit /H for details
 	make /o /n=1 vPockelsVoltage
@@ -196,6 +208,8 @@ function UncagingAnalysis()
 	make /o/t /n=(1,10) :UAdata:CurrentWaveNames
 	wave /t CurrentWaveNames = :UAdata:CurrentWaveNames
 	CurrentWaveNames = ""
+	wave /t uid
+	string suid = uid[0]; prompt suid,"Terminal Unique ID"
 
 
 	// ============================================================================
@@ -221,12 +235,14 @@ function UncagingAnalysis()
 	CurrentWaveNames[0][0] = UncagingResponseWaveName; SetDimLabel 1,0,response,CurrentWaveNames
 	CurrentWaveNames[0][1] = UncagingPowerWaveName; SetDimLabel 1,1,power,CurrentWaveNames
 
+
 	// set default value for UserSetPar0
 	UserSetPar0 = 3
 
 	// promp user for starting parameters
 	DoPrompt "",FitRange,DecayTime0,RiseTime0,Amplitude0window,y0timeWindow,UserSetPar0,PointSpacingV,T00V,DeltaT0V
-	DoPrompt "",UserAvgResponseWaveName, CoefIsFixed
+	DoPrompt "", CoefIsFixed, suid
+	uid[0] = suid
 	PointSpacingW = PointSpacingV
 	T00W = T00V
 	DeltaT0W = DeltaT0V
@@ -345,14 +361,7 @@ function UncagingAnalysis()
 //if user supplies a wave then use it for estimating starting parameters
 //if user supplied wave name is empty then average the first three uncaging responses
 //if user supplies a wave name but the reference does not exists, then abort
-	if(strlen(UserAvgResponseWaveName)>0)
-		wave UserAvgResponse = $UserAvgResponseWaveName
-		if(!waveexists(UserAvgResponse))
-			abort "User supplied wave name " + UserAvgResponseWaveName + " does not exists. To use the default average, you must enter an empty string for the name."
-		endif
-		killwaves /z ResponseMeanWave
-		rename $UserAvgResponseWaveName, ResponseMeanWave
-	else
+
 		make /o/n=(3,nFitPoints) :UAdata:BigResponseW
 		wave BigResponseW = :UAdata:BigResponseW
 		BigResponseW[][] = ResponseWave2d[nUncagingPulses-p-1][q]
@@ -361,9 +370,14 @@ function UncagingAnalysis()
 		endif
 		ColumnMeans(BigResponseW)
 		duplicate /o wColumnMeans, ResponseMeanWave
-	endif
 
 
+String UserAvgResponseWaveName = ""; prompt UserAvgResponseWaveName, "Name of user specified average wave name (optional)",popup,wavelist("*",";","")
+UserAvgResponseWaveName = "ResponseMeanWave"
+doprompt "", UserAvgResponseWaveName
+duplicate /o $UserAvgResponseWaveName temp
+duplicate /o temp ResponseMeanWave
+//ResponseMeanWave = $UserAvgResponseWaveName
 	setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
 
 	FitStop = FitRange
@@ -383,11 +397,30 @@ function UncagingAnalysis()
 		DelayToResponseStart0 = DelayToResponseStart
 		V_AbortCode = 0
 		V_FitError = 0
+		Display /N=look ResponseMeanWave
+		ModifyGraph rgb(ResponseMeanWave)=(0,0,0)
 		FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  ResponseMeanWave /D
+		
+		NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=look
+		Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserContinue
+		PauseForUser PauseForUser0, look
+		dowindow /k look
+		
+				//save parameters
+		duplicate /o w_coef wAvgUncageResponseFitCoef
+		duplicate /o w_sigma wAvgUncageResponseFitCoefSE
 		DelayToResponseStart0 = w_coef[1]
+		DelayToResponseStart = DelayToResponseStart0
 		Amplitude0 = w_coef[0]
 		DecayTime0 = w_coef[2]
 		RiseTime0 = w_coef[3]
+		ResponseMaxTime = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
+		ResponseMaxTime0 = ResponseMaxTime
+		
+//		DelayToResponseStart0 = w_coef[1]
+//		Amplitude0 = w_coef[0]
+//		DecayTime0 = w_coef[2]
+//		RiseTime0 = w_coef[3]
 	endif
 	if(UserSetPar0 == 2)
 		// use parameter values set in dialog
@@ -395,11 +428,30 @@ function UncagingAnalysis()
 		Amplitude0 = -10
 		w_coef = {-10,DelayToResponseStart,RiseTime0,DecayTime0,mean(ResponseMeanWave,0,y0timeWindow),y0timeWindow}
 		// perform fit of average response for display purposes
+				Display /N=look ResponseMeanWave
+		ModifyGraph rgb(ResponseMeanWave)=(0,0,0)
 		FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  ResponseMeanWave /D
-		ResponseMaxTime = y0timeWindow + DelayToResponseStart0 + (DecayTime0*RiseTime0)/(DecayTime0-RiseTime0)*ln(DecayTime0/RiseTime0)
+				//review fit
+//		Appendtograph :UAdata:PosNo_12, :UAdata:PosNo_13, :UAdata:PosNo_14
+//		ReorderTraces ResponseMeanWave,{fit_ResponseMeanWave,posNo_12,posNo_13,posNo_14}
+		NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=look
+		Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserContinue
+		PauseForUser PauseForUser0, look
+		dowindow /k look
+		//save parameters
+		duplicate /o w_coef wAvgUncageResponseFitCoef
+		duplicate /o w_sigma wAvgUncageResponseFitCoefSE
+		DelayToResponseStart0 = w_coef[1]
+		DelayToResponseStart = DelayToResponseStart0
+		Amplitude0 = w_coef[0]
+		DecayTime0 = w_coef[2]
+		RiseTime0 = w_coef[3]
+		ResponseMaxTime = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
 		ResponseMaxTime0 = ResponseMaxTime
-		DelayToResponseStart = w_coef[1]
-		DelayToResponseStart0 = DelayToResponseStart
+//		ResponseMaxTime = y0timeWindow + DelayToResponseStart0 + (DecayTime0*RiseTime0)/(DecayTime0-RiseTime0)*ln(DecayTime0/RiseTime0)
+//		ResponseMaxTime0 = ResponseMaxTime
+//		DelayToResponseStart = w_coef[1]
+//		DelayToResponseStart0 = DelayToResponseStart
 	endif
 	if(UserSetPar0==3)
 		// auto guess start parameters
@@ -833,16 +885,38 @@ end
 //
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-macro MakeLayout(nResponsePanelCols)
+function MakeLayout()
+string CellRefImageWave
+wave /t wCellRefImageWaveName
+Prompt CellRefImageWave,"cell reference image wave name",popup,wavelist("*",";","dims:3")
+
+doprompt "",CellRefImageWave
+wCellRefImageWaveName[0] = CellRefImageWave
+end
+
+macro DoMakeLayout(nResponsePanelCols)
 	Variable nResponsePanelCols = nResponsePanelColsW[0]
 
 	Variable i,j
 	String cmd
-
+	make /O/T wCellRefImageWaveName
 	nResponsePanelColsW[0] = nResponsePanelCols
+
+MakeLayout()
+dowindow /k CellRefImage
+NewImage/K=0/n=CellRefImage $wCellRefImageWaveName[0]
+ModifyGraph /w=CellRefImage tick=3,noLabel=2
 
 	dowindow /k SummaryFig
 	newlayout /n=SummaryFig
+	
+	//if(!wintype("SummaryFig"))
+	//	newlayout /n=SummaryFig
+	//else
+	//layoutpageaction /w = SummaryFig appendpage
+	//endif
+
+	
 	ModifyGraph /w=FullResponse width=(245*nResponsePanelCols-60)
 	appendtolayout FullResponse
 	modifylayout left(FullResponse)=0
@@ -851,7 +925,7 @@ macro MakeLayout(nResponsePanelCols)
 	duplicate /o :FitResults:AmplitudeW UncagePosition
 	UncagePosition = x
 
-
+	ModifyLayout units=0
 	i=0
 
 	do
@@ -875,6 +949,9 @@ macro MakeLayout(nResponsePanelCols)
 		i += 1
 	while(i < dimsize(:FitResults:ModelPredictionWave2d,0))
 
+	ModifyGraph /w=CellRefImage width=min(512,420+(i)*135),height=min(512,420+(i)*135)
+	
+
 	appendtolayout UncageResponses
 	modifylayout left(UncageResponses)=0
 	modifylayout top(UncageResponses)=420+(i)*135
@@ -890,6 +967,10 @@ macro MakeLayout(nResponsePanelCols)
 	modifylayout left(SummaryFigTable)=245
 	modifylayout top(SummaryFigTable)=535+(i)*135
 	modifylayout frame = 0
+
+	appendtolayout CellRefImage
+	modifylayout left(CellRefImage)=(245*nResponsePanelCols)
+//	layoutpageaction /w = SummaryFig size=( ((420+(i)*135)+min(512,420+(i)*135)),numberbykey("Top",layoutinfo("SummaryFig","SummaryFigTable")) + numberbykey("Height",layoutinfo("SummaryFig","SummaryFigTable")))
 	
 
 endmacro
@@ -1012,7 +1093,7 @@ macro DoMakeFigures(UncageSpacingV)
 		make /n=1 nResponsePanelColsW
 		nResponsePanelColsW = 2
 	endif
-	MakeLayout()
+	DoMakeLayout()
 
 	string /g OutputPathStr
 	//wave  uid
@@ -1028,7 +1109,7 @@ redimension /n=(1,3) w_coef
 DoWindow /K SummaryInfo
 edit /N=SummaryInfo uid,vPockelsVoltage,w_coef
 AutoPositionWindow /m=0 /r = SummaryFig SummaryInfo
-AutoPositionWindow /m=0 /r = SummaryInfo SpatialRange 
+AutoPositionWindow /m=0 /r = SummaryInfo SpatialRange
 DoWindow /k AmplitudeData
 Edit/K=0 /n=AmplitudeData :FitResults:AmplitudeW
 autopositionwindow /m=1 /r=SummaryInfo AmplitudeData
