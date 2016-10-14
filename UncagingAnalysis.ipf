@@ -400,12 +400,12 @@ duplicate /o temp ResponseMeanWave
 		Display /N=look ResponseMeanWave
 		ModifyGraph rgb(ResponseMeanWave)=(0,0,0)
 		FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  ResponseMeanWave /D
-		
+
 		NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=look
 		Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserContinue
 		PauseForUser PauseForUser0, look
 		dowindow /k look
-		
+
 				//save parameters
 		duplicate /o w_coef wAvgUncageResponseFitCoef
 		duplicate /o w_sigma wAvgUncageResponseFitCoefSE
@@ -416,7 +416,7 @@ duplicate /o temp ResponseMeanWave
 		RiseTime0 = w_coef[3]
 		ResponseMaxTime = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
 		ResponseMaxTime0 = ResponseMaxTime
-		
+
 //		DelayToResponseStart0 = w_coef[1]
 //		Amplitude0 = w_coef[0]
 //		DecayTime0 = w_coef[2]
@@ -909,14 +909,14 @@ ModifyGraph /w=CellRefImage tick=3,noLabel=2
 
 	dowindow /k SummaryFig
 	newlayout /n=SummaryFig
-	
+
 	//if(!wintype("SummaryFig"))
 	//	newlayout /n=SummaryFig
 	//else
 	//layoutpageaction /w = SummaryFig appendpage
 	//endif
 
-	
+
 	ModifyGraph /w=FullResponse width=(245*nResponsePanelCols-60)
 	appendtolayout FullResponse
 	modifylayout left(FullResponse)=0
@@ -950,7 +950,7 @@ ModifyGraph /w=CellRefImage tick=3,noLabel=2
 	while(i < dimsize(:FitResults:ModelPredictionWave2d,0))
 
 	ModifyGraph /w=CellRefImage width=min(512,420+(i)*135),height=min(512,420+(i)*135)
-	
+
 
 	appendtolayout UncageResponses
 	modifylayout left(UncageResponses)=0
@@ -971,7 +971,7 @@ ModifyGraph /w=CellRefImage tick=3,noLabel=2
 	appendtolayout CellRefImage
 	modifylayout left(CellRefImage)=(245*nResponsePanelCols)
 //	layoutpageaction /w = SummaryFig size=( ((420+(i)*135)+min(512,420+(i)*135)),numberbykey("Top",layoutinfo("SummaryFig","SummaryFigTable")) + numberbykey("Height",layoutinfo("SummaryFig","SummaryFigTable")))
-	
+
 
 endmacro
 ///////////////////////////////////////////////////////////////////////////////
@@ -1097,8 +1097,16 @@ macro DoMakeFigures(UncageSpacingV)
 
 	string /g OutputPathStr
 	//wave  uid
-	newpath /o OutputDir, OutputPathStr
-	SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid[0] +".png")
+	v_flag = 0
+	killpath /z OutputDir
+	newpath /z OutputDir, OutputPathStr
+	
+	if(!v_flag==0)
+	SavePICT/O/E=-5/B=288  /win=SummaryFig as (uid[0] +".png")
+	else
+		SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid[0] +".png")
+	endif
+
 
 DoWindow/K SpatialRange
 display /N = SpatialRange :fitresults:amplitudew
