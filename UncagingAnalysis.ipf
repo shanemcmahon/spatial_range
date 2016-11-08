@@ -1082,7 +1082,7 @@ macro DoMakeFigures(UncageSpacingV)
 	make/o/t/n=(4,2) SummaryFigTableData
 	summaryFigTableData[][0] = {"Pockels (mV)","Laser (mW)","ID","notes","OrderIsReversed"}
 	summaryFigTableData[][1] = {"","","",""}
-	summaryFigTableData[0][1] = {num2str(vPockelsVoltage[0]),num2str(VLaserPower[0]),uid,"model fixed kinetics",num2str(UncagingOrderIsReversed)}
+	summaryFigTableData[0][1] = {num2str(vPockelsVoltage[0]),num2str(VLaserPower[0]),uid[0],"model fixed kinetics",num2str(UncagingOrderIsReversed)}
 	dowindow /k SummaryFigTable
 	edit /n=SummaryFigTable SummaryFigTableData
 	modifytable autosize = {0,1,-1,0,0}
@@ -1115,7 +1115,8 @@ K0 = 0;
 CurveFit/H="100"/NTHR=0/TBOX=768 exp_XOffset  :FitResults:AmplitudeW /D
 redimension /n=(1,3) w_coef
 DoWindow /K SummaryInfo
-edit /N=SummaryInfo uid,vPockelsVoltage,w_coef
+make /o /n=1 nResponse = numpnts(:FitResults:AmplitudeW)
+edit /N=SummaryInfo uid,vPockelsVoltage,w_coef,nResponse
 AutoPositionWindow /m=0 /r = SummaryFig SummaryInfo
 AutoPositionWindow /m=0 /r = SummaryInfo SpatialRange
 DoWindow /k AmplitudeData
