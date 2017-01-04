@@ -1,4 +1,27 @@
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
+
+//##########################################################################
+//##########################################################################
+// read ccalc binary data
+//##########################################################################
+//##########################################################################
+variable FileRefNum
+variable NumGridPoints
+open /R FileRefNum
+fsetpos filerefnum, 0
+fbinread /f=3 FileRefNum, NumGridPoints
+make /o /n=(NumGridPoints) mydata
+
+fsetpos filerefnum, 8
+fbinread /f=5 FileRefNum, mydata
+redimension /n=(NumGridPoints^(1/3),NumGridPoints^(1/3),NumGridPoints^(1/3)) mydata
+
+close FileRefNum
+
+
+
+
+
 Save/T/M="\n" /p=home %s as "ws2016Apr05c1sp1.itx"
 
 newdatafolder root:$(s_fileName[0,(strlen(s_filename)-5)])
@@ -438,3 +461,102 @@ endmacro
 
 print mean(spatialRanges)
 print (variance(spatialRanges)^0.5)/mean(spatialRanges)
+
+
+
+
+
+//############################################################################
+//############################################################################
+// Make figures
+//############################################################################
+//############################################################################
+RemoveFromGraph /W=response0 ModelPredictionWave2d
+RemoveFromGraph /W=response1 ModelPredictionWave2d
+RemoveFromGraph /W=response2 ModelPredictionWave2d
+RemoveFromGraph /W=response3 ModelPredictionWave2d
+RemoveFromGraph /W=response4 ModelPredictionWave2d
+RemoveFromGraph /W=response5 ModelPredictionWave2d
+RemoveFromGraph /W=response6 ModelPredictionWave2d
+RemoveFromGraph /W=response7 ModelPredictionWave2d
+RemoveFromGraph /W=response8 ModelPredictionWave2d
+RemoveFromGraph /W=response9 ModelPredictionWave2d
+RemoveFromGraph /W=response10 ModelPredictionWave2d
+RemoveFromGraph /W=response11 ModelPredictionWave2d
+RemoveFromGraph /W=response12 ModelPredictionWave2d
+RemoveFromGraph /W=response13 ModelPredictionWave2d
+RemoveFromGraph /W=response14 ModelPredictionWave2d
+
+GraphRangeMax = GraphRangeMax +10E-12
+SetAxis /W=response0 left (GraphRangeMin[0]),(GraphRangeMax[0])
+SetAxis /W=response1 left (GraphRangeMin[1]),(GraphRangeMax[1])
+SetAxis /W=response2 left (GraphRangeMin[2]),(GraphRangeMax[2])
+SetAxis /W=response3 left (GraphRangeMin[3]),(GraphRangeMax[3])
+SetAxis /W=response4 left (GraphRangeMin[4]),(GraphRangeMax[4])
+SetAxis /W=response5 left (GraphRangeMin[5]),(GraphRangeMax[5])
+SetAxis /W=response6 left (GraphRangeMin[6]),(GraphRangeMax[6])
+SetAxis /W=response7 left (GraphRangeMin[7]),(GraphRangeMax[7])
+SetAxis /W=response8 left (GraphRangeMin[8]),(GraphRangeMax[8])
+SetAxis /W=response9 left (GraphRangeMin[9]),(GraphRangeMax[9])
+SetAxis /W=response10 left (GraphRangeMin[10]),(GraphRangeMax[10])
+SetAxis /W=response11 left (GraphRangeMin[11]),(GraphRangeMax[11])
+SetAxis /W=response12 left (GraphRangeMin[12]),(GraphRangeMax[12])
+SetAxis /W=response13 left (GraphRangeMin[13]),(GraphRangeMax[13])
+SetAxis /W=response14 left (GraphRangeMin[14]),(GraphRangeMax[14])
+
+
+
+ModifyGraph /W=response0 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response1 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response2 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response3 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response4 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response5 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response6 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response7 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response8 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response9 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response10 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response11 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response12 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response13 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+ModifyGraph /W=response14 rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+
+Make /o /n=2 ScaleVertX,ScaleVertY,ScaleHorizX,ScaleHorizY
+ScaleVertX=0
+ScaleVertY= {GraphRangeMin[14],(GraphRangeMin[14]+1E-11)}
+ScaleHorizY={GraphRangeMin[14],GraphRangeMin[14]}
+ScaleHorizX={0,0.01}
+//AppendToGraph /W=response14 ScaleVertY vs ScaleVertX
+//AppendToGraph /W=response14 ScaleHorizY vs ScaleHorizX
+//ModifyGraph /W=response14 rgb=(0,0,0)
+display /n=EphysScale ScaleVertY vs ScaleVertX
+AppendToGraph /W=EphysScale ScaleHorizY vs ScaleHorizX
+SetAxis /W=EphysScale left (GraphRangeMin[14]),(GraphRangeMax[14])
+SetAxis /W=EphysScale bottom 0,(50E-3)
+ModifyGraph /W=EphysScale rgb=(0,0,0), noLabel=2,axThick=0, margin(left)=10,margin(bottom)=10,margin(right)=1,margin(top)=1, width=160, height = 120
+Layout/T response0,response1,response2,response3,response4,response5,response6,response7,response8,response9,response10,response11,response12,response13,response14
+AppendToLayout EphysScale
+modifylayout frame=0, trans=1
+
+
+
+
+
+UncageX = UncageX*dimsize(UncageRef,0)
+UncageY = UncageY*dimsize(UncageRef,0)
+variable MicronsPerPixel = 0.018092349616713
+variable PixelsPerLine = 256
+make /o RefScaleX, RefScaleY
+RefScaleY = {100,100}
+RefScaleX = {100,(100+1/(MicronsPerPixel/(dimsize(UncageRef,0)/PixelsPerLine) ))}
+
+
+newimage /n=UncageRefPanel UncageRef
+AppendToGraph /w=UncageRefPanel /T UncageY vs UncageX
+ModifyGraph /w=UncageRefPanel mode=2,lsize=2,rgb=(65535,65535,65535), axThick=0, noLabel=2, margin=1, width=288, height=288
+AppendToGraph /w=UncageRefPanel /T RefScaleY vs RefScaleX
+ModifyGraph /w=UncageRefPanel rgb=(65535,65535,65535)
+
+TextBox /w=SpatialRange /K/N=CF_AmplitudeW
+ModifyGraph /w=SpatialRange mode(AmplitudeW)=3,marker(AmplitudeW)=19

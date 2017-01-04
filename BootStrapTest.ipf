@@ -1,4 +1,4 @@
-//***********************************************************************
+edit//***********************************************************************
 //***********************************************************************
 //Original code from WS, modified by SM
 //Implements Bootstrap test for difference in means on Studentized samples as described in Davison and Hinkley, p171 ex 4.19
@@ -79,7 +79,8 @@ Macro BootstrapTtestFor2Samples (Oriwvname1, Oriwvname2, WvForT, resamplen)
         //     countTval+=1
         // Endif
 
-        If ((CalT)>(OriT)) // count how many times t  value is larger than the original t, 1-sided, µ1 > µ2
+        //If ((CalT)>(OriT)) // count how many times t  value is larger than the original t, 1-sided, µ1 > µ2
+          If (abs(CalT)>abs(OriT)) // count how many times t  value is larger than the original t, 2-sided
             countTval+=1
         Endif
 
