@@ -888,7 +888,7 @@ end
 function MakeLayout()
 string CellRefImageWave
 wave /t wCellRefImageWaveName
-Prompt CellRefImageWave,"cell reference image wave name",popup,wavelist("*",";","dims:3")
+Prompt CellRefImageWave,"cell reference image wave name",popup,(wavelist("*",";","dims:2")+wavelist("*",";","dims:3"))
 
 doprompt "",CellRefImageWave
 wCellRefImageWaveName[0] = CellRefImageWave
