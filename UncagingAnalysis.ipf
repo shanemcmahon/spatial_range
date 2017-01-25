@@ -1100,7 +1100,7 @@ macro DoMakeFigures(UncageSpacingV)
 	v_flag = 0
 	killpath /z OutputDir
 	newpath /z OutputDir, OutputPathStr
-	
+
 	if(!v_flag==0)
 	SavePICT/O/E=-5/B=288  /win=SummaryFig as (uid[0] +".png")
 	else
@@ -1124,6 +1124,54 @@ Edit/K=0 /n=AmplitudeData :FitResults:AmplitudeW
 autopositionwindow /m=1 /r=SummaryInfo AmplitudeData
 endmacro
 
+Macro MakeNormalizedResponse()
+string ResponseDfList = "d0;d100;d200;d300;d400;d500;d600;d700;d800;d900;d1000;d1100;d1200;d1300;d1400"
+string ResponseWaveList = "posNo_0;posNo_1;posNo_2;posNo_3;posNo_4;posNo_5;posNo_6;posNo_7;posNo_8;posNo_9;posNo_10;posNo_11;posNo_12;posNo_13;posNo_14;"
+wavestats :FitResults:AmplitudeW
+
+duplicate/o :FitResults:y0w y0w
+
+duplicate /o :UAData:posNo_0 posNo_0
+posNo_0 = (posNo_0 - y0w[0])/abs(V_min)
+duplicate /o :UAData:posNo_1 posNo_1
+posNo_1 = (posNo_1 - y0w[1])/abs(V_min)
+duplicate /o :UAData:posNo_2 posNo_2
+posNo_2 = (posNo_2 - y0w[2])/abs(V_min)
+duplicate /o :UAData:posNo_3 posNo_3
+posNo_3 = (posNo_3 - y0w[3])/abs(V_min)
+duplicate /o :UAData:posNo_4 posNo_4
+posNo_4 = (posNo_4 - y0w[4])/abs(V_min)
+duplicate /o :UAData:posNo_5 posNo_5
+posNo_5 = (posNo_5 - y0w[5])/abs(V_min)
+duplicate /o :UAData:posNo_6 posNo_6
+posNo_6 = (posNo_6 - y0w[6])/abs(V_min)
+duplicate /o :UAData:posNo_7 posNo_7
+posNo_7 = (posNo_7 - y0w[7])/abs(V_min)
+duplicate /o :UAData:posNo_8 posNo_8
+posNo_8 = (posNo_8 - y0w[8])/abs(V_min)
+duplicate /o :UAData:posNo_9 posNo_9
+posNo_9 = (posNo_9 - y0w[9])/abs(V_min)
+duplicate /o :UAData:posNo_10 posNo_10
+posNo_10 = (posNo_10 - y0w[10])/abs(V_min)
+duplicate /o :UAData:posNo_11 posNo_11
+posNo_11 = (posNo_11 - y0w[11])/abs(V_min)
+duplicate /o :UAData:posNo_12 posNo_12
+posNo_12 = (posNo_12 - y0w[12])/abs(V_min)
+duplicate /o :UAData:posNo_13 posNo_13
+posNo_13 = (posNo_13 - y0w[13])/abs(V_min)
+duplicate /o :UAData:posNo_14 posNo_14
+posNo_14 = (posNo_14 - y0w[14])/abs(V_min)
+variable i_ = 0
+string FromThis,ToThis
+	do
+FromThis = stringfromlist((V_minrowloc-i_),ResponseWaveList)
+ToThis =	 "root:"+stringfromlist(i_,ResponseDfList)+":"+stringfromlist((V_minrowloc-i_),ResponseWaveList)+"_"+ReplaceString("'", uid[0], "")
+duplicate /o $FromThis $ToThis
+
+		i_ += 1
+	while (i_ <= v_minrowloc)	// as long as expression is TRUE
+EndMacro
+
 menu "macros"
 	"DoUncagingAnalysis/1"
 	"DoMakeFigures/2"
@@ -1133,4 +1181,5 @@ menu "macros"
 	"RemoveResponse/6"
 	"InsertResponse/7"
 	"RemoveSpineData"
+	"MakeNormalizedResponse"
 end
