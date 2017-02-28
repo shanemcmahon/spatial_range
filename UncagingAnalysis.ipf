@@ -606,6 +606,33 @@ setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
 		UncagingOrderIsReversed = 1
 	endif
 
+	killwaves /z :UAdata:fit_responseMeanWave, :UAdata:ResponseMeanWave, :UAdata:wAvgUncageResponseFitCoef
+	killwaves /z :UAdata:wAvgUncageResponseFitCoefSE, w_coef, w_sigma
+	MoveWave fit_responseMeanWave, :UAdata:
+	MoveWave ResponseMeanWave, :UAdata:
+	MoveWave wAvgUncageResponseFitCoef, :UAdata:
+	MoveWave wAvgUncageResponseFitCoefSE, :UAdata:
+	killwaves /z ModelPredictionWave, temp,wColumnMeans
+	//killwaves /z fit_responseMeanWave
+	String fldrSav0= GetDataFolder(1)
+	SetDataFolder :FitResults:
+
+	make /o /n=(DimSize(ModelPredictionWave2d, 1 ),DimSize(ModelPredictionWave2d, 0 )) ModelPredictionWave2dT
+	ModelPredictionWave2dT = ModelPredictionWave2d[q][p]
+	setscale /p y,0,DimDelta(ModelPredictionWave2d, 1 ),ModelPredictionWave2dT
+	KillDataFolder /Z FitWaves
+	SplitWave/z/O/SDIM=1/N=w_fit/DDF=FitWaves ModelPredictionWave2dT
+
+	make /o /n=(DimSize(ResponseWave2d, 1 ),DimSize(ResponseWave2d, 0 )) ResponseWave2dT
+	ResponseWave2dT = ResponseWave2d[q][p]
+	setscale /p y,0,DimDelta(ResponseWave2d, 1 ),ResponseWave2dT
+	KillDataFolder /Z ResponseWaves
+	SplitWave/z/O/SDIM=1/N=w_Response/DDF=ResponseWaves ResponseWave2dT
+
+
+	SetDataFolder fldrSav0
+
+
 end
 
 
