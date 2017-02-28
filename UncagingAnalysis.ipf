@@ -37,10 +37,6 @@ macro DoUncagingAnalysis()
 	if(exists("s_filename"))
 	uid = s_filename[0,strlen(s_filename)-5]
 	else
-	//make /o /n=26 numbers = x+65
-	//statssample /n=6 numbers
-	//uid = num2char(w_sampled[0])+num2char(w_sampled[1])+num2char(w_sampled[2])+num2char(w_sampled[3])
-	//uid = uid + num2char(w_sampled[4]) +num2char(w_sampled[5])
 	uid = getdatafolder(0)
 	endif
 
@@ -197,7 +193,6 @@ function UncagingAnalysis()
 	Variable DeltaT0V = DeltaT0W[0]; prompt DeltaT0V,"DeltaT0"
 	//wColumnMeans is the output of a user defined function (ColumnMeans), to make igor happy we need to tell it that the wave exists
 	make /o wColumnMeans
-	// (optional) string containing the name of a user defined wave to be used to estimate initial fit parameters
 
 	//bit string specifying which model parameters are fixed/free. Used as funcfit /H=CoefIsFixed
 	String CoefIsFixed = "011101"; prompt CoefIsFixed, "Bit string specifying parameters to fix in the model." //see Igor help on funcfit /H for details
@@ -210,6 +205,7 @@ function UncagingAnalysis()
 	CurrentWaveNames = ""
 	wave /t uid
 	string suid = uid[0]; prompt suid,"Terminal Unique ID"
+	string HelpString
 
 
 	// ============================================================================
@@ -226,12 +222,14 @@ function UncagingAnalysis()
 	// user is also provided the option "some other wave..."
 	// if the user indicates that the stimulus/response wave is not lasted, then prompt again, offering a list of all waves in the current data folder
 	Variable nDataWaves = itemsinlist(WaveDataList)
-	doPrompt "",UncagingResponseWaveName,UncagingPowerWaveName
-	if(!(cmpstr(UncagingResponseWaveName, "Some other wave..." )*cmpstr(UncagingPowerWaveName, "Some other wave..." )))
-		Prompt UncagingResponseWaveName,"uncaging response wave name",popup,wavelist("*",";","")
-		Prompt UncagingPowerWaveName,"uncaging power wave name",popup,wavelist("*",";","")
-		doPrompt "",UncagingResponseWaveName,UncagingPowerWaveName
-	endif
+	HelpString = "UncagingResponseWaveName: the name of the wave containing the uncaging response. The units are assumed to be seconds and amps.\n\n UncagingPowerWaveName: the name of the wave containing the pockels voltage. The units are assumed to be in seconds and volts"
+	doPrompt /help=HelpString "",UncagingResponseWaveName,UncagingPowerWaveName
+
+	// if(!(cmpstr(UncagingResponseWaveName, "Some other wave..." )*cmpstr(UncagingPowerWaveName, "Some other wave..." )))
+	// 	Prompt UncagingResponseWaveName,"uncaging response wave name",popup,wavelist("*",";","")
+	// 	Prompt UncagingPowerWaveName,"uncaging power wave name",popup,wavelist("*",";","")
+	// 	doPrompt "",UncagingResponseWaveName,UncagingPowerWaveName
+	// endif
 	CurrentWaveNames[0][0] = UncagingResponseWaveName; SetDimLabel 1,0,response,CurrentWaveNames
 	CurrentWaveNames[0][1] = UncagingPowerWaveName; SetDimLabel 1,1,power,CurrentWaveNames
 
@@ -240,8 +238,21 @@ function UncagingAnalysis()
 	UserSetPar0 = 3
 
 	// promp user for starting parameters
-	DoPrompt "",FitRange,DecayTime0,RiseTime0,Amplitude0window,y0timeWindow,UserSetPar0,PointSpacingV,T00V,DeltaT0V
-	DoPrompt "", CoefIsFixed, suid
+	HelpString = "Size of time window: Time window in seconds for response fittings.\n\n"
+	HelpString = HelpString + "Response Decay Time: initial estimate for the response decay time, in seconds\n\n"
+	HelpString = HelpString + "Response rise time: initial estimate for response rise time, in seconds\n\n"
+	HelpString = HelpString + "Window size for amplitude estimate: The response is averaged over a time window with the specified width. The center of the time window is calculated from the rise and decay times in auto mode. In interactive mode, the center is specefied interactively."
+	HelpString = HelpString + "Window size for y0 estimate: The response is averaged over the specified time interval to estimate the initial amplitude. In auto mode the start of the window is set to 10 ms before the uncaging pulse. In interactive mode, it can be specefied manually."
+	HelpString = HelpString + "Initial paramter estimates: \n 	Defualt: uses default parameters.\n Auto Guess: The program attempts to find suitable starting parameters automatically. \n Interactive: Estimate starting parameters by interacting with a graph.\n\n"
+	HelpString = HelpString + "Distance between uncaging points: The distance between uncaging points. The sign indicates direction of motion. A negative value indicates that consective uncages pulses approach the spine. A positive value indicates that succesive pulses are moving away from the spine. The sign of the value determines which response traces are used for estimating initial parameters.\n\n"
+	HelpString = HelpString + "T00: The parameter T0 supplied to the Difference in exponential fitting function is the time between the uncaging pulse and the rising phase of the response. T00 sets T0 for the response closest to the spine"
+	HelpString = HelpString + "DeltaT0: T0 is assumed to increase linearly with spine distance according to T0 = T00 + DeltaT0*Distance. DeltaT0 has units of ms/nm"
+
+	DoPrompt /Help="Refer to manual for parameter descriptions." "",FitRange,DecayTime0,RiseTime0,Amplitude0window,y0timeWindow,UserSetPar0,PointSpacingV,T00V,DeltaT0V
+
+	HelpString = 	"CoefIsFixed: bit string specifying which model parameters are fixed/free. Used as funcfit /H=CoefIsFixed\n\n"
+	HelpString = HelpString + "suid: a name to identify the response. The spine id is used to name output files."
+	DoPrompt /Help=HelpString "", CoefIsFixed, suid
 	uid[0] = suid
 	PointSpacingW = PointSpacingV
 	T00W = T00V
@@ -337,9 +348,6 @@ function UncagingAnalysis()
 	make /o/n=(nFitPoints) ModelPredictionWave
 	for (i=0;i < nUncagingPulses;i+=1)	// for1
 		ResponseWave2d[i][] = UncagingResponseWave[FitStartPointWave[i]+q]
-		// Duplicate /O /r =[i][] ResponseWave2d  $("posNo_"+num2str(i))
-		// redimension /n=(nfitpoints) $("posNo_"+num2str(i))
-		// setscale /p x,0,dimdelta(UncagingResponseWave,0), $("posNo_"+num2str(i))
 		Duplicate /O /r =[i][] ResponseWave2d  $(":UAdata:posNo_"+num2str(i))
 		redimension /n=(nfitpoints) $(":UAdata:posNo_"+num2str(i))
 		setscale /p x,0,dimdelta(UncagingResponseWave,0), $(":UAdata:posNo_"+num2str(i))
@@ -374,11 +382,11 @@ function UncagingAnalysis()
 
 String UserAvgResponseWaveName = ""; prompt UserAvgResponseWaveName, "Name of user specified average wave name (optional)",popup,wavelist("*",";","")
 UserAvgResponseWaveName = "ResponseMeanWave"
-doprompt "", UserAvgResponseWaveName
+DoPrompt /HELP="Specify the wave name used to estimate initial parameters. \n If ResponseMeanWave (the default value) is specified, then the program estimates initial parameters using an average of 3 responses, else the program uses the named wave." "", UserAvgResponseWaveName
+// doprompt "", UserAvgResponseWaveName
 duplicate /o $UserAvgResponseWaveName temp
 duplicate /o temp ResponseMeanWave
-//ResponseMeanWave = $UserAvgResponseWaveName
-	setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
+setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
 
 	FitStop = FitRange
 
@@ -432,8 +440,6 @@ duplicate /o temp ResponseMeanWave
 		ModifyGraph rgb(ResponseMeanWave)=(0,0,0)
 		FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  ResponseMeanWave /D
 				//review fit
-//		Appendtograph :UAdata:PosNo_12, :UAdata:PosNo_13, :UAdata:PosNo_14
-//		ReorderTraces ResponseMeanWave,{fit_ResponseMeanWave,posNo_12,posNo_13,posNo_14}
 		NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=look
 		Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserContinue
 		PauseForUser PauseForUser0, look
@@ -448,10 +454,6 @@ duplicate /o temp ResponseMeanWave
 		RiseTime0 = w_coef[3]
 		ResponseMaxTime = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
 		ResponseMaxTime0 = ResponseMaxTime
-//		ResponseMaxTime = y0timeWindow + DelayToResponseStart0 + (DecayTime0*RiseTime0)/(DecayTime0-RiseTime0)*ln(DecayTime0/RiseTime0)
-//		ResponseMaxTime0 = ResponseMaxTime
-//		DelayToResponseStart = w_coef[1]
-//		DelayToResponseStart0 = DelayToResponseStart
 	endif
 	if(UserSetPar0==3)
 		// auto guess start parameters
@@ -465,8 +467,6 @@ duplicate /o temp ResponseMeanWave
 		FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  ResponseMeanWave /D
 
 		//review fit
-//		Appendtograph :UAdata:PosNo_12, :UAdata:PosNo_13, :UAdata:PosNo_14
-//		ReorderTraces ResponseMeanWave,{fit_ResponseMeanWave,posNo_12,posNo_13,posNo_14}
 		NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=look
 		Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserContinue
 		PauseForUser PauseForUser0, look
@@ -533,14 +533,12 @@ duplicate /o temp ResponseMeanWave
 			// open display window for checking the fit; igor will automatically append the fit to the graph when funcfit is called
 			dowindow /k review
 			display /n=review UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart ),x2pnt(UncagingResponseWave, FitStop )]
-			// SetAxis left (UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart )]-25e-12), (UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart )]+10e-12)
-			SetAxis left (UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart )]+2*wAvgUncageResponseFitCoef[0]), (UncagingResponseWave[x2pnt(UncagingResponseWave, FitStart )]-wAvgUncageResponseFitCoef[0])
+
 
 			SetDrawEnv xcoord= bottom;SetDrawEnv dash= 3;DelayUpdate
 			DrawLine UncageTime,0,UncageTime,1
 
 			FuncFit/N/Q/H=CoefIsFixed /NTHR=0 DiffTwoExp2 W_coef  UncagingResponseWave(FitStart, FitStop) /D
-
 			DoUpdate
 
 			//******************************************************************************
@@ -894,8 +892,10 @@ doprompt "",CellRefImageWave
 wCellRefImageWaveName[0] = CellRefImageWave
 end
 
-macro DoMakeLayout(nResponsePanelCols)
+macro DoMakeLayout(nResponsePanelCols,LayoutWidth,LayoutHeight)
 	Variable nResponsePanelCols = nResponsePanelColsW[0]
+	Variable LayoutWidth = 1350
+	Variable LayoutHeight = 1200
 
 	Variable i,j
 	String cmd
@@ -909,6 +909,7 @@ ModifyGraph /w=CellRefImage tick=3,noLabel=2
 
 	dowindow /k SummaryFig
 	newlayout /n=SummaryFig
+	LayoutPageAction size(-1)=(LayoutWidth, LayoutHeight), margins(-1)=(18, 18, 18, 18)
 
 	//if(!wintype("SummaryFig"))
 	//	newlayout /n=SummaryFig
@@ -927,17 +928,28 @@ ModifyGraph /w=CellRefImage tick=3,noLabel=2
 
 	ModifyLayout units=0
 	i=0
-
+string ResponseName, TextBoxName
+string layout_info = layoutinfo("SummaryFig","layout");string LayoutSize = stringfromlist(1,stringfromlist(3,layout_info),":")
+variable layoutright = str2num(stringfromlist(2,LayoutSize,",")), variable layoutbottom = str2num(stringfromlist(3,LayoutSize,","))
 	do
 		print i
 		j = 0
 		do
-			sprintf cmd, "appendtolayout Response%s",num2str(i*nResponsePanelCols+j);	Execute cmd
-			sprintf cmd, "modifylayout left(Response%s)=%s",num2str(i*nResponsePanelCols+j),num2str(245*j);	Execute cmd
-			sprintf cmd, "modifylayout top(Response%s)=%s",num2str(i*nResponsePanelCols+j),num2str(285 + i*135);	Execute cmd
-			sprintf cmd, "TextBox/w=SummaryFig/C/N=text%s/F=0 /A=LT (num2str(UncagePosition[%s]) + \"nm\")",num2str(i*nResponsePanelCols+j),num2str(i*nResponsePanelCols+j);	Execute cmd
-			sprintf cmd, "modifylayout left(text%s)=%s",num2str(i*nResponsePanelCols+j),num2str(245*j);	Execute cmd
-			sprintf cmd, "modifylayout top(text%s)=%s",num2str(i*nResponsePanelCols+j),num2str(285 + i*135);	Execute cmd
+			ResponseName = ("Response" + num2str(i*nResponsePanelCols+j))
+			TextBoxName = ("TextBox"+num2str(i*nResponsePanelCols+j))
+			AppendToLayout $ResponseName
+			//AppendToLayout Response1
+			// sprintf cmd, "appendtolayout Response%s",num2str(i*nResponsePanelCols+j);	Execute cmd
+			ModifyLayout left($ResponseName)=(245*j)
+			// sprintf cmd, "modifylayout left(Response%s)=%s",num2str(i*nResponsePanelCols+j),num2str(245*j);	Execute cmd
+			ModifyLayout top($ResponseName)=((285 + i*135))
+			// sprintf cmd, "modifylayout top(Response%s)=%s",num2str(i*nResponsePanelCols+j),num2str(285 + i*135);	Execute cmd
+			TextBox /w=SummaryFig/C/N=$TextBoxName/F=0/A=LT (num2str(UncagePosition[(i*nResponsePanelCols+j)]) + "nm")
+			// sprintf cmd, "TextBox/w=SummaryFig/C/N=text%s/F=0 /A=LT (num2str(UncagePosition[%s]) + \"nm\")",num2str(i*nResponsePanelCols+j),num2str(i*nResponsePanelCols+j);	Execute cmd
+			ModifyLayout  left($TextBoxName)=(245*j)
+			// sprintf cmd, "modifylayout left(text%s)=%s",num2str(i*nResponsePanelCols+j),num2str(245*j);	Execute cmd
+			ModifyLayout  top($TextBoxName)=((285 + i*135))
+			// sprintf cmd, "modifylayout top(text%s)=%s",num2str(i*nResponsePanelCols+j),num2str(285 + i*135);	Execute cmd
 			j += 1
 			if(i*nResponsePanelCols + j >= dimsize(:FitResults:ModelPredictionWave2d,0))
 				break
@@ -949,7 +961,6 @@ ModifyGraph /w=CellRefImage tick=3,noLabel=2
 		i += 1
 	while(i < dimsize(:FitResults:ModelPredictionWave2d,0))
 
-	ModifyGraph /w=CellRefImage width=min(512,420+(i)*135),height=min(512,420+(i)*135)
 
 
 	appendtolayout UncageResponses
@@ -993,21 +1004,19 @@ macro DoMakeFigures(UncageSpacingV)
 	//vPockelsVoltage = 20*vPockelsVoltage
 	dowindow/k FullResponse
 	display /n=FullResponse UncagingResponseWave
-	Label bottom "time \\u#2 (s)"
-	Label left "I\\u#2 (pA)"
+	Label bottom "time \\u#2 (s)"; Label left "I\\u#2 (pA)"
 	wavestats /	q UncagingResponseWave
 	SetAxis left v_min,(v_max+v_sdev)
 	duplicate /o :UAdata:UncageTimeW :UAdata:wUncageIndicator
 	:UAdata:wUncageIndicator = (v_max+v_sdev)
 	appendtograph :UAdata:wUncageIndicator vs :UAdata:UncageTimeW
 	ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
-	ModifyGraph rgb(wUncageIndicator)=(0,0,0)
-	ModifyGraph width={Aspect,7}
+	ModifyGraph rgb(wUncageIndicator)=(0,0,0)//, width={Aspect,7}
 	ModifyGraph width=430,height=225
-	ModifyGraph margin(bottom)=40
-	ModifyGraph margin(left)=40
-	ModifyGraph margin(top)=20
-	ModifyGraph margin(right)=20
+	ModifyGraph margin(bottom)=40, margin(left)=40, margin(top)=20, margin(right)=20
+	// ModifyGraph margin(left)=40
+	// ModifyGraph margin(top)=20
+	// ModifyGraph margin(right)=20
 
 	vNumStim = dimsize(:FitResults:ResponseWave2d,0)
 	duplicate /o :UAdata:UncageTimeW :UAdata:wUncageIndicatorTime
@@ -1024,10 +1033,15 @@ macro DoMakeFigures(UncageSpacingV)
 		Label left "I\\u#2 (pA)"
 		appendtograph :FitResults:ModelPredictionWave2d[i][*]
 		ModifyGraph rgb(ModelPredictionWave2d)=(0,0,0)
-		appendtograph :UAdata:wUncageIndicator vs :UAdata:wUncageIndicatorTime
-		ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
-		ModifyGraph rgb(wUncageIndicator)=(0,0,0)
-		SetAxis left v_min,(v_max+v_sdev)
+		SetDrawEnv xcoord=bottom, ycoord=rel
+		DrawText 10E-3,0.1,"*"
+		// appendtograph :UAdata:wUncageIndicator vs :UAdata:wUncageIndicatorTime
+		// ModifyGraph mode(wUncageIndicator)=3,marker(wUncageIndicator)=2;DelayUpdate
+		// ModifyGraph rgb(wUncageIndicator)=(0,0,0)
+		// SetAxis left v_min,(v_max+v_sdev)
+		// SetAxis left (:FitResults:y0w[i]-10E-12),(:FitResults:y0w[i]+10E-12)
+		SetAxis left (:FitResults:y0w[i]-1.5*abs(wavemin(:FitResults:AmplitudeW))),(:FitResults:y0w[i]+abs(wavemin(:FitResults:AmplitudeW)))
+
 		ModifyGraph width=185,height=80
 		ModifyGraph margin=50
 		ModifyGraph margin(top)=0,margin(right)=0
