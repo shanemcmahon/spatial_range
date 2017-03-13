@@ -20,58 +20,45 @@ macro DoUncagingAnalysis()
 	// helper macro for UncagingAnalysis Function
 	newdatafolder /o UAdata
 	newdatafolder /o FitResults
-	string CurrentDataFolder = GetDataFolder(1)
-	variable dfLevels = ItemsInList(CurrentDataFolder ,":")
 
-	variable i_ = 1
-	string /g ParentFolder
-	ParentFolder = StringFromList(0, CurrentDataFolder,":")
-	do
-		ParentFolder = ParentFolder+ ":" + StringFromList(i_, CurrentDataFolder,":")
-		i_ = i_+1
-	while (i_ < dfLevels-1)				// as long as expression is TRUE
-
-
-//generate spine id
+	//generate spine id. If s_filename exists, then it is used as the id, otherwise the current data folder is used
 	make /t /o/n=1 uid
 	if(exists("s_filename"))
-	uid = s_filename[0,strlen(s_filename)-5]
+		uid = s_filename[0,strlen(s_filename)-5]
 	else
-	uid = getdatafolder(0)
+		uid = getdatafolder(0)
 	endif
 
+	//if s_path does not exists, then call pathinfo home, this sets s_path to the home directory
 	if(!exists("s_path"))
 		pathinfo home
 	endif
 	String /g OutputPathStr = s_path
-//provide wave containers and default values for some user specefied parameters
-//if the waves already exist then they are not overwritten, this allows parameters
-//set by user to be preserved between function calls
+	//provide wave containers and default values for some user specefied parameters
+	//if the waves already exist then they are not overwritten, this allows parameters
+	//set by user to be preserved between function calls
 
-if(!waveexists(:UAdata:PointSpacingW))
-make /o/n=1 :UAdata:PointSpacingW
-:UAdata:PointSpacingW = -100
-endif
+	if(!waveexists(:UAdata:PointSpacingW))
+		make /o/n=1 :UAdata:PointSpacingW
+		:UAdata:PointSpacingW = -100
+	endif
 
-if(!waveexists(:UAdata:X0W))
-make /o/n=1 :UAdata:X0W
-:UAdata:X0W = -1000
-endif
+	if(!waveexists(:UAdata:X0W))
+		make /o/n=1 :UAdata:X0W
+		:UAdata:X0W = -1000
+	endif
 
-if(!waveexists(:UAdata:T00W))
-make /o/n=1 :UAdata:T00W
-:UAdata:T00W = 6.6E-4
-endif
-
-if(!waveexists(:UAdata:DeltaT0W))
-make /o/n=1 :UAdata:DeltaT0W
-:UAdata:DeltaT0W = 1.1E-6
-endif
-
-
-
+	//delay between uncaging and response (T0) at distance = 0 nm from spine
+	if(!waveexists(:UAdata:T00W))
+		make /o/n=1 :UAdata:T00W
+		:UAdata:T00W = 6.6E-4
+	endif
+	//change in T0 with distance in s per nm
+	if(!waveexists(:UAdata:DeltaT0W))
+		make /o/n=1 :UAdata:DeltaT0W
+		:UAdata:DeltaT0W = 1.1E-6
+	endif
 	UncagingAnalysis()
-
 endmacro
 
 //******************************************************************************
@@ -86,7 +73,6 @@ function UserDefineInitialEstimates(ParametersIn,w_coef,UncageTime,y0timeWindow,
 	//
 	//graph average response and get user input for initial estimates
 	//
-	//graph
 	dowindow /k review
 	display /n=review ParametersIn
 	SetAxis bottom (UncageTime-y0timeWindow),FitStop
@@ -140,9 +126,9 @@ end
 //******************************************************************************
 
 function UncagingAnalysis()
-//******************************************************************************
-//******************************************************************************
-//declare variables, waves, and strings
+	//******************************************************************************
+	//******************************************************************************
+	//declare variables, waves, and strings
 	//name of the uncaging response wave
 	String UncagingResponseWaveName;	Prompt UncagingResponseWaveName,"uncaging response wave name",popup,wavelist("*",";","")+"Some other wave..."
 	//name of the uncaging power wave
@@ -158,6 +144,7 @@ function UncagingAnalysis()
 	//initial estimate for uncaging response rise time
 	Variable RiseTime0 = 0.001;	Prompt RiseTime0,"response rise time initial estimate (s)"
 	Variable DelayToResponseStart = 0
+	//initial estimate for response amplitude
 	Variable Amplitude0
 	Variable Amplitude0window = 0.001; Prompt Amplitude0window,"Window size for amplitude estimate(s)"
 	//time window before uncaging pulse used to estimate y0
@@ -166,6 +153,7 @@ function UncagingAnalysis()
 	Variable UncageTime
 	//time of peak amplitude
 	Variable ResponseMaxTime
+	//dummy variable to hold user response to prompts
 	Variable UserResponse
 	//threshold value used while examining UncagingPowerWave to determine whether an algorithmically found peak is a true pulse
 	Variable threshold
@@ -181,7 +169,6 @@ function UncagingAnalysis()
 	Variable V_AbortCode = 0, V_FitError=0
 	// number of points included in fit
 	Variable nFitPoints = Inf
-	//number of "fake responses" to fit, per stimulus
 	Variable ResponseMaxTime0, DelayToResponseStart0 //intial parameter estimates
 	Variable TotalLengthUncaging
 	// Distance between uncaging points in nm, stored in a wave for persistance
@@ -225,11 +212,6 @@ function UncagingAnalysis()
 	HelpString = "UncagingResponseWaveName: the name of the wave containing the uncaging response. The units are assumed to be seconds and amps.\n\n UncagingPowerWaveName: the name of the wave containing the pockels voltage. The units are assumed to be in seconds and volts"
 	doPrompt /help=HelpString "",UncagingResponseWaveName,UncagingPowerWaveName
 
-	// if(!(cmpstr(UncagingResponseWaveName, "Some other wave..." )*cmpstr(UncagingPowerWaveName, "Some other wave..." )))
-	// 	Prompt UncagingResponseWaveName,"uncaging response wave name",popup,wavelist("*",";","")
-	// 	Prompt UncagingPowerWaveName,"uncaging power wave name",popup,wavelist("*",";","")
-	// 	doPrompt "",UncagingResponseWaveName,UncagingPowerWaveName
-	// endif
 	CurrentWaveNames[0][0] = UncagingResponseWaveName; SetDimLabel 1,0,response,CurrentWaveNames
 	CurrentWaveNames[0][1] = UncagingPowerWaveName; SetDimLabel 1,1,power,CurrentWaveNames
 
@@ -304,7 +286,7 @@ function UncagingAnalysis()
 		InsertPoints i, 1, UncageTimeW
 		UncageTimeW[i] = V_LevelX
 		i = i + 1
-		//we never have i>100 in experiments so if i>100 something is wrong with the code and we abort
+		//we never have i>100 in experiments so if i>100 something is wrong with the code or input data and we abort
 		if(i>100)//if1
 			abort("n>100 uncaging pulses found")
 		endif//if1
@@ -366,27 +348,27 @@ function UncagingAnalysis()
 
 
 
-//if user supplies a wave then use it for estimating starting parameters
-//if user supplied wave name is empty then average the first three uncaging responses
-//if user supplies a wave name but the reference does not exists, then abort
+	//if user supplies a wave then use it for estimating starting parameters
+	//if user supplied wave name is empty then average the first three uncaging responses
+	//if user supplies a wave name but the reference does not exists, then abort
 
-		make /o/n=(3,nFitPoints) :UAdata:BigResponseW
-		wave BigResponseW = :UAdata:BigResponseW
-		BigResponseW[][] = ResponseWave2d[nUncagingPulses-p-1][q]
-		if(PointSpacingV> 0)
-			BigResponseW[][] = ResponseWave2d[p][q]
-		endif
-		ColumnMeans(BigResponseW)
-		duplicate /o wColumnMeans, ResponseMeanWave
+	make /o/n=(3,nFitPoints) :UAdata:BigResponseW
+	wave BigResponseW = :UAdata:BigResponseW
+	BigResponseW[][] = ResponseWave2d[nUncagingPulses-p-1][q]
+	if(PointSpacingV> 0)
+		BigResponseW[][] = ResponseWave2d[p][q]
+	endif
+	ColumnMeans(BigResponseW)
+	duplicate /o wColumnMeans, ResponseMeanWave
 
 
-String UserAvgResponseWaveName = ""; prompt UserAvgResponseWaveName, "Name of user specified average wave name (optional)",popup,wavelist("*",";","")
-UserAvgResponseWaveName = "ResponseMeanWave"
-DoPrompt /HELP="Specify the wave name used to estimate initial parameters. \n If ResponseMeanWave (the default value) is specified, then the program estimates initial parameters using an average of 3 responses, else the program uses the named wave." "", UserAvgResponseWaveName
-// doprompt "", UserAvgResponseWaveName
-duplicate /o $UserAvgResponseWaveName temp
-duplicate /o temp ResponseMeanWave
-setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
+	String UserAvgResponseWaveName = ""; prompt UserAvgResponseWaveName, "Name of user specified average wave name (optional)",popup,wavelist("*",";","")
+	UserAvgResponseWaveName = "ResponseMeanWave"
+	DoPrompt /HELP="Specify the wave name used to estimate initial parameters. \n If ResponseMeanWave (the default value) is specified, then the program estimates initial parameters using an average of 3 responses, else the program uses the named wave." "", UserAvgResponseWaveName
+	// doprompt "", UserAvgResponseWaveName
+	duplicate /o $UserAvgResponseWaveName temp
+	duplicate /o temp ResponseMeanWave
+	setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
 
 	FitStop = FitRange
 
@@ -399,7 +381,7 @@ setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
 		// set user parameters interactively
 		// to get user input for initial paramters we call UserDefineInitialEstimates
 		// the function has inputs (ParametersIn,w_coef,UncageTime,y0timeWindow,Amplitude0window)
-		 //because we have aligned the resonse traces at the begining of the fit window, the uncaging pulse occurs at time = y0timeWindow
+		//because we have aligned the resonse traces at the begining of the fit window, the uncaging pulse occurs at time = y0timeWindow
 		UserDefineInitialEstimates(ResponseMeanWave,w_coef,y0timeWindow,y0timeWindow,Amplitude0window, ResponseMaxTime, DelayToResponseStart,FitStop)
 		ResponseMaxTime0 = ResponseMaxTime
 		DelayToResponseStart0 = DelayToResponseStart
@@ -414,7 +396,7 @@ setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
 		PauseForUser PauseForUser0, look
 		dowindow /k look
 
-				//save parameters
+		//save parameters
 		duplicate /o w_coef wAvgUncageResponseFitCoef
 		duplicate /o w_sigma wAvgUncageResponseFitCoefSE
 		DelayToResponseStart0 = w_coef[1]
@@ -425,10 +407,6 @@ setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
 		ResponseMaxTime = y0timeWindow + w_coef[1] + (w_coef[2]*w_coef[3])/(w_coef[2]-w_coef[3])*ln(w_coef[2]/w_coef[3])
 		ResponseMaxTime0 = ResponseMaxTime
 
-//		DelayToResponseStart0 = w_coef[1]
-//		Amplitude0 = w_coef[0]
-//		DecayTime0 = w_coef[2]
-//		RiseTime0 = w_coef[3]
 	endif
 	if(UserSetPar0 == 2)
 		// use parameter values set in dialog
@@ -436,10 +414,10 @@ setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
 		Amplitude0 = -10
 		w_coef = {-10,DelayToResponseStart,RiseTime0,DecayTime0,mean(ResponseMeanWave,0,y0timeWindow),y0timeWindow}
 		// perform fit of average response for display purposes
-				Display /N=look ResponseMeanWave
+		Display /N=look ResponseMeanWave
 		ModifyGraph rgb(ResponseMeanWave)=(0,0,0)
 		FuncFit/N/Q/H="000001" /NTHR=0 DiffTwoExp2 W_coef  ResponseMeanWave /D
-				//review fit
+		//review fit
 		NewPanel/K=2 /n=PauseForUser0 as "Pause for user"; AutoPositionWindow/M=1/R=look
 		Button button0,pos={80,58},size={92,20},title="Continue"; Button button0,proc=UserContinue
 		PauseForUser PauseForUser0, look
@@ -565,8 +543,8 @@ setscale /p x,0, dimdelta(UncagingResponseWave,0), ResponseMeanWave
 			endswitch
 		while(UserResponse == 2) //if user indicated to perform a refit, continue loop, else break
 
-	//******************************************************************************
-	// save fit parameters and estimates
+		//******************************************************************************
+		// save fit parameters and estimates
 		AmplitudeW[i] = w_coef[0]; AmplitudeSeW[i] = w_sigma[0]; T0W[i] = w_coef[1]
 		DecayTimeW[i] = w_coef[2]; RiseTimeW[i] = w_coef[3];	y0W[i] = w_coef[4]
 		OnsetDelayW[i] = w_coef[1];	FitStop = FitStart + FitRange
@@ -796,7 +774,7 @@ end
 //******************************************************************************
 
 macro Clean_Up()
-//killwaves UncagingResponseWave
+	//killwaves UncagingResponseWave
 endmacro
 
 //******************************************************************************
@@ -911,12 +889,12 @@ end
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 function MakeLayout()
-string CellRefImageWave
-wave /t wCellRefImageWaveName
-Prompt CellRefImageWave,"cell reference image wave name",popup,(wavelist("*",";","dims:2")+wavelist("*",";","dims:3"))
+	string CellRefImageWave
+	wave /t wCellRefImageWaveName
+	Prompt CellRefImageWave,"cell reference image wave name",popup,(wavelist("*",";","dims:2")+wavelist("*",";","dims:3"))
 
-doprompt "",CellRefImageWave
-wCellRefImageWaveName[0] = CellRefImageWave
+	doprompt "",CellRefImageWave
+	wCellRefImageWaveName[0] = CellRefImageWave
 end
 
 macro DoMakeLayout(nResponsePanelCols,LayoutWidth,LayoutHeight)
@@ -929,10 +907,10 @@ macro DoMakeLayout(nResponsePanelCols,LayoutWidth,LayoutHeight)
 	make /O/T wCellRefImageWaveName
 	nResponsePanelColsW[0] = nResponsePanelCols
 
-MakeLayout()
-dowindow /k CellRefImage
-NewImage/K=0/n=CellRefImage $wCellRefImageWaveName[0]
-ModifyGraph /w=CellRefImage tick=3,noLabel=2
+	MakeLayout()
+	dowindow /k CellRefImage
+	NewImage/K=0/n=CellRefImage $wCellRefImageWaveName[0]
+	ModifyGraph /w=CellRefImage tick=3,noLabel=2
 
 	dowindow /k SummaryFig
 	newlayout /n=SummaryFig
@@ -955,9 +933,9 @@ ModifyGraph /w=CellRefImage tick=3,noLabel=2
 
 	ModifyLayout units=0
 	i=0
-string ResponseName, TextBoxName
-string layout_info = layoutinfo("SummaryFig","layout");string LayoutSize = stringfromlist(1,stringfromlist(3,layout_info),":")
-variable layoutright = str2num(stringfromlist(2,LayoutSize,",")), variable layoutbottom = str2num(stringfromlist(3,LayoutSize,","))
+	string ResponseName, TextBoxName
+	string layout_info = layoutinfo("SummaryFig","layout");string LayoutSize = stringfromlist(1,stringfromlist(3,layout_info),":")
+	variable layoutright = str2num(stringfromlist(2,LayoutSize,",")), variable layoutbottom = str2num(stringfromlist(3,LayoutSize,","))
 	do
 		print i
 		j = 0
@@ -1008,7 +986,7 @@ variable layoutright = str2num(stringfromlist(2,LayoutSize,",")), variable layou
 
 	appendtolayout CellRefImage
 	modifylayout left(CellRefImage)=(245*nResponsePanelCols)
-//	layoutpageaction /w = SummaryFig size=( ((420+(i)*135)+min(512,420+(i)*135)),numberbykey("Top",layoutinfo("SummaryFig","SummaryFigTable")) + numberbykey("Height",layoutinfo("SummaryFig","SummaryFigTable")))
+	//	layoutpageaction /w = SummaryFig size=( ((420+(i)*135)+min(512,420+(i)*135)),numberbykey("Top",layoutinfo("SummaryFig","SummaryFigTable")) + numberbykey("Height",layoutinfo("SummaryFig","SummaryFigTable")))
 
 
 endmacro
@@ -1018,8 +996,10 @@ endmacro
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-macro DoMakeFigures(UncageSpacingV)
+macro DoMakeFigures(UncageSpacingV,OutputFormat)
 	variable UncageSpacingV = :UAdata:PointSpacingW[0]
+	string OutputFormat = "png"
+	prompt OutputFormat,"Output Format",popup "png;pdf;svg;"
 	duplicate /o $(:UAdata:currentwavenames[0][%response]) UncagingResponseWave
 
 	UncageSpacingV = abs(UncageSpacingV)
@@ -1143,71 +1123,88 @@ macro DoMakeFigures(UncageSpacingV)
 	newpath /z OutputDir, OutputPathStr
 
 	if(!v_flag==0)
-	SavePICT/O/E=-5/B=288  /win=SummaryFig as (uid[0] +".png")
+		if (StringMatch(OutputFormat, "png" ))
+			SavePICT/O/E=-5/B=288  /win=SummaryFig as (uid[0] +".png")
+		endif
+		if (StringMatch(OutputFormat, "pdf"))
+			SavePICT/O/E=-2  /win=SummaryFig as (uid[0] +".pdf")
+		endif
+		if (StringMatch(OutputFormat, "svg" ))
+			SavePICT/O/E=-9  /win=SummaryFig as (uid[0] +".svg")
+		endif
 	else
-		SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid[0] +".png")
+		if (StringMatch(OutputFormat, "png" ))
+			SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid[0] +".png")
+		endif
+		if (StringMatch(OutputFormat, "pdf" ))
+			SavePICT/O/E=-2 /p=OutputDir /win=SummaryFig as (uid[0] +".pdf")
+		endif
+		if (StringMatch(OutputFormat, "svg" ))
+			SavePICT/O/E=-9 /p=OutputDir /win=SummaryFig as (uid[0] +".svg")
+		endif
+		//SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid[0] +".png")
 	endif
 
 
-DoWindow/K SpatialRange
-display /N = SpatialRange :fitresults:amplitudew
-make /o /n=3 w_coef
-K0 = 0;
-CurveFit/H="100"/NTHR=0/TBOX=768 exp_XOffset  :FitResults:AmplitudeW /D
-redimension /n=(1,3) w_coef
-DoWindow /K SummaryInfo
-make /o /n=1 nResponse = numpnts(:FitResults:AmplitudeW)
-edit /N=SummaryInfo uid,vPockelsVoltage,w_coef,nResponse
-AutoPositionWindow /m=0 /r = SummaryFig SummaryInfo
-AutoPositionWindow /m=0 /r = SummaryInfo SpatialRange
-DoWindow /k AmplitudeData
-Edit/K=0 /n=AmplitudeData :FitResults:AmplitudeW
-autopositionwindow /m=1 /r=SummaryInfo AmplitudeData
+	DoWindow/K SpatialRange
+	display /N = SpatialRange :fitresults:amplitudew
+	make /o /n=3 w_coef
+	K0 = 0;
+	CurveFit/H="100"/NTHR=0/TBOX=768 exp_XOffset  :FitResults:AmplitudeW /D
+	redimension /n=(1,3) w_coef
+	DoWindow /K SummaryInfo
+	make /o /n=1 nResponse = numpnts(:FitResults:AmplitudeW)
+	edit /N=SummaryInfo uid,vPockelsVoltage,w_coef,nResponse
+	AutoPositionWindow /m=0 /r = SummaryFig SummaryInfo
+	AutoPositionWindow /m=0 /r = SummaryInfo SpatialRange
+	DoWindow /k AmplitudeData
+	Edit/K=0 /n=AmplitudeData :FitResults:AmplitudeW
+	autopositionwindow /m=1 /r=SummaryInfo AmplitudeData
 endmacro
 
 Macro MakeNormalizedResponse()
-string ResponseDfList = "d0;d100;d200;d300;d400;d500;d600;d700;d800;d900;d1000;d1100;d1200;d1300;d1400"
-string ResponseWaveList = "posNo_0;posNo_1;posNo_2;posNo_3;posNo_4;posNo_5;posNo_6;posNo_7;posNo_8;posNo_9;posNo_10;posNo_11;posNo_12;posNo_13;posNo_14;"
-wavestats :FitResults:AmplitudeW
+	string ResponseDfList = "d0;d100;d200;d300;d400;d500;d600;d700;d800;d900;d1000;d1100;d1200;d1300;d1400"
+	string ResponseWaveList = "posNo_0;posNo_1;posNo_2;posNo_3;posNo_4;posNo_5;posNo_6;posNo_7;posNo_8;posNo_9;posNo_10;posNo_11;posNo_12;posNo_13;posNo_14;"
+	wavestats :FitResults:AmplitudeW
 
-duplicate/o :FitResults:y0w y0w
+	duplicate/o :FitResults:y0w y0w
 
-duplicate /o :UAData:posNo_0 posNo_0
-posNo_0 = (posNo_0 - y0w[0])/abs(V_min)
-duplicate /o :UAData:posNo_1 posNo_1
-posNo_1 = (posNo_1 - y0w[1])/abs(V_min)
-duplicate /o :UAData:posNo_2 posNo_2
-posNo_2 = (posNo_2 - y0w[2])/abs(V_min)
-duplicate /o :UAData:posNo_3 posNo_3
-posNo_3 = (posNo_3 - y0w[3])/abs(V_min)
-duplicate /o :UAData:posNo_4 posNo_4
-posNo_4 = (posNo_4 - y0w[4])/abs(V_min)
-duplicate /o :UAData:posNo_5 posNo_5
-posNo_5 = (posNo_5 - y0w[5])/abs(V_min)
-duplicate /o :UAData:posNo_6 posNo_6
-posNo_6 = (posNo_6 - y0w[6])/abs(V_min)
-duplicate /o :UAData:posNo_7 posNo_7
-posNo_7 = (posNo_7 - y0w[7])/abs(V_min)
-duplicate /o :UAData:posNo_8 posNo_8
-posNo_8 = (posNo_8 - y0w[8])/abs(V_min)
-duplicate /o :UAData:posNo_9 posNo_9
-posNo_9 = (posNo_9 - y0w[9])/abs(V_min)
-duplicate /o :UAData:posNo_10 posNo_10
-posNo_10 = (posNo_10 - y0w[10])/abs(V_min)
-duplicate /o :UAData:posNo_11 posNo_11
-posNo_11 = (posNo_11 - y0w[11])/abs(V_min)
-duplicate /o :UAData:posNo_12 posNo_12
-posNo_12 = (posNo_12 - y0w[12])/abs(V_min)
-duplicate /o :UAData:posNo_13 posNo_13
-posNo_13 = (posNo_13 - y0w[13])/abs(V_min)
-duplicate /o :UAData:posNo_14 posNo_14
-posNo_14 = (posNo_14 - y0w[14])/abs(V_min)
-variable i_ = 0
-string FromThis,ToThis
+	duplicate /o :UAData:posNo_0 posNo_0
+	posNo_0 = (posNo_0 - y0w[0])/abs(V_min)
+	duplicate /o :UAData:posNo_1 posNo_1
+	posNo_1 = (posNo_1 - y0w[1])/abs(V_min)
+	duplicate /o :UAData:posNo_2 posNo_2
+	posNo_2 = (posNo_2 - y0w[2])/abs(V_min)
+	duplicate /o :UAData:posNo_3 posNo_3
+	posNo_3 = (posNo_3 - y0w[3])/abs(V_min)
+	duplicate /o :UAData:posNo_4 posNo_4
+	posNo_4 = (posNo_4 - y0w[4])/abs(V_min)
+	duplicate /o :UAData:posNo_5 posNo_5
+	posNo_5 = (posNo_5 - y0w[5])/abs(V_min)
+	duplicate /o :UAData:posNo_6 posNo_6
+	posNo_6 = (posNo_6 - y0w[6])/abs(V_min)
+	duplicate /o :UAData:posNo_7 posNo_7
+	posNo_7 = (posNo_7 - y0w[7])/abs(V_min)
+	duplicate /o :UAData:posNo_8 posNo_8
+	posNo_8 = (posNo_8 - y0w[8])/abs(V_min)
+	duplicate /o :UAData:posNo_9 posNo_9
+	posNo_9 = (posNo_9 - y0w[9])/abs(V_min)
+	duplicate /o :UAData:posNo_10 posNo_10
+	posNo_10 = (posNo_10 - y0w[10])/abs(V_min)
+	duplicate /o :UAData:posNo_11 posNo_11
+	posNo_11 = (posNo_11 - y0w[11])/abs(V_min)
+	duplicate /o :UAData:posNo_12 posNo_12
+	posNo_12 = (posNo_12 - y0w[12])/abs(V_min)
+	duplicate /o :UAData:posNo_13 posNo_13
+	posNo_13 = (posNo_13 - y0w[13])/abs(V_min)
+	duplicate /o :UAData:posNo_14 posNo_14
+	posNo_14 = (posNo_14 - y0w[14])/abs(V_min)
+	variable i_ = 0
+	string FromThis,ToThis
 	do
-FromThis = stringfromlist((V_minrowloc-i_),ResponseWaveList)
-ToThis =	 "root:"+stringfromlist(i_,ResponseDfList)+":"+stringfromlist((V_minrowloc-i_),ResponseWaveList)+"_"+ReplaceString("'", uid[0], "")
-duplicate /o $FromThis $ToThis
+		FromThis = stringfromlist((V_minrowloc-i_),ResponseWaveList)
+		ToThis =	 "root:"+stringfromlist(i_,ResponseDfList)+":"+stringfromlist((V_minrowloc-i_),ResponseWaveList)+"_"+ReplaceString("'", uid[0], "")
+		duplicate /o $FromThis $ToThis
 
 		i_ += 1
 	while (i_ <= v_minrowloc)	// as long as expression is TRUE
