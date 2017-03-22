@@ -1,9 +1,13 @@
+#pragma rtGlobals=3		// Use modern global access method and strict wave access.
 #pragma TextEncoding = "UTF-8"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 make /o /n=(750*1E5) c1
 make /o /n=(750*1E5) c2
 c1 = gnoise(1)
 c2 = gnoise(1)
+setscale /i x,0,750,c1
+setscale /i x,0,750,c2
+
 function PairedAnaylsis()
 wave w_statsttest
 string sLatency1,sData1,sLatency2,sData2
@@ -45,7 +49,7 @@ duplicate /o  wLatency1, wLatencySim
 
 variable j = 0
 make /o /n=(nEvents) CrossTalkRandom
-make /o /n=(nBoot) T_vals_1to2
+make /o /n=(nBoot) TestStat1to2
 
 for(j=0;j<nBoot;j=j+1)	// Initialize variables;continue test
 print ((pnt2x(wData1,numpnts(wData1))-(ResponsePeriod + ResponseDelay)))
@@ -56,7 +60,7 @@ print j
     CrossTalkRandom[i] = mean(wData2, (wLatencySim[i]+ResponseDelay-0.5*ResponsePeriod),(wLatencySim[i]+ResponseDelay+0.5*ResponsePeriod) ) - mean(wData2, (wLatencySim[i]-BaseLinePeriod),wLatencySim[i] )
   endfor						// Execute body code until continue test is FALSE
   StatsTTest /mean=0 /t=1 CrossTalkRandom
-  T_vals_1to2[j] = w_statsttest[5][0]
+  TestStat1to2[j] = w_statsttest[5][0]
 endfor						// Execute body code until continue test is FALSE
 
 
