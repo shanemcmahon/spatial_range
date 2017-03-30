@@ -34,6 +34,7 @@ macro DoUncagingAnalysis()
 		pathinfo home
 	endif
 	String /g OutputPathStr = s_path
+	make /o /t /n=1 wOutputPathStr = s_path
 	//provide wave containers and default values for some user specefied parameters
 	//if the waves already exist then they are not overwritten, this allows parameters
 	//set by user to be preserved between function calls
@@ -996,10 +997,12 @@ endmacro
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-macro DoMakeFigures(UncageSpacingV,OutputFormat)
+macro DoMakeFigures(UncageSpacingV,OutputFormat,sTemp)
 	variable UncageSpacingV = :UAdata:PointSpacingW[0]
-	string OutputFormat = "png"
+	string OutputFormat = "pdf"
 	prompt OutputFormat,"Output Format",popup "png;pdf;svg;"
+	string sTemp
+	Prompt sTemp, "Output Path", popup (pathlist("*",";","")+"other;")
 	duplicate /o $(:UAdata:currentwavenames[0][%response]) UncagingResponseWave
 
 	UncageSpacingV = abs(UncageSpacingV)
@@ -1116,13 +1119,9 @@ macro DoMakeFigures(UncageSpacingV,OutputFormat)
 	endif
 	DoMakeLayout()
 
-	string /g OutputPathStr
-	//wave  uid
-	v_flag = 0
-	killpath /z OutputDir
-	newpath /z OutputDir, OutputPathStr
 
-	if(!v_flag==0)
+	pathinfo $sTemp
+	if(v_flag==0)
 		if (StringMatch(OutputFormat, "png" ))
 			SavePICT/O/E=-5/B=288  /win=SummaryFig as (uid[0] +".png")
 		endif
@@ -1134,13 +1133,13 @@ macro DoMakeFigures(UncageSpacingV,OutputFormat)
 		endif
 	else
 		if (StringMatch(OutputFormat, "png" ))
-			SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid[0] +".png")
+			SavePICT/O/E=-5/B=288 /p=$sTemp /win=SummaryFig as (uid[0] +".png")
 		endif
 		if (StringMatch(OutputFormat, "pdf" ))
-			SavePICT/O/E=-2 /p=OutputDir /win=SummaryFig as (uid[0] +".pdf")
+			SavePICT/O/E=-2 /p=$sTemp /win=SummaryFig as (uid[0] +".pdf")
 		endif
 		if (StringMatch(OutputFormat, "svg" ))
-			SavePICT/O/E=-9 /p=OutputDir /win=SummaryFig as (uid[0] +".svg")
+			SavePICT/O/E=-9 /p=$sTemp /win=SummaryFig as (uid[0] +".svg")
 		endif
 		//SavePICT/O/E=-5/B=288 /p=OutputDir /win=SummaryFig as (uid[0] +".png")
 	endif
