@@ -1159,6 +1159,11 @@ macro DoMakeFigures(UncageSpacingV,OutputFormat,sTemp)
 	DoWindow /k AmplitudeData
 	Edit/K=0 /n=AmplitudeData :FitResults:AmplitudeW
 	autopositionwindow /m=1 /r=SummaryInfo AmplitudeData
+	
+	redimension /n=3 w_coef
+	concatenate /o/np {vPockelsVoltage,w_coef,nResponse,:fitresults:amplitudew},w_out
+	dowindow /k ExcelOutput
+	edit /n=ExcelOutput w_out,uid
 endmacro
 
 Macro MakeNormalizedResponse()
