@@ -182,8 +182,9 @@ Function SolveGluRt()
 ///////////////////////////////////////////////////////////////////////////////
 //if wave wBeta does not exists create it with default values
 wave beta = SetConstants()
-make /o/n=(1e4) ReceptorR = 0
-setscale /p x,0,1e-6,"s",ReceptorR
+make /o/n=(2^6) ReceptorR = 0
+//setscale /p x,0,1e-6,"s",ReceptorR
+setscale /i x,0,20e-3,"s",ReceptorR
 IntegrateODE GluR_ODE, wBeta, ReceptorR
 return 0
 end
@@ -221,3 +222,39 @@ endfor						// Execute body code until continue test is FALSE
 
 
 end
+
+
+Function FitGluRxnDiff(w,x) : FitFunc
+	Wave w
+	Variable x
+  wave wBeta
+  wave ReceptorR, Rmax
+  variable rx, vRmax
+	//CurveFitDialog/ These comments were created by the Curve Fitting dialog. Altering them will
+	//CurveFitDialog/ make the function less convenient to work with in the Curve Fitting dialog.
+	//CurveFitDialog/ Equation:
+	//CurveFitDialog/ f(x) = m*x+d*x+kf*x+kr*x+xmin*x
+	//CurveFitDialog/ End of Equation
+	//CurveFitDialog/ Independent Variables 1
+	//CurveFitDialog/ x
+	//CurveFitDialog/ Coefficients 5
+	//CurveFitDialog/ w[0] = M
+	//CurveFitDialog/ w[1] = D
+	//CurveFitDialog/ w[2] = Kf
+	//CurveFitDialog/ w[3] = Kr
+	//CurveFitDialog/ w[4] = Xmin
+  wBeta[%M] = w[0]
+  wBeta[%D] = w[1]
+  wBeta[%Kf] = w[2]
+  wBeta[%Kr] = w[3]
+  wBeta[%R] = w[4] + x
+  SolveGluRt()
+  rx = wavemax(ReceptorR)
+  // if(!exists("Rmax"))
+  wBeta[%R] = w[4]
+  SolveGluRt()
+  // make /n=1 Rmax
+  vRmax = wavemax(ReceptorR)
+  // endif
+	return rx/vRmax
+End
