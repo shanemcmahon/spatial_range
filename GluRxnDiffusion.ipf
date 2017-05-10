@@ -12,10 +12,11 @@ end
 
 Function/wave SetConstants()
 if(!exists("wBeta"))
-make /n=12 wBeta = {0.117,0.423,173,1,1,1.1e6,190,0,1,0,2,10}
+make /n=13 wBeta = {0.117,0.423,173,1,1,1.1e6,190,0,1,0,2,10,0}
 SetDimLabel 0, 0, SigmaXY, wBeta; SetDimLabel 0, 1, SigmaZ, wBeta; SetDimLabel 0, 2, D, wBeta; SetDimLabel 0, 3, R, wBeta; SetDimLabel 0, 4, M, wBeta
 SetDimLabel 0, 5, Kf, wBeta; SetDimLabel 0, 6, Kr, wBeta; SetDimLabel 0, 7, tt, wBeta;SetDimLabel 0, 8, PeakGlu, wBeta
 SetDimLabel 0, 9, Xmin, wBeta; SetDimLabel 0, 10, Xmax, wBeta; SetDimLabel 0, 11, nXsteps, wBeta
+SetDimLabel 0, 12, Kdecay, wBeta
 endif
 
 //allow user interaction to edit parameters in table
@@ -139,6 +140,7 @@ Function GluR_ODE(pw, tt, yw, dydt)
 // Variable vM = pw[%M] //ammount of diffusing substance
 // variable vKf = pw[%Kf] // forward reaction rate
 // variable vKr = pw[%Kr] // reverse reaction rate
+// variable vTau = pw[%Tau] // reverse reaction rate
 // Wave pw	//parameter wave
 // Variable tt 		// time
 // Wave yw	// current y values
@@ -160,8 +162,15 @@ variable vR = pw[%R]//distance from origin in xy plane in µm
 Variable vM = pw[%M] //ammount of diffusing substance
 variable vKf = pw[%Kf]
 variable vKr = pw[%Kr]
+variable vKdecay = pw[%Kdecay] // reverse reaction rate
+variable vGlu
+if (vKdecay == 0)
+vGlu = ((vM*exp(((-1)*(vR^2))/(4*vD*(tt)+(2*(vSigmaXY^2)))))/(((2*pi)^1.5)*(2*vD*(tt)+(vSigmaXY^2))*sqrt(2*vD*(tt)+(vSigmaZ)^2)))
+ else
+vGlu = (exp(-vKdecay*tt))*((vM*exp(((-1)*(vR^2))/(4*vD*(tt)+(2*(vSigmaXY^2)))))/(((2*pi)^1.5)*(2*vD*(tt)+(vSigmaXY^2))*sqrt(2*vD*(tt)+(vSigmaZ)^2)))
+ endif
 
-variable vGlu = (vM*exp(((-1)*(vR^2))/(4*vD*(tt)+(2*(vSigmaXY^2)))))/(((2*pi)^1.5)*(2*vD*(tt)+(vSigmaXY^2))*sqrt(2*vD*(tt)+(vSigmaZ)^2))
+
 
 dydt[0] = vKf*vGlu *(1 - yw[0]) - vKr*yw[0]
 return 0
@@ -182,7 +191,7 @@ Function SolveGluRt()
 ///////////////////////////////////////////////////////////////////////////////
 //if wave wBeta does not exists create it with default values
 wave beta = SetConstants()
-make /o/n=(2^6) ReceptorR = 0
+make /o/n=(2^7) ReceptorR = 0
 //setscale /p x,0,1e-6,"s",ReceptorR
 setscale /i x,0,20e-3,"s",ReceptorR
 IntegrateODE GluR_ODE, wBeta, ReceptorR
@@ -237,17 +246,19 @@ Function FitGluRxnDiff(w,x) : FitFunc
 	//CurveFitDialog/ End of Equation
 	//CurveFitDialog/ Independent Variables 1
 	//CurveFitDialog/ x
-	//CurveFitDialog/ Coefficients 5
+	//CurveFitDialog/ Coefficients 6
 	//CurveFitDialog/ w[0] = M
 	//CurveFitDialog/ w[1] = D
 	//CurveFitDialog/ w[2] = Kf
 	//CurveFitDialog/ w[3] = Kr
 	//CurveFitDialog/ w[4] = Xmin
+  //CurveFitDialog/ w[5] = Kdecay
   wBeta[%M] = w[0]
   wBeta[%D] = w[1]
   wBeta[%Kf] = w[2]
   wBeta[%Kr] = w[3]
   wBeta[%R] = w[4] + x
+  wBeta[%Kdecay] = w[5]
   SolveGluRt()
   rx = wavemax(ReceptorR)
   // if(!exists("Rmax"))
