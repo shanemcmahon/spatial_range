@@ -12,11 +12,13 @@ end
 
 Function/wave SetConstants()
 if(!exists("wBeta"))
-make /n=13 wBeta = {0.117,0.423,173,1,1,1.1e6,190,0,1,0,2,10,0}
+make /n=15 wBeta = {0.117,0.423,173,1,1,1.1e6,190,0,1,0,2,10,0,2^8,5e-3}
 SetDimLabel 0, 0, SigmaXY, wBeta; SetDimLabel 0, 1, SigmaZ, wBeta; SetDimLabel 0, 2, D, wBeta; SetDimLabel 0, 3, R, wBeta; SetDimLabel 0, 4, M, wBeta
 SetDimLabel 0, 5, Kf, wBeta; SetDimLabel 0, 6, Kr, wBeta; SetDimLabel 0, 7, tt, wBeta;SetDimLabel 0, 8, PeakGlu, wBeta
 SetDimLabel 0, 9, Xmin, wBeta; SetDimLabel 0, 10, Xmax, wBeta; SetDimLabel 0, 11, nXsteps, wBeta
 SetDimLabel 0, 12, Kdecay, wBeta
+SetDimLabel 0, 13, NumPntsReceptorR, wBeta
+SetDimLabel 0, 14, TimeScaleReceptorR, wBeta
 endif
 
 //allow user interaction to edit parameters in table
@@ -191,9 +193,9 @@ Function SolveGluRt()
 ///////////////////////////////////////////////////////////////////////////////
 //if wave wBeta does not exists create it with default values
 wave beta = SetConstants()
-make /o/n=(2^7) ReceptorR = 0
+make /o/n=(beta[%NumPntsReceptorR]) ReceptorR = 0
 //setscale /p x,0,1e-6,"s",ReceptorR
-setscale /i x,0,20e-3,"s",ReceptorR
+setscale /i x,0,beta[%TimeScaleReceptorR],"s",ReceptorR
 IntegrateODE GluR_ODE, wBeta, ReceptorR
 return 0
 end
@@ -207,8 +209,6 @@ end
 
 Function BoundFractionVsDist()
 wave wBeta = setM()
-// make /o/n=(wBeta[%nXsteps]) X_Positions
-// setscale /i x,wBeta[%Xmin],wBeta[%Xmax],X_Positions
 KillWaves /z ReceptorR_Seq
 make /o/n=(wBeta[%nXsteps]) BoundFractionMax
 setscale /i x,(wBeta[%Xmin]),(wBeta[%Xmax]),"µm",BoundFractionMax

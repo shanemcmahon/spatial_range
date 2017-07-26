@@ -5,10 +5,10 @@
 //
 //******************************************************************************
 //******************************************************************************
-Function UserContinue(ctrlName) : ButtonControl
-	String ctrlName
-	DoWindow/K PauseForUser0
-End
+//Function UserContinue(ctrlName) : ButtonControl
+//	String ctrlName
+//	DoWindow/K PauseForUser0
+//End
 
 //******************************************************************************
 //******************************************************************************
